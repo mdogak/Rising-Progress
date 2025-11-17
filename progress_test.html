@@ -273,15 +273,7 @@ document.querySelectorAll('input[type="file"]').forEach(el=>{
 <h2>Scopes</h2>
 </div>
 <div class="toolbar" style="margin:8px 0 4px 0">
-<button id="presetReset" style="display:none"></button>
-<button id="presetPipeline" style="display:none"></button>
-<button id="presetMech" style="display:none"></button>
-<button id="presetIE" style="display:none"></button>
 <script>
-document.getElementById('presetReset').addEventListener('click', ()=>{ ensureDefaultScopes(); computeAndRender(); });
-document.getElementById('presetPipeline').addEventListener('click', ()=>{ applyPreset(PRESETS.Pipeline); });
-document.getElementById('presetMech').addEventListener('click', ()=>{ applyPreset(PRESETS.Mech); });
-document.getElementById('presetIE').addEventListener('click', ()=>{ applyPreset(PRESETS.IE); });
 </script>
 
 
@@ -441,24 +433,7 @@ $('#scopeRows').addEventListener('click', (e)=>{
 /*****************
  * Presets
  *****************/
-const PRESETS = {
-  Pipeline: [
-    'Mobilization','Mats/Clear/Grade ROW','String Pipe','Weld Pipe','Coat Pipe','Trenching','Bores',
-    'Lower-In/Backfill','Tie-Ins','Clean Up ROW','Site - Concrete Civil','Site - Pipe prefab','Site - Hot Taps',
-    'Site - Pipe Install','Site - Paint','Final Bolt Up','Hydrotest','Seeding','Demobilization'
-  ],
-  Mech: [
-    'Mobilization','Grading','Foundations','Install Structural Steel/Supports','Fabricate/Install Pipe Rack',
-    'Grouting','Building Installation','Install Bollards','Install Access Stairs/Platforms','Fabricate Piping',
-    'Install Piping Spools','Set Equipment','Hydrotesting','Coating','Rocking','Demobilization'
-  ],
-  IE: [
-    'Mobilization','Install Cable Tray','Install Conduit','Install Devices','Install Control Cabinets','Install MCC',
-    'Pull Cable','Install Grounding','Install Process Tubing','Final Terminations','Install Lighting','Demobilization'
-  ]
-};
-function scopesFrom(labels){ return labels.map(lbl=>({label: lbl, start:'', end:'', cost:0, actualPct:0, unitsToDate:0, totalUnits:'', unitsLabel:'%'})); }
-function applyPreset(labels){ model.scopes = scopesFrom(labels); model.history = []; model.dailyActuals = {}; syncScopeRowsToModel(); computeAndRender(); }
+
 
 /*****************
  * Calculations
@@ -1011,11 +986,7 @@ function buildAllCSV(){
     } else {
       percentComplete = (progressValue || 0).toFixed(1);
     } out += csvLine([s.label, s.start, s.end, s.cost, progressValue, s.totalUnits===''? '' : s.totalUnits, s.unitsLabel||'', percentComplete]); }); out += '\n';
-  function presetRows(name, labels){ out += `#SECTION:PRESET_${name}\n`; out += csvLine(['label','start','end','cost','progressValue','totalUnits','unitsLabel']); const arr = labels.map((lbl,idx)=>{ if(name==='DEFAULT'){ if(idx===0){ const st = (()=>{ const d=new Date(today); d.setDate(d.getDate()-1); return fmtDate(d); })(); const e = (()=>{ const d = parseDate(st); const ed=new Date(d.getTime()); ed.setDate(ed.getDate()+7); return fmtDate(ed); })(); return {label: `Scope #${idx+1}`, start: st, end: e, cost:100, progressValue:0, totalUnits:'', unitsLabel:'%'}; } return {label: `Scope #${idx+1}`, start:'', end:'', cost:0, progressValue:0, totalUnits:'', unitsLabel:'%'}; } else { return {label: lbl, start:'', end:'', cost:0, progressValue:0, totalUnits:'', unitsLabel:'%'}; } }); arr.forEach(r=> out += csvLine([r.label,r.start,r.end,r.cost,r.progressValue,r.totalUnits,r.unitsLabel])); out += '\n'; }out += '#SECTION:DAILY_ACTUALS\n'; out += csvLine(['date','actualPct']); Object.keys(model.dailyActuals).sort().forEach(d=>{ out += csvLine([d, model.dailyActuals[d]]); }); out += '\n';
-  out += '#SECTION:HISTORY\n'; out += csvLine(['date','actualPct']); model.history.sort((a,b)=> a.date.localeCompare(b.date)).forEach(h=>{ out += csvLine([h.date, h.actualPct]); }); out += '\n';
-  out += '#SECTION:BASELINE\n'; out += csvLine(['date','baseline_planned']); const base = model.baseline && model.baseline.days? model.baseline : {days, planned: baselineCum}; for(let i=0;i<base.days.length;i++){ out += csvLine([base.days[i], base.planned[i]]); } out += '\n';
-  out += '#SECTION:DAILY_SERIES\n'; out += csvLine(['date','baseline_cumulative','planned_cumulative','actual_cumulative']); for(let i=0;i<days.length;i++){ const a = actualCum[i]==null? '' : Number(actualCum[i]).toFixed(1); const p = plannedCum[i]==null? '' : Number(plannedCum[i]).toFixed(1); const b = baselineCum[i]==null? '' : Number(baselineCum[i]).toFixed(1); out += csvLine([days[i], b, p, a]); }
-  return out;
+    return out;
 }
 
 async function saveAll(){
@@ -1164,10 +1135,6 @@ $('#snapshot').addEventListener('click', ()=>{ const chosen=document.getElementB
 // Toolbar Save/Load/Clear with confirmations
 $('#toolbarClear').addEventListener('click', ()=>{ if(!confirm('Clear scope fields and history?')) return; const ps = calcEarliestStart(); model.scopes = model.scopes.map(s=> ({...s, start:'', end:'', cost:0, unitsToDate:0, totalUnits:'', actualPct:0 })); if(ps){ const psStr = fmtDate(ps); Object.keys(model.dailyActuals).forEach(k=>{ if(k>=psStr) delete model.dailyActuals[k]; }); model.history = model.history.filter(h=> h.date < psStr); } syncScopeRowsToModel(); computeAndRender(); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); });
 
-$('#presetReset').addEventListener('click', ()=>{ if(!confirm('Reload with Default preset?')) return; defaultAll(); });
-$('#presetPipeline').addEventListener('click', ()=>{ if(!confirm('Reload with Pipeline preset?')) return; if(!loadPipelineFromEmbeddedCSV()){ applyPreset(PRESETS.Pipeline); } });
-$('#presetMech').addEventListener('click', ()=>{ if(!confirm('Reload with Mech Facility preset?')) return; applyPreset(PRESETS.Mech); });
-$('#presetIE').addEventListener('click', ()=>{ if(!confirm('Reload with I&E Facility preset?')) return; applyPreset(PRESETS.IE); });
 
 // Baseline button behavior
 $('#baselineBtn').addEventListener('click', ()=>{
@@ -1321,7 +1288,6 @@ Hydrotest,2025-11-18,2025-12-15,6.6,0,,%
 Seeding,2026-01-23,2026-02-05,0.6,0,,%
 Demobilization,2026-01-22,2026-01-24,0.6,0,,%
 
-#SECTION:PRESET_DEFAULT
 label,start,end,cost,progressValue,totalUnits,unitsLabel
 Scope #1,2025-11-10,2025-11-17,100,0,,%
 Scope #2,,,0,0,,%
@@ -1434,16 +1400,12 @@ document.addEventListener('DOMContentLoaded', function () {
         // reuse existing file loader
         uploadCSVAndLoad();
       } else if (act === 'default') {
-        const btnReset = document.getElementById('presetReset');
         if (btnReset) btnReset.click();
       } else if (act === 'pipeline') {
-        const btnPipe = document.getElementById('presetPipeline');
         if (btnPipe) btnPipe.click();
       } else if (act === 'mech') {
-        const btnMech = document.getElementById('presetMech');
         if (btnMech) btnMech.click();
       } else if (act === 'ie') {
-        const btnIE = document.getElementById('presetIE');
         if (btnIE) btnIE.click();
       }
       closeDropdown();
