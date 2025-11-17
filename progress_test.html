@@ -369,8 +369,7 @@ function defaultScope(i){
 }
 
 function ensureRows(n){ const cont = $('#scopeRows'); const cur = cont.children.length; for(let i=cur;i<n;i++) cont.appendChild(renderScopeRow(i)); }
-function ensureDefaultScopes(){ model.scopes = Array.from({length:5}, (_,i)=> defaultScope(i)); syncScopeRowsToModel(); }
-function syncScopeRowsToModel(){ const cont = $('#scopeRows'); cont.innerHTML = ''; for(let i=0;i<model.scopes.length;i++) cont.appendChild(renderScopeRow(i)); if(model.scopes.length===0) ensureRows(5); }
+function syncScopeRowsToModel(){ const cont = $('#scopeRows'); cont.innerHTML = ''; for(let i=0;i<model.scopes.length;i++) cont.appendChild(renderScopeRow(i)); }
 
 function renderScopeRow(i){
   const row = document.createElement('div'); row.className = 'row'; row.dataset.index = i; const s = model.scopes[i] || defaultScope(i); if(!model.scopes[i]) model.scopes[i] = s;
@@ -594,7 +593,7 @@ function updateBelowChartStats(days, baselineCum, plannedCum, actualCum){
   el.innerHTML = ``;
 }
 function computeAndRender(){
-  if($('#scopeRows').children.length===0 && model.scopes.length===0){ ensureRows(5); }
+  // Moved baseline/planned percentages into the legend; leave this area empty.
   model.project.name = $('#projectName').value.trim();
   model.project.startup = $('#projectStartup').value;
   model.project.markerLabel = ($('#startupLabelInput').value || 'Baseline Complete').trim();
@@ -976,9 +975,7 @@ function csvLine(arr){ return arr.map(csvEsc).join(',') + '\n'; }
 function buildAllCSV(){
   const {days, plannedCum} = calcPlannedSeriesByDay(); const actualCum = calcActualSeriesByDay(days); const baselineCum = getBaselineSeries(days, plannedCum);
   let out = '';
-  out += '#SECTION:PROJECT\n'; out += csvLine(['key','value']); out += csvLine(['name', model.project.name||'']); out += csvLine(['startup', model.project.startup||'']); out += csvLine(['markerLabel', model.project.markerLabel||'Baseline Complete']); out += '\n';
-  out += '#SECTION:SCOPES\n'; out += csvLine(['label','start','end','cost','progressValue','totalUnits','unitsLabel','percentComplete']); model.scopes.forEach(s=>{ const progressValue = (s.totalUnits? s.unitsToDate : s.actualPct);
-    let percentComplete;
+        let percentComplete;
     if (s.totalUnits && parseFloat(s.totalUnits) > 0) {
       const total = parseFloat(s.totalUnits);
       const units = s.unitsToDate;
@@ -1153,7 +1150,7 @@ $('#baselineBtn').addEventListener('click', ()=>{
  *****************/
 (function runSelfTests(){
   try{
-    ensureDefaultScopes();
+
     const plan = calcPlannedSeriesByDay();
     console.assert(Array.isArray(plan.days), 'plan.days should be an array');
     console.assert(plan.days.length>=1, 'plan.days should not be empty');
@@ -1166,7 +1163,7 @@ $('#baselineBtn').addEventListener('click', ()=>{
 /*****************
  * Init
  *****************/
-ensureDefaultScopes();
+
 computeAndRender();
 computeAndRender();
 
@@ -1244,58 +1241,6 @@ function parseAndLoadFullCSV(text){
   setCookie(COOKIE_KEY, JSON.stringify(model), 3650);
 }
 
-function loadPipelineFromEmbeddedCSV(){
-  const el = document.getElementById('pipelineCsv');
-  const csvText = el ? (el.textContent || '').trim() : '';
-  if(csvText){
-    try{
-      parseAndLoadFullCSV(csvText);
-      return true;
-    }catch(e){
-      console.error('Failed to load embedded Pipeline CSV:', e);
-    }
-  }
-  return false;
-}
-</script>
-
-<script id="pipelineCsv" type="text/csv">
-#SECTION:PROJECT
-key,value
-name,Pipeline
-startup,2025-12-20
-markerLabel,Baseline Complete
-
-#SECTION:SCOPES
-label,start,end,cost,progressValue,totalUnits,unitsLabel
-Mobilization,2025-08-25,2025-09-13,4.4,100,,%
-Mats/Clear/Grade ROW,2025-09-05,2025-10-04,9.9,143288,143288,Feet
-String Pipe,2025-09-11,2025-10-17,2.7,143288,143288,Feet
-Weld Pipe,2025-09-22,2025-10-22,9.5,143288,143288,Feet
-Coat Pipe,2025-09-24,2025-11-03,2,110200,143288,Feet
-Trenching,2025-09-25,2025-11-04,29.8,117679,143288,Feet
-Bores,2025-09-25,2025-11-06,20.8,18,,%
-Lower-In/Backfill,2025-09-30,2025-11-08,1.6,64868,143288,Feet
-Tie-Ins,2025-10-09,2025-11-17,4.6,37,,%
-Clean Up ROW,2025-11-10,2026-01-22,3.6,2500,143288,Feet
-Site - Concrete Civil,2025-10-06,2025-10-16,0.6,15,,%
-Site - Pipe prefab,2025-10-23,2025-11-03,1.3,6,,%
-Site - Hot Taps,2025-11-04,2025-11-10,0.4,0,,%
-Site - Pipe Install,2025-11-04,2025-11-10,0.4,0,,%
-Site - Paint,2025-12-16,2026-01-21,0.3,0,,%
-Final Bolt Up,2025-12-15,2025-12-17,0.3,0,,%
-Hydrotest,2025-11-18,2025-12-15,6.6,0,,%
-Seeding,2026-01-23,2026-02-05,0.6,0,,%
-Demobilization,2026-01-22,2026-01-24,0.6,0,,%
-
-label,start,end,cost,progressValue,totalUnits,unitsLabel
-Scope #1,2025-11-10,2025-11-17,100,0,,%
-Scope #2,,,0,0,,%
-Scope #3,,,0,0,,%
-Scope #4,,,0,0,,%
-Scope #5,,,0,0,,%
-
-</script>
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
@@ -1427,10 +1372,23 @@ document.addEventListener('DOMContentLoaded', function () {
 
 <script>
 function loadFromCsvText(text){
-  const rows = parseCSV(text);
-  // reset and use existing logic by simulating upload?
-  // For now just alert
-  // TODO integrate parser
+  try{
+    const rows = parseCSV(text); let section = ''; model = { project:{name:'',startup:'', markerLabel:'Baseline Complete'}, scopes:[], history:[], dailyActuals:{}, baseline:null, daysRelativeToPlan:null };
+    try{ computeAndRender(); }catch(e){}
+            let scopeHeaders = []; let baselineRows = [];
+            for(let r of rows){ if(r.length===1 && r[0].startsWith('#SECTION:')){ section = r[0].slice('#SECTION:'.length).trim(); continue; } if(r.length===0 || (r.length===1 && r[0]==='')) continue;
+              if(section==='PROJECT'){ if(r[0]==='key') { continue; } if(r[0]==='name') model.project.name = r[1]||''; if(r[0]==='startup') model.project.startup = r[1]||''; if(r[0]==='markerLabel') model.project.markerLabel = r[1]||'Baseline Complete'; }
+              else if(section==='SCOPES'){ if(!scopeHeaders.length){ scopeHeaders = r; continue; } const idx = (name)=> scopeHeaders.indexOf(name); const s = { label: r[idx('label')]||'', start: r[idx('start')]||'', end: r[idx('end')]||'', cost: parseFloat(r[idx('cost')]||'0')||0, unitsToDate: parseFloat(r[idx('progressValue')]||'0')||0, totalUnits: (r[idx('totalUnits')]===undefined||r[idx('totalUnits')]==='')? '' : (parseFloat(r[idx('totalUnits')])||0), unitsLabel: r[idx('unitsLabel')]||'%', actualPct: 0 }; s.actualPct = s.totalUnits? (s.unitsToDate && s.totalUnits? (s.unitsToDate/s.totalUnits*100) : 0) : (s.unitsToDate||0); model.scopes.push(s); }
+              else if(section==='DAILY_ACTUALS'){ if(r[0]==='date') continue; const d = r[0]; const a = r[1]; if(d){ model.dailyActuals[d] = a===''? undefined : clamp(parseFloat(a)||0,0,100); } }
+              else if(section==='HISTORY'){ if(r[0]==='date') continue; if(r[0]) model.history.push({date:r[0], actualPct: parseFloat(r[1]||'0')||0}); }
+              else if(section==='BASELINE'){ if(r[0]==='date') continue; baselineRows.push({date:r[0], val: (r[1]===''? null : parseFloat(r[1]||'0'))}); }
+            }
+            if(baselineRows.length){ model.baseline = { days: baselineRows.map(r=>r.date), planned: baselineRows.map(r=> (r.val==null? null : clamp(r.val,0,100))) }; }
+            $('#projectName').value = model.project.name||''; $('#projectStartup').value = model.project.startup||''; $('#startupLabelInput').value = model.project.markerLabel || 'Baseline Complete';
+            syncScopeRowsToModel(); computeAndRender(); setCookie(COOKIE_KEY, JSON.stringify(model), 3650);
+  }catch(err){
+    alert('Failed to parse CSV: '+err.message);
+  }
 }
 </script>
 
