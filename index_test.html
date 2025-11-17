@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Rising Progress</title>
+
+<!-- ============================
+     EASY TIMING CONTROL SECTION
+     ============================ -->
+<script>
+    const DELAY_LINE1 = 3000;     
+    const DELAY_LINE2 = 3000;     
+    const DELAY_LINE3 = 2000; 
+    const DELAY_FADEOUT = 3000;   
+
+    const TIME_LINE1 = DELAY_LINE1;
+    const TIME_LINE2 = TIME_LINE1 + DELAY_LINE2;
+    const TIME_LINE3 = TIME_LINE2 + DELAY_LINE3;
+    const TIME_FADEOUT = TIME_LINE3 + DELAY_FADEOUT;
+</script>
+
+<style>
+    body {
+        margin: 0;
+        font-family: 'Segoe UI', sans-serif;
+        background: #f8f9fb;
+        overflow: hidden;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+    }
+
+    .container {
+        width: 100%;
+        text-align: center;
+        animation: fadeIn 1.5s forwards;
+        opacity: 0;
+        position: relative;
+        padding-bottom: 140px;
+    }
+
+    @keyframes fadeIn { to { opacity: 1; } }
+
+    .logo {
+        width: 180px;
+        margin-bottom: 3px;
+        opacity: 0;
+        animation: fadeUp 1.5s forwards;
+    }
+
+    .headline {
+        font-size: 2rem;
+        margin-bottom: 10px;
+        font-weight: 700; /* now bold */
+        color: #2563eb;
+        opacity: 0;
+        animation: fadeUp 1.5s forwards;
+        animation-delay: 0.4s;
+    }
+
+    @keyframes fadeUp {
+        0% { opacity: 0; transform: translateY(20px); }
+        100% { opacity: 1; transform: translateY(0); }
+    }
+
+    .line {
+        max-width: 700px;
+        margin: 14px auto;
+        font-size: 1.2rem;
+        line-height: 1.6rem;
+        opacity: 0;
+    }
+
+    .orange {
+        color: #ea580c;
+        font-weight: 700;
+    }
+
+    .progress-bar-wrapper {
+        position: absolute;
+        bottom: 25px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 70%;
+        max-width: 600px;
+        height: 12px;
+        background: #e5e7eb;
+        border-radius: 6px;
+        overflow: hidden;
+    }
+
+    .progress-bar {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, #ea580c, #2563eb);
+        animation: growBar 10s forwards;
+    }
+
+    @keyframes growBar {
+        from { width: 0%; }
+        to { width: 85%; }
+    }
+
+    .slide-away {
+        animation: fadeOutUp 1s forwards;
+    }
+
+    @keyframes fadeOutUp {
+        0% { opacity: 1; transform: translateY(0); }
+        100% { opacity: 0; transform: translateY(-80px); }
+    }
+
+    .skip-btn {
+        position: absolute;
+        bottom: -5px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 10px 26px;
+        background: #2563eb;
+        color: white;
+        border-radius: 8px;
+        text-decoration: none;
+        font-size: 1rem;
+    }
+</style>
+</head>
+
+<body>
+
+<div id="main" class="container">
+
+    <img src="risingprogress.png" class="logo" />
+
+    <div class="headline">Simply Track Progress With Clarity</div>
+
+    <div id="line1" class="line">
+        <strong>Knowing where you are only matters if you know where you should be.</strong>
+    </div>
+
+    <div id="line2" class="line">
+        Rising Progress helps you see where your project stands, where it should be,
+    </div>
+
+    <div id="line3" class="line orange">
+        and what you need to do to stay on track.
+    </div>
+
+    <div class="progress-bar-wrapper">
+        <div class="progress-bar"></div>
+    </div>
+
+</div>
+
+<a id="skipBtn" class="skip-btn" href="#">Skip Intro →</a>
+
+<script>
+    const line1 = document.getElementById("line1");
+    const line2 = document.getElementById("line2");
+    const line3 = document.getElementById("line3");
+    const main = document.getElementById("main");
+    const skip = document.getElementById("skipBtn");
+
+    setTimeout(() => { line1.style.transition = "opacity 1.5s"; line1.style.opacity = 1; }, TIME_LINE1);
+    setTimeout(() => { line2.style.transition = "opacity 1.5s"; line2.style.opacity = 1; }, TIME_LINE2);
+    setTimeout(() => { line3.style.transition = "opacity 1.5s"; line3.style.opacity = 1; }, TIME_LINE3);
+
+    function fadeAndGo() {
+        skip.style.display = "none";
+        main.classList.add("slide-away");
+        setTimeout(() => { window.location.href = "progress_test.html"; }, 1000);
+    }
+
+    setTimeout(fadeAndGo, TIME_FADEOUT);
+    skip.onclick = fadeAndGo;
+</script>
+
+</body>
+</html>
