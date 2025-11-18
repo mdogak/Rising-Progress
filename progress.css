@@ -1,0 +1,210 @@
+
+    :root{
+      --bg:#ffffff;
+      --panel:#f8fafc;/* slate-50 */
+      --muted:#cbd5e1;/* slate-300 */
+      --text:#0f172a;/* slate-900 */
+      --accent:#2563eb;/* blue-600 */
+      --accent-2:#ea580c;/* orange-600 */
+      --danger:#dc2626;/* red-600 */
+      --ok:#16a34a;/* green-600 */
+      --border:#e2e8f0;/* slate-200 */
+      --grid:#94a3b8;/* slate-400 */
+      --baseline:#6b7280;/* gray-500 */
+    }
+    html,body{height:100%}
+    body{margin:0;background:var(--bg);color:var(--text);font:17.5px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial}
+    h1,h2,h3{margin:0 0 .5rem}
+    .wrap{max-width:1280px;margin:0 auto;padding:24px}
+    .grid{display:grid;gap:16px}
+    .cols-2{grid-template-columns:
+    180px   /* Scope */
+    120px   /* Start */
+    120px   /* End */
+    120px   /* Cost / % Weight */
+    100px   /* Total Units */
+    130px   /* % or Units to Date */
+    80px    /* Units */
+    100px   /* Planned */
+    80px    /* Actions */;border:1px solid var(--border);border-radius:16px;padding:16px;box-shadow:0 6px 18px rgba(2,6,23,.06)}
+    label{font-weight:600;display:block;margin:.25rem 0}
+    input,select,button,textarea{background:#ffffff;color:var(--text);border:1px solid var(--border);border-radius:10px;padding:8px 10px}
+    input[type=date]{cursor:pointer}
+    button{cursor:pointer}
+    .row{
+  display:grid;
+  grid-template-columns:
+    180px   /* Scope */
+    120px   /* Start */
+    120px   /* End */
+    120px   /* Cost / % Weight */
+    100px   /* Total Units */
+    130px   /* % or Units to Date */
+    80px    /* Units */
+    100px   /* Planned */
+    80px    /* Actions */;  /* Actions */
+  gap:8px;
+  align-items:center;
+}
+    
+    .row > * { min-width: 0; } /* allow grid children to shrink and avoid overflow */
+    .row input, .row select { width: 100%; box-sizing: border-box; } /* inputs fit inside their cell */
+    .row input[type="number"] { text-align: right; } /* keep numbers tidy */
+.row.head{font-weight:700;opacity:.95}
+    .row + .row{margin-top:8px}
+    .muted{opacity:.7}
+    .danger{color:var(--danger)}
+    .ok{color:var(--ok)}
+    .pill{display:inline-flex;gap:6px;align-items:flex-start;border-radius:12px;padding:6px 10px;background:#ffffff;border:1px solid var(--border);flex-direction:row; align-items:center}
+    .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    table{width:auto;border-collapse:collapse}
+    th,td{padding:6px 8px;border-bottom:1px solid var(--border);text-align:left}
+    .center{text-align:center}
+    .right{text-align:right}
+    .small{font-size:15px}
+    .red-border{border-color:var(--danger)!important}
+    .tr-actions{display:flex;gap:6px}
+    .footer{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    canvas{width:100%!important;height:520px!important;background:#ffffff;border:1px solid var(--border);border-radius:12px}
+    .narrow{max-width:720px}
+    .stack-when-narrow{display:grid;grid-template-columns:
+    180px   /* Scope */
+    120px   /* Start */
+    120px   /* End */
+    120px   /* Cost / % Weight */
+    100px   /* Total Units */
+    130px   /* % or Units to Date */
+    80px    /* Units */
+    100px   /* Planned */
+    80px    /* Actions */;gap:16px}
+    .row .iconbtn{padding:4px 8px;border-radius:8px}
+    .row .iconbtn.add{background:#ecfeff;border:1px solid #cffafe}
+    .row .iconbtn.del{background:#fff1f2;border:1px solid #fee2e2}
+    .actions{display:flex;gap:6px;justify-content:center}
+    .btn-primary{background:var(--ok)!important;color:#fff!important;font-weight:700;border-color:#16a34a}
+    .chart-header{display:flex;justify-content:space-between;gap:12px;align-items:end;margin-bottom:8px}
+    .chart-header .left,.chart-header .right{display:flex;gap:8px;align-items:end}
+    .input-inline label{display:block;font-size:12px;margin-bottom:2px}
+    .input-inline input{min-width:90px}
+    .right-input{ text-align:right }
+    .inline-skinny{width:200px; } /* narrower label field */
+    @media (max-width: 640px){ .chart-header{flex-direction:row; align-items:center;align-items:stretch} .input-inline input{width:100%} .row{grid-template-columns:
+    180px   /* Scope */
+    120px   /* Start */
+    120px   /* End */
+    120px   /* Cost / % Weight */
+    100px   /* Total Units */
+    130px   /* % or Units to Date */
+    80px    /* Units */
+    100px   /* Planned */
+    80px    /* Actions */;grid-auto-rows:auto} }
+    #projectStartup{width:150px}
+  
+/* ++ Enlarged UI text (125%) ++ */
+.chart-header .input-inline label,
+#projectName,
+#startupLabelInput,
+#projectStartup,
+.chart-header .right label { font-size: 1.25em; }
+
+
+/* Custom HTML legend mimicking Chart.js with Baseline checkbox */
+.custom-legend{
+  display:flex;
+  gap:16px;
+  align-items:center;
+  flex-wrap:wrap;
+  margin-top:8px;
+  font-size: 1em; /* inherits global scale */
+}
+.custom-legend .legend-item{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+}
+.custom-legend .swatch{
+  width:14px; height:14px; border-radius:3px; display:inline-block;
+  border:1px solid var(--border);
+}
+.custom-legend .legend-btn{
+  background:#fff; border:1px solid var(--border); border-radius:8px; padding:4px 8px; cursor:pointer;
+}
+
+
+/* Legend with colored text + checkboxes (no swatches) */
+.custom-legend{
+  display:flex;
+  gap:20px;
+  align-items:center;
+  flex-wrap:wrap;
+  margin-top:8px;
+}
+.custom-legend label.legend-item{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  font-weight:600;
+}
+.custom-legend input[type="checkbox"]{
+  width:16px; height:16px;
+}
+.legend-baseline{ color: rgba(107,114,128,1); }   /* gray-500 */
+.legend-planned{  color: rgba(37,99,235,1); }     /* blue-600 */
+.legend-actual{   color: rgba(234,88,12,1); }     /* orange-600 */
+#legendBaselineCheckbox{ accent-color: rgba(107,114,128,1); }
+#legendPlannedCheckbox{  accent-color: rgba(37,99,235,1); }
+#legendActualCheckbox{   accent-color: rgba(234,88,12,1); }
+
+
+/* Legend with subtext lines and colored labels */
+.custom-legend{ display:flex; gap:22px; align-items:flex-start; flex-wrap:wrap; margin-top:8px; }
+.custom-legend .legend-item{ display:flex; flex-direction:column; gap:4px; font-weight:600; }
+.custom-legend .legend-row{ display:flex; align-items:center; gap:8px; }
+.custom-legend input[type="checkbox"]{ width:16px; height:16px; }
+.legend-baseline{ color: rgba(107,114,128,1); }
+.legend-planned{  color: rgba(37,99,235,1); }
+.legend-actual{   color: rgba(234,88,12,1); }
+#legendBaselineCheckbox{ accent-color: rgba(107,114,128,1); }
+#legendPlannedCheckbox{  accent-color: rgba(37,99,235,1); }
+#legendActualCheckbox{   accent-color: rgba(234,88,12,1); }
+.legend-sub{ font-weight:500; font-size:.95em; }
+/* Match bottom-of-chart baseline/planned font size to Actual % legend */
+#bpStats { font-size: 1em; }
+
+.legend-sub.baseline{ color: rgba(107,114,128,1); }
+.legend-sub.planned{  color: rgba(37,99,235,1); }
+.legend-sub.actual{   color: rgba(234,88,12,1); }
+.legend-daysrel{ white-space:nowrap; color:#000000; font-weight:400; margin-left:6px; }
+
+
+/* Stabilize legend layout so subtext remains under its header and daysRel stays to the right */
+.custom-legend{ align-items:flex-start; }
+.custom-legend .legend-row{ display:flex; align-items:center; gap:8px; flex-wrap:nowrap; }
+.legend-daysrel{ white-space:nowrap; color:#000000; font-weight:400; margin-left:6px; }
+.custom-legend .legend-item{ align-items:flex-start; }
+
+
+/* Hide deprecated progress row without breaking JS writes */
+#planDelta{ display:none !important; }
+
+/* Keep Baseline Schedule button on a single row */
+#baselineBtn{
+  white-space: nowrap !important;
+  display: inline-block;
+}
+
+
+
+
+#saveDropdown {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  opacity:0;
+  transform: translateY(-5px);
+}
+#saveDropdown.show {
+  opacity:1;
+  transform: translateY(0);
+}
+#saveDropdown div:hover {
+  background:#2563eb22;
+}
