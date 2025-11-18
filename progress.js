@@ -1,29 +1,3 @@
-
-// Ensure legend text renders after files are loaded without needing a toggle
-document.querySelectorAll('input[type="file"]').forEach(el=>{
-  el.addEventListener('change', ()=>{
-    // Give parsing a tick, then recompute and render legend
-    setTimeout(()=>{ try{ refreshLegendNow(); }catch(e){} }, 30);
-  });
-});
-
-
-
-
-// Ensure legend text renders after files are loaded without needing a toggle
-document.querySelectorAll('input[type="file"]').forEach(el=>{
-  el.addEventListener('change', ()=>{
-    // Give parsing a tick, then recompute and render legend
-    setTimeout(()=>{ try{ refreshLegendNow(); }catch(e){} }, 30);
-  });
-});
-
-
-
-
-
-
-
 /*****************
  * Utilities
  *****************/
@@ -945,9 +919,6 @@ document.querySelectorAll('input[type="file"]').forEach(el=>{
   });
 });
 
-
-
-
 // === Embedded CSV loader for "Pipeline" preset (default) ===
 function parseAndLoadFullCSV(text){
   const rows = parseCSV(text);
@@ -1079,8 +1050,6 @@ document.addEventListener('DOMContentLoaded', function () {
   }, true);
 });
 
-
-
 document.addEventListener('DOMContentLoaded', function () {
   const btn = document.getElementById('toolbarLoad');
   const dd = document.getElementById('loadDropdown');
@@ -1134,8 +1103,6 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 });
 
-
-
 function loadFromCsvText(text){
   try{
     const rows = parseCSV(text); let section = ''; model = { project:{name:'',startup:'', markerLabel:'Baseline Complete'}, scopes:[], history:[], dailyActuals:{}, baseline:null, daysRelativeToPlan:null };
@@ -1155,8 +1122,6 @@ function loadFromCsvText(text){
     alert('Failed to parse CSV: '+err.message);
   }
 }
-
-
 
 // override load project
 document.querySelectorAll('#loadDropdown div').forEach(it=>{
