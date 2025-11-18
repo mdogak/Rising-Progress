@@ -1,4 +1,5 @@
-:root{
+
+    :root{
       --bg:#ffffff;
       --panel:#f8fafc;/* slate-50 */
       --muted:#cbd5e1;/* slate-300 */
@@ -191,6 +192,9 @@
   white-space: nowrap !important;
   display: inline-block;
 }
+
+
+
 
 #saveDropdown {
   transition: opacity 0.2s ease, transform 0.2s ease;
