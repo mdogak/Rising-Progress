@@ -1108,9 +1108,7 @@ document.addEventListener('DOMContentLoaded', function () {
   dd.querySelectorAll('div[data-act]').forEach(function (item) {
     item.addEventListener('click', function (e) {
       const act = item.dataset.act;
-      if (act === 'open') {
         // reuse existing file loader
-        uploadCSVAndLoad();
       } else if (act === 'default') {
         if (btnReset) btnReset.click();
       } else if (act === 'pipeline') {
