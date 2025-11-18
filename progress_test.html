@@ -973,17 +973,77 @@ function csvEsc(v){ if(v==null) return ''; const s = String(v); return /[",\n]/.
 function csvLine(arr){ return arr.map(csvEsc).join(',') + '\n'; }
 
 function buildAllCSV(){
-  const {days, plannedCum} = calcPlannedSeriesByDay(); const actualCum = calcActualSeriesByDay(days); const baselineCum = getBaselineSeries(days, plannedCum);
+  const {days, plannedCum} = calcPlannedSeriesByDay();
+  const actualCum = calcActualSeriesByDay(days);
+  const baselineCum = getBaselineSeries(days, plannedCum);
   let out = '';
-        let percentComplete;
-    if (s.totalUnits && parseFloat(s.totalUnits) > 0) {
-      const total = parseFloat(s.totalUnits);
-      const units = s.unitsToDate;
-      percentComplete = ((units / total) * 100).toFixed(1);
-    } else {
-      percentComplete = (progressValue || 0).toFixed(1);
-    } out += csvLine([s.label, s.start, s.end, s.cost, progressValue, s.totalUnits===''? '' : s.totalUnits, s.unitsLabel||'', percentComplete]); }); out += '\n';
-    return out;
+
+  // PROJECT section
+  out += '#SECTION:PROJECT\n';
+  out += 'key,value\n';
+  out += csvLine(['name', model.project.name || '']);
+  out += csvLine(['startup', model.project.startup || '']);
+  out += csvLine(['markerLabel', model.project.markerLabel || 'Baseline Complete']);
+  out += '\n';
+
+  // SCOPES section
+  out += '#SECTION:SCOPES\n';
+  out += 'label,start,end,cost,progressValue,totalUnits,unitsLabel\n';
+  (model.scopes || []).forEach(s => {
+    const label = s.label || '';
+    const start = s.start || '';
+    const end = s.end || '';
+    const cost = s.cost != null ? s.cost : 0;
+
+    const hasUnits = s.totalUnits !== '' && s.totalUnits != null && !isNaN(parseFloat(s.totalUnits));
+    const totalUnits = hasUnits ? parseFloat(s.totalUnits) : '';
+    const progressValue = hasUnits ? (s.unitsToDate || 0) : (s.actualPct || 0);
+    const unitsLabel = s.unitsLabel || (hasUnits ? 'Feet' : '%');
+
+    out += csvLine([
+      label,
+      start,
+      end,
+      cost,
+      progressValue,
+      totalUnits === '' ? '' : totalUnits,
+      unitsLabel
+    ]);
+  });
+  out += '\n';
+
+  // DAILY_ACTUALS section
+  out += '#SECTION:DAILY_ACTUALS\n';
+  out += 'date,value\n';
+  const daily = model.dailyActuals || {};
+  Object.keys(daily).sort().forEach(d => {
+    const v = daily[d];
+    out += csvLine([d, (v == null || v === '') ? '' : Number(v)]);
+  });
+  out += '\n';
+
+  // HISTORY section
+  out += '#SECTION:HISTORY\n';
+  out += 'date,actualPct\n';
+  (model.history || []).forEach(h => {
+    if(!h.date) return;
+    const val = h.actualPct != null ? h.actualPct : 0;
+    out += csvLine([h.date, val]);
+  });
+  out += '\n';
+
+  // BASELINE section
+  out += '#SECTION:BASELINE\n';
+  out += 'date,baselinePct\n';
+  if(model.baseline && Array.isArray(model.baseline.days) && Array.isArray(model.baseline.planned)){
+    model.baseline.days.forEach((d, idx) => {
+      const v = model.baseline.planned[idx];
+      out += csvLine([d, v == null ? '' : v]);
+    });
+  }
+  out += '\n';
+
+  return out;
 }
 
 async function saveAll(){
@@ -1116,8 +1176,24 @@ function loadFromXml(xmlText){
  * Persistence and Controls
  *****************/
 const COOKIE_KEY='progress_tracker_v3b';
-function defaultAll(){  delCookie(COOKIE_KEY); model = { project:{name:'',startup:'', markerLabel:'Baseline Complete'}, scopes:[], history:[], dailyActuals:{}, baseline:null, daysRelativeToPlan:null };
-try{ computeAndRender(); }catch(e){} $('#projectName').value=''; $('#projectStartup').value=''; $('#startupLabelInput').value='Baseline Complete'; ensureDefaultScopes(); computeAndRender(); }
+function defaultAll(){
+  delCookie(COOKIE_KEY);
+  model = {
+    project:{name:'', startup:'', markerLabel:'Baseline Complete'},
+    scopes:[],
+    history:[],
+    dailyActuals:{},
+    baseline:null,
+    daysRelativeToPlan:null
+  };
+  $('#projectName').value = '';
+  $('#projectStartup').value = '';
+  $('#startupLabelInput').value = 'Baseline Complete';
+  const scopeContainer = document.getElementById('scopeRows');
+  if(scopeContainer){ scopeContainer.innerHTML = ''; }
+  computeAndRender();
+}
+
 
 /*****************
  * Events
@@ -1395,22 +1471,35 @@ function loadFromCsvText(text){
 <script>
 // override load project
 document.querySelectorAll('#loadDropdown div').forEach(it=>{
-  it.onclick=()=>{
+  it.onclick = () => {
     const act = it.dataset.act;
-    let file='';
-    if(act==='default') file='Project_Files/default_progress_all.csv';
-    if(act==='pipeline') file='Project_Files/Pipeline_progress_all.csv';
-    if(act==='mech') file='Project_Files/Mechanical_Facility_progress_all.csv';
-    if(act==='ie') file='Project_Files/I&E_Facility_progress_all.csv';
+    if(act === 'open'){
+      // Use the same file uploader used by the toolbar
+      uploadCSVAndLoad();
+      return;
+    }
+    let file = '';
+    if(act === 'default') file = 'Project_Files/default_progress_all.csv';
+    if(act === 'pipeline') file = 'Project_Files/Pipeline_progress_all.csv';
+    if(act === 'mech') file = 'Project_Files/Mech_Facility_progress_all.csv';
+    if(act === 'ie') file = 'Project_Files/I&E_Facility_progress_all.csv';
     if(file){
-      fetch(file).then(r=>r.text()).then(t=>{ 
-        const reader={result:t};
-        // reuse upload parser
-        loadFromCsvText(t);
-      });
+      fetch(file)
+        .then(r => r.text())
+        .then(t => {
+          loadFromCsvText(t);
+        })
+        .catch(err => {
+          alert('Failed to load preset CSV: ' + err.message);
+        });
     }
   };
 });
 // default load
-fetch('Project_Files/default_progress_all.csv').then(r=>r.text()).then(t=>loadFromCsvText(t));
+fetch('Project_Files/default_progress_all.csv')
+  .then(r => r.text())
+  .then(t => loadFromCsvText(t))
+  .catch(err => {
+    console.error('Failed to auto-load default CSV:', err);
+  });
 </script>
