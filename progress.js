@@ -1105,29 +1105,24 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
   // Handle dropdown actions
-  // Handle dropdown actions
   dd.querySelectorAll('div[data-act]').forEach(function (item) {
     item.addEventListener('click', function (e) {
       const act = item.dataset.act;
       if (act === 'open') {
+        // reuse existing file loader
         uploadCSVAndLoad();
-      } else {
-        let file = '';
-        if (act === 'default') file = 'Project_Files/default_progress_all.csv';
-        if (act === 'pipeline') file = 'Project_Files/Pipeline_progress_all.csv';
-        if (act === 'mech') file = 'Project_Files/Mech_Facility_progress_all.csv';
-        if (act === 'ie') file = 'Project_Files/I&E_Facility_progress_all.csv';
-        if (file) {
-          fetch(file)
-            .then(function(r){ return r.text(); })
-            .then(function(t){ loadFromCsvText(t); })
-            .catch(function(err){ alert('Failed to load preset CSV: ' + err.message); });
-        }
+      } else if (act === 'default') {
+        if (btnReset) btnReset.click();
+      } else if (act === 'pipeline') {
+        if (btnPipe) btnPipe.click();
+      } else if (act === 'mech') {
+        if (btnMech) btnMech.click();
+      } else if (act === 'ie') {
+        if (btnIE) btnIE.click();
       }
       closeDropdown();
       e.stopPropagation();
     });
-  });
   });
 
   // Click outside closes dropdown
