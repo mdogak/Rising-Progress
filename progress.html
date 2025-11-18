@@ -7,6 +7,13 @@
 <title>Rising Progress</title>
 
 <!-- Chart.js + Annotation plugin -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+<script>
+  if (window['chartjs-plugin-annotation'] && window.Chart) {
+    Chart.register(window['chartjs-plugin-annotation']);
+  }
+</script>
 
 
 
