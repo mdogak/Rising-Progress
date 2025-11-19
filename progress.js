@@ -506,7 +506,19 @@ function drawChart(days, baseline, planned, actual){
   };
   if(chart){ chart.destroy(); }
   const ctx = document.getElementById('progressChart').getContext('2d');
-  chart = new Chart(ctx, cfg);
+  
+  chart.options.plugins.afterDraw = (chart) => {
+    const ctx = chart.ctx;
+    const area = chart.chartArea;
+    const img = new Image();
+    img.src = 'progress.png';
+    img.onload = () => {
+      const w = 70;
+      const h = img.height * (w / img.width);
+      ctx.drawImage(img, area.right - w, area.bottom - h - 100, w, h);
+    };
+  };
+chart = new Chart(ctx, cfg);
 }
 
 function renderDailyTable(days, baseline, planned, actual){
