@@ -11,13 +11,11 @@
 <script>
     const DELAY_LINE1 = 3000;     
     const DELAY_LINE2 = 3000;     
-    const DELAY_LINE3 = 3000; 
     const DELAY_FADEOUT = 3000;   
 
     const TIME_LINE1 = DELAY_LINE1;
     const TIME_LINE2 = TIME_LINE1 + DELAY_LINE2;
-    const TIME_LINE3 = TIME_LINE2 + DELAY_LINE3;
-    const TIME_FADEOUT = TIME_LINE3 + DELAY_FADEOUT;
+    const TIME_FADEOUT = TIME_LINE2 + DELAY_FADEOUT;
 </script>
 
 <style>
@@ -136,15 +134,11 @@
     <div class="headline">Track Progress With Clarity</div>
 
     <div id="line1" class="line">
-        <strong>Know where you are and where you should be.</strong>
+        <strong>Know where you are and where you should be</strong>
     </div>
 
-    <div id="line2" class="line">
-        Rising Progress makes it easy to see where your project stands, where it should be,
-    </div>
-
-    <div id="line3" class="line orange">
-        and track progress rising to the finish.
+    <div id="line2" class="line orange">
+        See your progress rising to the finish
     </div>
 
     <div class="progress-bar-wrapper">
@@ -158,13 +152,11 @@
 <script>
     const line1 = document.getElementById("line1");
     const line2 = document.getElementById("line2");
-    const line3 = document.getElementById("line3");
     const main = document.getElementById("main");
     const skip = document.getElementById("skipBtn");
 
     setTimeout(() => { line1.style.transition = "opacity 1.5s"; line1.style.opacity = 1; }, TIME_LINE1);
     setTimeout(() => { line2.style.transition = "opacity 1.5s"; line2.style.opacity = 1; }, TIME_LINE2);
-    setTimeout(() => { line3.style.transition = "opacity 1.5s"; line3.style.opacity = 1; }, TIME_LINE3);
 
     function fadeAndGo() {
         skip.style.display = "none";
