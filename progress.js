@@ -1144,6 +1144,8 @@ document.querySelectorAll('#loadDropdown div').forEach(it=>{
         });
     }
     closeDropdown();   // <-- closes after any preset is selected
+    e.stopPropagation();               // <-- REQUIRED
+
   };
 });
 
