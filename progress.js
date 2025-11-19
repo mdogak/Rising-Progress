@@ -1150,32 +1150,7 @@ function loadFromCsvText(text){
 
 
 
-// override load project
-document.querySelectorAll('#loadDropdown div').forEach(it=>{
-  it.onclick = () => {
-    const act = it.dataset.act;
-    if(act === 'open'){
-      // Use the same file uploader used by the toolbar
-      uploadCSVAndLoad();
-      return;
-    }
-    let file = '';
-    if(act === 'default') file = 'Project_Files/default_progress_all.csv';
-    if(act === 'pipeline') file = 'Project_Files/Pipeline_progress_all.csv';
-    if(act === 'mech') file = 'Project_Files/Mech_Facility_progress_all.csv';
-    if(act === 'ie') file = 'Project_Files/I&E_Facility_progress_all.csv';
-    if(file){
-      fetch(file)
-        .then(r => r.text())
-        .then(t => {
-          loadFromCsvText(t);
-        })
-        .catch(err => {
-          alert('Failed to load preset CSV: ' + err.message);
-        });
-    }
-  };
-});
+
 // default load
 fetch('Project_Files/default_progress_all.csv')
   .then(r => r.text())
