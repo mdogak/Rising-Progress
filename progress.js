@@ -1143,6 +1143,7 @@ document.querySelectorAll('#loadDropdown div').forEach(it=>{
           alert('Failed to load preset CSV: ' + err.message);
         });
     }
+    closeDropdown();   // <-- closes after any preset is selected
   };
 });
 
