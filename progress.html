@@ -15,10 +15,6 @@
   }
 </script>
 
-
-
-
-
 <link rel="stylesheet" href="progress.css">
 </head>
 <body>
@@ -28,6 +24,7 @@
 <option value="Feet"></option>
 <option value="Inches"></option>
 <option value="Qty"></option>
+<option value="Yd^3"></option>
 <option value="Meters"></option>
 <option value="Centimeters"></option>
 </datalist>
@@ -39,7 +36,7 @@
 <input id="projectName" placeholder="e.g. West Pipeline"/>
 </div>
 <div class="right input-inline" style="margin-left:auto; gap:6px">
-<input type="checkbox" id="labelToggle" checked style="accent-color:grey; width:16px; height:16px; margin-right:-35px; vertical-align:middle;margin-top:20px;"><label for="startupLabelInput">Label:</label>
+<input type="checkbox" id="labelToggle" checked style="accent-color:grey; width:16px; height:16px; margin-right:-35px; vertical-align:middle;"><label for="startupLabelInput">Label:</label>
 <input class="inline-skinny" id="startupLabelInput" value="Baseline Complete"/>
 <input id="projectStartup" type="date"/>
 </div>
@@ -55,11 +52,6 @@
 <h2>Scopes</h2>
 </div>
 <div class="toolbar" style="margin:8px 0 4px 0">
-
-
-
-
-
 
 <button id="toolbarSave">💾 Save Project</button>
 <div id="saveDropdown" style="display:none; position:absolute; background:white; border:1px solid #ccc; z-index:1000;">
@@ -112,15 +104,7 @@
 </div>
 </div>
 
-
-
-
-
-
-
 <script src="progress.js"></script>
 </body>
 </html>
-
-
 
