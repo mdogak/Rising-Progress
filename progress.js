@@ -1,4 +1,3 @@
-
 // Ensure legend text renders after files are loaded without needing a toggle
 document.querySelectorAll('input[type="file"]').forEach(el=>{
   el.addEventListener('change', ()=>{
@@ -7,9 +6,6 @@ document.querySelectorAll('input[type="file"]').forEach(el=>{
   });
 });
 
-
-
-
 // Ensure legend text renders after files are loaded without needing a toggle
 document.querySelectorAll('input[type="file"]').forEach(el=>{
   el.addEventListener('change', ()=>{
@@ -17,12 +13,6 @@ document.querySelectorAll('input[type="file"]').forEach(el=>{
     setTimeout(()=>{ try{ refreshLegendNow(); }catch(e){} }, 30);
   });
 });
-
-
-
-
-
-
 
 /*****************
  * Utilities
@@ -121,11 +111,6 @@ $('#scopeRows').addEventListener('click', (e)=>{
   if(btn.classList.contains('del')){ model.scopes.splice(i,1); syncScopeRowsToModel(); computeAndRender(); }
   else if(btn.classList.contains('add')){ const newScope = defaultScope(i+1); model.scopes.splice(i+1,0,newScope); model.scopes = model.scopes.map((s,idx)=> ({...s, label: (s.label.startsWith('Scope #')? `Scope #${idx+1}` : s.label)})); syncScopeRowsToModel(); computeAndRender(); }
 });
-
-/*****************
- * Presets
- *****************/
-
 
 /*****************
  * Calculations
@@ -364,9 +349,6 @@ const rel = computeDaysRelativeToPlan(days, plannedCum, actualCum);
   setCookie(COOKIE_KEY, JSON.stringify(model), 3650);
 }
 
-
-
-
 function renderLegend(chart){
   const cont = $('#customLegend');
   if(!cont) return;
@@ -412,7 +394,6 @@ function renderLegend(chart){
     actualVisible = e.target.checked; const meta = chart.getDatasetMeta(2); meta.hidden = !actualVisible; computeAndRender();
   }, legendStats.actualPct!=null ? (legendStats.actualPct + '%') : null, daysRel);
 }
-
 
 function refreshLegendNow(){
   try{
@@ -661,7 +642,6 @@ function buildMSPXML(){
   }
 }
 
-
 function csvEsc(v){ if(v==null) return ''; const s = String(v); return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; }
 function csvLine(arr){ return arr.map(csvEsc).join(',') + '\n'; }
 
@@ -887,7 +867,6 @@ function defaultAll(){
   computeAndRender();
 }
 
-
 /*****************
  * Events
  *****************/
@@ -944,9 +923,6 @@ document.querySelectorAll('input[type="file"]').forEach(el=>{
     setTimeout(()=>{ try{ refreshLegendNow(); }catch(e){} }, 30);
   });
 });
-
-
-
 
 // === Embedded CSV loader for "Pipeline" preset (default) ===
 function parseAndLoadFullCSV(text){
@@ -1009,7 +985,6 @@ function parseAndLoadFullCSV(text){
   computeAndRender();
   setCookie(COOKIE_KEY, JSON.stringify(model), 3650);
 }
-
 
 document.addEventListener('DOMContentLoaded', function () {
   const btn     = document.getElementById('toolbarSave');
@@ -1078,8 +1053,6 @@ document.addEventListener('DOMContentLoaded', function () {
   }, true);
 });
 
-
-
 document.addEventListener('DOMContentLoaded', function () {
   const btn = document.getElementById('toolbarLoad');
   const dd = document.getElementById('loadDropdown');
@@ -1133,8 +1106,6 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 });
 
-
-
 function loadFromCsvText(text){
   try{
     const rows = parseCSV(text); let section = ''; model = { project:{name:'',startup:'', markerLabel:'Baseline Complete'}, scopes:[], history:[], dailyActuals:{}, baseline:null, daysRelativeToPlan:null };
@@ -1154,8 +1125,6 @@ function loadFromCsvText(text){
     alert('Failed to parse CSV: '+err.message);
   }
 }
-
-
 
 // override load project
 document.querySelectorAll('#loadDropdown div').forEach(it=>{
