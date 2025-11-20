@@ -534,74 +534,56 @@ function escapeXml(v){
     .replace(/'/g,'&apos;');
 }
 
-function buildMSPXML(){
-  const projectName = model.project.name || 'Project';
+
+function buildMSPXML() {
   let xml = '';
-  const daily = model.dailyActuals || {};
-  const dailyKeys = Object.keys(daily).sort();
-  const dailyCsv = dailyKeys.map(d => d + ',' + (daily[d] || 0)).join('\n');
-
-  xml += '<?xml version="1.0" encoding="UTF-8"?>\n';
   xml += '<Project xmlns="http://schemas.microsoft.com/project">\n';
-  xml += '  <Name>' + escapeXml(projectName) + '</Name>\n';
 
-  const hist = Array.isArray(model.history) ? model.history : [];
-  const baselineStr = hist.map(h => (h.BaselinePct != null ? h.BaselinePct : '')).join(',');
-  const plannedStr  = hist.map(h => (h.PlannedPct  != null ? h.PlannedPct  : '')).join(',');
-  const actualStr   = hist.map(h => (h.actualPct   != null ? h.actualPct   : '')).join(',');
+  // ProjectInfo block
+  xml += '<ProjectInfo>\n';
+  xml += 'name=' + (model.project?.name || '') + '\n';
+  xml += 'startup=' + (model.project?.startup || '') + '\n';
+  xml += 'markerLabel=' + (model.project?.markerLabel || 'Baseline Complete') + '\n';
+  xml += 'legendbaselinecheckbox=' + (document.getElementById("legend-baseline")?.checked ? 'true' : 'false') + '\n';
+  xml += 'legendplannedcheckbox=' + (document.getElementById("legend-planned")?.checked ? 'true' : 'false') + '\n';
+  xml += 'legendactualcheckbox=' + (document.getElementById("legend-actual")?.checked ? 'true' : 'false') + '\n';
+  xml += '</ProjectInfo>\n\n';
 
-  xml += '  <BaselineHistory>' + escapeXml(baselineStr) + '</BaselineHistory>\n';
-  xml += '  <PlannedHistory>' + escapeXml(plannedStr)  + '</PlannedHistory>\n';
-  xml += '  <ActualHistory>'  + escapeXml(actualStr)   + '</ActualHistory>\n';
+  // History block (CSV-style lines)
+  xml += '<History>\n';
+  if (model.history) {
+    model.history.forEach(h => {
+      xml += (h.date || '') + ',' + (h.actualPct || 0) + '\n';
+    });
+  }
+  xml += '</History>\n\n';
 
-  xml += '  <DailyActuals>' + escapeXml(dailyCsv) + '</DailyActuals>\n';
-  xml += '  <Tasks>\n';
+  // DailyActuals block (CSV-style lines)
+  xml += '<DailyActuals>\n';
+  if (model.dailyActuals) {
+    Object.keys(model.dailyActuals).forEach(d => {
+      xml += d + ',' + model.dailyActuals[d] + '\n';
+    });
+  }
+  xml += '</DailyActuals>\n\n';
 
-  model.scopes.forEach((s, idx) => {
-    // Skip blank tasks (ignore empty label AND no start/end)
-    const label = (s.label || '').trim();
-    const hasDates = (s.start && s.start.trim()) || (s.end && s.end.trim());
-    if (!label && !hasDates) return;
-
-    const uid = idx + 1;
-    const id = idx + 1;
-    const name = label || ('Task ' + uid);
-    const start = s.start ? (s.start + 'T08:00:00') : '';
-    const finish = s.end ? (s.end + 'T17:00:00') : '';
-
-    const hasUnits = s.totalUnits && !isNaN(parseFloat(s.totalUnits));
-    const totalUnits = hasUnits ? parseFloat(s.totalUnits) : '';
-    const unitsToDate = hasUnits ? (s.unitsToDate || 0) : 0;
-    const cost = s.cost || 0;
-    const unitsLabel = s.unitsLabel || (hasUnits ? 'Feet' : '%');
-
-    let pct;
-    if (hasUnits && totalUnits > 0){
-      pct = ((unitsToDate / totalUnits) * 100).toFixed(1);
-    } else {
-      pct = ((s.actualPct || 0)).toFixed(1);
+  // Baseline block (CSV-style)
+  xml += '<Baseline>\n';
+  if (model.baseline && model.baseline.days && model.baseline.planned) {
+    for (let i = 0; i < model.baseline.days.length; i++) {
+      const day = model.baseline.days[i];
+      const val = model.baseline.planned[i];
+      if (day !== undefined && val !== undefined) {
+        xml += day + ',' + val + '\n';
+      }
     }
+  }
+  xml += '</Baseline>\n\n';
 
-    const progressValue = hasUnits ? unitsToDate : (s.actualPct || 0);
-
-    xml += '    <Task>\n';
-    xml += '      <UID>' + uid + '</UID>\n';
-    xml += '      <ID>' + id + '</ID>\n';
-    xml += '      <Name>' + escapeXml(name) + '</Name>\n';
-    if (start){  xml += '      <Start>' + start + '</Start>\n'; }
-    if (finish){ xml += '      <Finish>' + finish + '</Finish>\n'; }
-    xml += '      <PercentComplete>' + pct + '</PercentComplete>\n';
-    xml += '      <Cost>' + cost + '</Cost>\n';
-    xml += '      <ProgressValue>' + progressValue + '</ProgressValue>\n';
-    xml += '      <TotalUnits>' + (totalUnits === '' ? '' : totalUnits) + '</TotalUnits>\n';
-    xml += '      <UnitsLabel>' + escapeXml(unitsLabel) + '</UnitsLabel>\n';
-    xml += '    </Task>\n';
-  });
-
-  xml += '  </Tasks>\n';
-  xml += '</Project>\n';
+  xml += '</Project>';
   return xml;
-}async function saveXml(){
+}
+async function saveXml(){
   try{
     const xml = buildMSPXML();
     const suggested = (model.project.name ? model.project.name.replace(/\s+/g,'_') + '_' : '') + 'progress_all.xml';
