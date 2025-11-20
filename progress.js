@@ -537,48 +537,74 @@ function escapeXml(v){
 
 function buildMSPXML() {
   let xml = '';
+  xml += '<?xml version="1.0" encoding="UTF-8"?>\n';
   xml += '<Project xmlns="http://schemas.microsoft.com/project">\n';
 
-  // ProjectInfo block
-  xml += '<ProjectInfo>\n';
-  xml += 'name=' + (model.project?.name || '') + '\n';
-  xml += 'startup=' + (model.project?.startup || '') + '\n';
-  xml += 'markerLabel=' + (model.project?.markerLabel || 'Baseline Complete') + '\n';
-  xml += 'legendbaselinecheckbox=' + (document.getElementById("legend-baseline")?.checked ? 'true' : 'false') + '\n';
-  xml += 'legendplannedcheckbox=' + (document.getElementById("legend-planned")?.checked ? 'true' : 'false') + '\n';
-  xml += 'legendactualcheckbox=' + (document.getElementById("legend-actual")?.checked ? 'true' : 'false') + '\n';
-  xml += '</ProjectInfo>\n\n';
+  xml += '  <Name>' + (model.project?.name || '') + '</Name>\n';
 
-  // History block (CSV-style lines)
-  xml += '<History>\n';
-  if (model.history) {
-    model.history.forEach(h => {
-      xml += (h.date || '') + ',' + (h.actualPct || 0) + '\n';
-    });
+  xml += '  <ExtendedAttributes>\n';
+
+  function addAttr(fieldID, name, value) {
+    xml += '    <ExtendedAttribute>\n';
+    xml += '      <FieldID>' + fieldID + '</FieldID>\n';
+    xml += '      <Name>' + name + '</Name>\n';
+    xml += '      <Value><![CDATA[' + (value || '') + ']]></Value>\n';
+    xml += '    </ExtendedAttribute>\n';
   }
-  xml += '</History>\n\n';
 
-  // DailyActuals block (CSV-style lines)
-  xml += '<DailyActuals>\n';
-  if (model.dailyActuals) {
-    Object.keys(model.dailyActuals).forEach(d => {
-      xml += d + ',' + model.dailyActuals[d] + '\n';
-    });
-  }
-  xml += '</DailyActuals>\n\n';
+  addAttr('Text1', 'Startup', model.project?.startup || '');
+  addAttr('Text2', 'MarkerLabel', model.project?.markerLabel || 'Baseline Complete');
 
-  // Baseline block (CSV-style)
-  xml += '<Baseline>\n';
+  addAttr('Text3', 'LegendBaselineCheckbox', 
+          document.getElementById("legend-baseline")?.checked ? 'true' : 'false');
+  addAttr('Text4', 'LegendPlannedCheckbox', 
+          document.getElementById("legend-planned")?.checked ? 'true' : 'false');
+  addAttr('Text5', 'LegendActualCheckbox', 
+          document.getElementById("legend-actual")?.checked ? 'true' : 'false');
+
+  // BaselineHistory lines
+  let baselineCSV = '';
   if (model.baseline && model.baseline.days && model.baseline.planned) {
-    for (let i = 0; i < model.baseline.days.length; i++) {
-      const day = model.baseline.days[i];
-      const val = model.baseline.planned[i];
-      if (day !== undefined && val !== undefined) {
-        xml += day + ',' + val + '\n';
+      for (let i = 0; i < model.baseline.days.length; i++) {
+          baselineCSV += model.baseline.days[i] + ',' + model.baseline.planned[i] + '\\n';
       }
-    }
   }
-  xml += '</Baseline>\n\n';
+  addAttr('Text6', 'BaselineHistory', baselineCSV);
+
+  // ActualHistory lines
+  let actualCSV = '';
+  if (model.history) {
+      model.history.forEach(h => { actualCSV += h.date + ',' + h.actualPct + '\\n'; });
+  }
+  addAttr('Text7', 'ActualHistory', actualCSV);
+
+  // DailyActuals lines
+  let dailyCSV = '';
+  if (model.dailyActuals) {
+      Object.keys(model.dailyActuals).forEach(d => {
+        dailyCSV += d + ',' + model.dailyActuals[d] + '\\n';
+      });
+  }
+  addAttr('Text8', 'DailyActuals', dailyCSV);
+
+  xml += '  </ExtendedAttributes>\n';
+
+  xml += '  <Tasks>\n';
+  model.scopes.forEach((s, idx) => {
+      xml += '    <Task>\n';
+      xml += '      <UID>' + (idx + 1) + '</UID>\n';
+      xml += '      <ID>' + (idx + 1) + '</ID>\n';
+      xml += '      <Name>' + s.label + '</Name>\n';
+      xml += '      <Start>' + s.start + 'T08:00:00</Start>\n';
+      xml += '      <Finish>' + s.end + 'T17:00:00</Finish>\n';
+      xml += '      <PercentComplete>' + (s.actualPct || 0) + '</PercentComplete>\n';
+      xml += '      <Cost>' + (s.cost || 0) + '</Cost>\n';
+      xml += '      <ProgressValue>' + (s.unitsToDate || 0) + '</ProgressValue>\n';
+      xml += '      <TotalUnits>' + (s.totalUnits || '') + '</TotalUnits>\n';
+      xml += '      <UnitsLabel>' + (s.unitsLabel || '') + '</UnitsLabel>\n';
+      xml += '    </Task>\n';
+  });
+  xml += '  </Tasks>\n';
 
   xml += '</Project>';
   return xml;
