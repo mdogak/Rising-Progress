@@ -497,10 +497,20 @@ function drawChart(days, baseline, planned, actual){
           let lastIdx = -1; for(let i=dataActual.length-1;i>=0;i--){ if(dataActual[i]!=null){ lastIdx = i; break; } }
           if(lastIdx>=0 && actualVisible){ ann.actualEndLabel = { type:'label', xValue: labels[lastIdx], yValue: dataActual[lastIdx], content:[(Number(dataActual[lastIdx]).toFixed(1)+'%')], backgroundColor:'rgba(0,0,0,0)', color:'rgba(234,88,12,1)', font:{weight:'bold', size:16}, xAdjust: 12, yAdjust: -8 } }
           return ann; })() } },
-      scales:{
-          x:{ticks:{font:{size:16}} },
-          y:{ticks:{font:{size:16}} },
-
+      scales: {
+          x: {
+              ticks: {
+                  font: { size: 16 }
+              }
+          },
+          y: {
+              ticks: {
+                  font: { size: 16 },
+                  callback: function (value) {
+                      return value + '%';
+                  }
+              }
+          }
       }
     }
   };
