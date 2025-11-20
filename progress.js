@@ -519,6 +519,21 @@ function drawChart(days, baseline, planned, actual){
     };
   };
 chart = new Chart(ctx, cfg);
+// --- Watermark after chart creation ---
+chart.options.plugins.afterDraw = (chartInstance) => {
+  const ctx = chartInstance.ctx;
+  const area = chartInstance.chartArea;
+  const img = new Image();
+  img.src = 'progress.png';
+  img.onload = () => {
+    const w = 70;
+    const h = img.height * (w / img.width);
+    const x = area.right - w;
+    const y = area.bottom - h - 100;
+    ctx.drawImage(img, x, y, w, h);
+  };
+};
+
 }
 
 function renderDailyTable(days, baseline, planned, actual){
