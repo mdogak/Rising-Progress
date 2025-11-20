@@ -818,7 +818,7 @@ function loadFromXml(text) {
             case "BaselineHistory":
                 model.baseline.days = [];
                 model.baseline.planned = [];
-                raw.split("/\r?\n/").forEach(line => {
+                raw.split(/\r?\n/).forEach(line => {
                     line = line.trim();
                     if (!line) return;
                     const parts = line.split(",");
@@ -831,7 +831,7 @@ function loadFromXml(text) {
 
             case "ActualHistory":
                 model.history = [];
-                raw.split("/\r?\n/").forEach(line => {
+                raw.split(/\r?\n/).forEach(line => {
                     line = line.trim();
                     if (!line) return;
                     const parts = line.split(",");
@@ -846,7 +846,7 @@ function loadFromXml(text) {
 
             case "DailyActuals":
                 model.dailyActuals = {};
-                raw.split("/\r?\n/").forEach(line => {
+                raw.split(/\r?\n/).forEach(line => {
                     line = line.trim();
                     if (!line) return;
                     const parts = line.split(",");
