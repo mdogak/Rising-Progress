@@ -504,7 +504,9 @@ function drawChart(days, baseline, planned, actual){
               }
           },
           y: {
-              ticks: {
+            min: 0,
+            max: 100,  
+            ticks: {
                   font: { size: 16 },
                   callback: function (value) {
                       return value + '%';
