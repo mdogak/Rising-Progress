@@ -1,9 +1,116 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <script type="module">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Rising Progress – Login</title>
+
+<!-- Google Fonts for Pro Look -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet" />
+
+<style>
+    body {
+        margin: 0;
+        font-family: "Inter", sans-serif;
+        background: linear-gradient(135deg, #2563eb, #4f46e5);
+        height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .card {
+        width: 360px;
+        background: #ffffff;
+        border-radius: 14px;
+        padding: 32px;
+        box-shadow: 0px 12px 32px rgba(0,0,0,0.15);
+        animation: fadeIn 0.6s ease;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    h2 {
+        margin: 0 0 24px;
+        font-weight: 600;
+        text-align: center;
+        color: #1f2937;
+    }
+
+    input {
+        width: 100%;
+        padding: 12px;
+        margin-bottom: 16px;
+        border-radius: 8px;
+        border: 1px solid #d1d5db;
+        font-size: 15px;
+    }
+
+    button {
+        width: 100%;
+        padding: 12px;
+        margin-top: 4px;
+        border-radius: 8px;
+        border: none;
+        background: #2563eb;
+        color: white;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: 0.2s;
+    }
+
+    button:hover {
+        background: #1e4fc2;
+    }
+
+    .secondary-btn {
+        background: #e5e7eb;
+        color: #111827;
+    }
+    .secondary-btn:hover {
+        background: #d1d5db;
+    }
+
+    .google-btn {
+        background: white;
+        border: 1px solid #d1d5db;
+        color: #374151;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .google-btn img {
+        width: 18px;
+    }
+
+    .toggle-password {
+        position: relative;
+        cursor: pointer;
+        font-size: 13px;
+        color: #2563eb;
+        margin-top: -12px;
+        margin-bottom: 12px;
+        display: block;
+        text-align: right;
+    }
+</style>
+
+<!-- Firebase -->
+<script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
-    import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+    import {
+        getAuth,
+        signInWithEmailAndPassword,
+        createUserWithEmailAndPassword,
+        signInWithPopup,
+        GoogleAuthProvider
+    } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyDai5gpX1x9I3uaF4MI7WAzq2oItLRPoZA",
@@ -13,22 +120,60 @@
 
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
+    const provider = new GoogleAuthProvider();
 
-    window.login = function() {
-      const email = document.getElementById("email").value;
-      const password = document.getElementById("password").value;
+    // Email Login
+    window.login = function () {
+        const email = document.getElementById("email").value;
+        const password = document.getElementById("password").value;
 
-      signInWithEmailAndPassword(auth, email, password)
-        .then(() => window.location.href = "progress.html")
-        .catch(err => alert(err.message));
+        signInWithEmailAndPassword(auth, email, password)
+            .then(() => window.location.href = "progress.html")
+            .catch(err => alert(err.message));
     };
-  </script>
+
+    // Email Signup
+    window.signup = function () {
+        const email = document.getElementById("email").value;
+        const password = document.getElementById("password").value;
+
+        createUserWithEmailAndPassword(auth, email, password)
+            .then(() => window.location.href = "progress.html")
+            .catch(err => alert(err.message));
+    };
+
+    // Google Login
+    window.googleLogin = function () {
+        signInWithPopup(auth, provider)
+            .then(() => window.location.href = "progress.html")
+            .catch(err => alert(err.message));
+    };
+
+    // Toggle Password Visibility
+    window.togglePassword = function () {
+        const pw = document.getElementById("password");
+        pw.type = pw.type === "password" ? "text" : "password";
+    };
+</script>
+
 </head>
 
 <body>
-  <h2>Login</h2>
-  <input id="email" type="email" placeholder="Email"><br>
-  <input id="password" type="password" placeholder="Password"><br>
-  <button onclick="login()">Login</button>
+    <div class="card">
+        <h2>Rising Progress Login</h2>
+
+        <input id="email" type="email" placeholder="Email" />
+
+        <input id="password" type="password" placeholder="Password" />
+        <span class="toggle-password" onclick="togglePassword()">Show/Hide Password</span>
+
+        <button onclick="login()">Login</button>
+        <button class="secondary-btn" onclick="signup()">Create Account</button>
+
+        <button class="google-btn" onclick="googleLogin()">
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" />
+            Sign in with Google
+        </button>
+    </div>
 </body>
 </html>
