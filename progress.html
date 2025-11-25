@@ -68,6 +68,9 @@
 <div class="left input-inline">
 <label for="projectName">Project Name:</label>
 <input id="projectName" placeholder="e.g. West Pipeline"/>
+
+<button onclick="logout()">Logout</button>
+  
 </div>
 <div class="right input-inline" style="margin-left:auto; gap:6px">
 <input type="checkbox" id="labelToggle" checked style="accent-color:grey; width:16px; height:16px; margin-right:-35px; vertical-align:middle;margin-top:30px;"><label for="startupLabelInput">Label:</label>
@@ -139,6 +142,17 @@
 </div>
 
 <script src="js/progress.js"></script>
+
+<script type="module">
+  import { getAuth, signOut } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+
+  const auth = getAuth();
+  window.logout = function () {
+    signOut(auth).then(() => window.location.href = "login.html");
+  };
+</script>
+
+  
 </body>
 </html>
 
