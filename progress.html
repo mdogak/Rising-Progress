@@ -34,6 +34,7 @@
 <script type="module">
   // Import the functions you need from the SDKs you need
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+  import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
   // TODO: Add SDKs for Firebase products that you want to use
   // https://firebase.google.com/docs/web/setup#available-libraries
 
@@ -49,6 +50,72 @@
 
   // Initialize Firebase
   const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+
+  function redirectToLogin() {
+    try {
+      // Persist current model (if available) into cookie before redirect
+      if (window.model && typeof window.setCookie === 'function' && window.COOKIE_KEY) {
+        window.setCookie(window.COOKIE_KEY, JSON.stringify(window.model), 3650);
+      }
+    } catch (e) {
+      console.error('Failed to persist model before login redirect', e);
+    }
+    const url = new URL(window.location.href);
+    url.pathname = url.pathname.replace(/[^\/]*$/, 'login.html');
+    url.searchParams.set('redirect', 'progress.html');
+    window.location.href = url.toString();
+  }
+
+  // Expose auth-gated save helpers for progress.js
+  window.requireAuthForSaveAll = function () {
+    const user = auth.currentUser;
+    if (!user) {
+      redirectToLogin();
+      return;
+    }
+    if (typeof window.saveAll === 'function') {
+      window.saveAll();
+    }
+  };
+
+  window.requireAuthForSaveXml = function () {
+    const user = auth.currentUser;
+    if (!user) {
+      redirectToLogin();
+      return;
+    }
+    if (typeof window.saveXml === 'function') {
+      window.saveXml();
+    }
+  };
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const authButton = document.getElementById('authButton');
+    const saveButton = document.getElementById('toolbarSave');
+
+    function updateUi(user) {
+      if (!authButton || !saveButton) return;
+      if (user) {
+        authButton.textContent = 'Logout';
+        authButton.onclick = () => {
+          signOut(auth).catch(err => console.error('Logout failed', err));
+        };
+        saveButton.textContent = '💾 Save Project';
+        saveButton.title = 'Save project to CSV or XML';
+      } else {
+        authButton.textContent = 'Login';
+        authButton.onclick = () => redirectToLogin();
+        saveButton.textContent = '🔒 Save Project';
+        saveButton.title = 'Login to enable saving CSV/XML';
+      }
+    }
+
+    onAuthStateChanged(auth, (user) => {
+      window.currentUserForSave = user;
+      updateUi(user);
+    });
+  });
 </script>
 
   
@@ -79,7 +146,7 @@
 
 
   
-  <button onclick="logout()">Logout</button>
+  <button id="authButton">Logout</button>
 
 
   

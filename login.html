@@ -132,7 +132,13 @@
         GoogleAuthProvider
     } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 
-    const firebaseConfig = {
+    
+function getRedirectTarget() {
+    const params = new URLSearchParams(window.location.search);
+    const target = params.get("redirect") || "progress.html";
+    return target;
+}
+const firebaseConfig = {
       apiKey: "AIzaSyDai5gpX1x9I3uaF4MI7WAzq2oItLRPoZA",
       authDomain: "rising-progress.firebaseapp.com",
       projectId: "rising-progress",
@@ -147,7 +153,7 @@
         const password = document.getElementById("password").value;
 
         signInWithEmailAndPassword(auth, email, password)
-            .then(() => window.location.href = "progress.html")
+            .then(() => window.location.href = getRedirectTarget())
             .catch(err => alert(err.message));
     };
 
@@ -156,13 +162,13 @@
         const password = document.getElementById("password").value;
 
         createUserWithEmailAndPassword(auth, email, password)
-            .then(() => window.location.href = "progress.html")
+            .then(() => window.location.href = getRedirectTarget())
             .catch(err => alert(err.message));
     };
 
     window.googleLogin = function () {
         signInWithPopup(auth, provider)
-            .then(() => window.location.href = "progress.html")
+            .then(() => window.location.href = getRedirectTarget())
             .catch(err => alert(err.message));
     };
 
@@ -200,15 +206,5 @@
             Sign in with Google
         </button>
     </div>
-  
-  <footer style="margin-top:40px; text-align:center; font-size:14px; color:#666;">
-  <a href="terms.html" style="color:#2563eb; text-decoration:none;">
-    Terms & Conditions
-  </a>
-</footer>
-  
 </body>
-
-  
-  
 </html>
