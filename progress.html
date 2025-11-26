@@ -1,5 +1,7 @@
 <!DOCTYPE html>
 
+<!-- refresh local storage test -->
+
 <html lang="en">
 <head>
 
@@ -27,29 +29,12 @@
 </script>
 
 <link rel="stylesheet" href="css/progress.css">
+  <link rel="icon" href="risingprogress.ico" type="image/x-icon"/>
 </head>
 <body>
 
 
-<script type="module">
-  // Import the functions you need from the SDKs you need
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
-  // TODO: Add SDKs for Firebase products that you want to use
-  // https://firebase.google.com/docs/web/setup#available-libraries
 
-  // Your web app's Firebase configuration
-  const firebaseConfig = {
-    apiKey: "AIzaSyDai5gpX1x9I3uaF4MI7WAzq2oItLRPoZA",
-    authDomain: "rising-progress.firebaseapp.com",
-    projectId: "rising-progress",
-    storageBucket: "rising-progress.firebasestorage.app",
-    messagingSenderId: "823687590636",
-    appId: "1:823687590636:web:77c65293b277b2a489abc9"
-  };
-
-  // Initialize Firebase
-  const app = initializeApp(firebaseConfig);
-</script>
 
   
 <div class="wrap">
@@ -79,7 +64,7 @@
 
 
   
-  <button onclick="logout()">Logout</button>
+  <button id="authButton">Logout</button>
 
 
   
@@ -148,18 +133,93 @@
 </div>
 </div>
 
-<script src="js/progress.js"></script>
-
-<script type="module">
-  import { getAuth, signOut } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-
-  const auth = getAuth();
-  window.logout = function () {
-    signOut(auth).then(() => window.location.href = "login.html");
-  };
-</script>
 
   
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+  import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+  import "./js/progress.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDai5gpX1x9I3uaF4MI7WAzq2oItLRPoZA",
+    authDomain: "rising-progress.firebaseapp.com",
+    projectId: "rising-progress",
+    storageBucket: "rising-progress.firebasestorage.app",
+    messagingSenderId: "823687590636",
+    appId: "1:823687590636:web:77c65293b277b2a489abc9"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+
+  function redirectToLogin() {
+    try {
+      // Persist current model into cookie before redirect, if available
+      if (window.model && typeof window.setCookie === "function" && window.COOKIE_KEY) {
+        window.setCookie(window.COOKIE_KEY, JSON.stringify(window.model), 3650);
+      }
+    } catch (e) {
+      console.error("Failed to persist model before login redirect", e);
+    }
+    const url = new URL(window.location.href);
+    url.pathname = url.pathname.replace(/[^\/]*$/, "login.html");
+    url.searchParams.set("redirect", "progress.html");
+    window.location.href = url.toString();
+  }
+
+  // Auth-gated save wrappers used by progress.js
+  window.requireAuthForSaveAll = function () {
+    const user = auth.currentUser;
+    if (!user) {
+      redirectToLogin();
+      return;
+    }
+    if (typeof window.saveAll === "function") {
+      window.saveAll();
+    } else if (typeof window.saveCsv === "function") {
+      window.saveCsv();
+    }
+  };
+
+  window.requireAuthForSaveXml = function () {
+    const user = auth.currentUser;
+    if (!user) {
+      redirectToLogin();
+      return;
+    }
+    if (typeof window.saveXml === "function") {
+      window.saveXml();
+    }
+  };
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const authButton = document.getElementById("authButton");
+    const saveButton = document.getElementById("toolbarSave");
+
+    function updateUi(user) {
+      if (!authButton || !saveButton) return;
+      if (user) {
+        authButton.textContent = "Logout";
+        authButton.onclick = () => {
+          signOut(auth).catch(err => console.error("Logout failed", err));
+        };
+        saveButton.textContent = "💾 Save Project";
+        saveButton.title = "Save project to CSV or XML";
+      } else {
+        authButton.textContent = "Login";
+        authButton.onclick = () => redirectToLogin();
+        saveButton.textContent = "🔒 Save Project";
+        saveButton.title = "Login to enable saving CSV/XML";
+      }
+    }
+
+    onAuthStateChanged(auth, (user) => {
+      window.currentUserForSave = user;
+      updateUi(user);
+    });
+  });
+</script>
+
 </body>
 </html>
 

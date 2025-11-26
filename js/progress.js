@@ -21,9 +21,47 @@ function daysBetween(a,b){ const ms = (parseDate(fmtDate(b)) - parseDate(fmtDate
 function clamp(n,min,max){ return Math.max(min, Math.min(max,n)) }
 
 // Cookie helpers
-function setCookie(name, value, days=365){ const d = new Date(); d.setTime(d.getTime() + (days*24*60*60*1000)); const v = encodeURIComponent(value); document.cookie = `${name}=${v};expires=${d.toUTCString()};path=/`; }
-function getCookie(name){ const n = name + '='; const ca = document.cookie.split(';'); for(let c of ca){ while(c.charAt(0)==' ') c = c.substring(1); if(c.indexOf(n)==0) return decodeURIComponent(c.substring(n.length,c.length)); } return null; }
-function delCookie(name){ document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;` }
+function setCookie(name, value, days=365){
+  try {
+    if (window.localStorage) {
+      window.localStorage.setItem(name, value);
+      return;
+    }
+  } catch(e) {}
+  const d = new Date();
+  d.setTime(d.getTime() + (days*24*60*60*1000));
+  const v = encodeURIComponent(value);
+  document.cookie = `${name}=${v};expires=${d.toUTCString()};path=/`;
+}
+function getCookie(name){
+  try {
+    if (window.localStorage) {
+      const v = window.localStorage.getItem(name);
+      return v === null ? null : v;
+    }
+  } catch(e) {}
+  const n = name + '=';
+  const ca = document.cookie.split(';');
+  for(let c of ca){
+    c = c.trim();
+    if (c.indexOf(n) === 0) return decodeURIComponent(c.substring(n.length, c.length));
+  }
+  return null;
+}
+function delCookie(name){
+  try {
+    if (window.localStorage) {
+      window.localStorage.removeItem(name);
+    }
+  } catch(e) {}
+  document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+}
+
+window.setCookie = setCookie;
+window.getCookie = getCookie;
+window.delCookie = delCookie;
+
+
 
 /*****************
  * Data model
@@ -36,7 +74,7 @@ let model = {
   baseline:null,   // { days:[], planned:[] } snapshot
   daysRelativeToPlan: null
 };
-try{ computeAndRender(); }catch(e){}
+window.model = model;
 
 function defaultScope(i){
   if(i===0){ const startDate = new Date(today); startDate.setDate(startDate.getDate()-1); const endDate = new Date(startDate); endDate.setDate(endDate.getDate()+7); const start = fmtDate(startDate); const end = fmtDate(endDate); return { label:`Scope #${i+1}`, start, end, cost:100, actualPct:0, unitsToDate:0, totalUnits:'', unitsLabel:'%' }; }
@@ -92,7 +130,7 @@ function onScopeChange(e){
   if(tu!=='' && tu>0){ s.unitsLabel = (inputs.unitsLabel || 'Feet'); } else { s.unitsLabel = (inputs.unitsLabel || '%'); }
   if(tu!=='' && tu>0){ s.unitsToDate = clamp(inputs.progressVal,0,1e12); s.actualPct = tu>0 ? (s.unitsToDate/tu*100) : 0 }
   else { s.unitsToDate = 0; s.actualPct = clamp(inputs.progressVal,0,100); }
-  updatePlannedCell(realRow, s); computeAndRender();
+  updatePlannedCell(realRow, s); computeAndRender(); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650);
 }
 
 /*****************
@@ -100,8 +138,8 @@ function onScopeChange(e){
  *****************/
 $('#scopeRows').addEventListener('click', (e)=>{
   const btn = e.target.closest('button'); if(!btn) return; const row = e.target.closest('.row'); if(!row) return; const i = Number(row.dataset.index);
-  if(btn.classList.contains('del')){ model.scopes.splice(i,1); syncScopeRowsToModel(); computeAndRender(); }
-  else if(btn.classList.contains('add')){ const newScope = defaultScope(i+1); model.scopes.splice(i+1,0,newScope); model.scopes = model.scopes.map((s,idx)=> ({...s, label: (s.label.startsWith('Scope #')? `Scope #${idx+1}` : s.label)})); syncScopeRowsToModel(); computeAndRender(); }
+  if(btn.classList.contains('del')){ model.scopes.splice(i,1); syncScopeRowsToModel(); computeAndRender(); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); }
+  else if(btn.classList.contains('add')){ const newScope = defaultScope(i+1); model.scopes.splice(i+1,0,newScope); model.scopes = model.scopes.map((s,idx)=> ({...s, label: (s.label.startsWith('Scope #')? `Scope #${idx+1}` : s.label)})); syncScopeRowsToModel(); computeAndRender(); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); }
 });
 
 /*****************
@@ -376,14 +414,14 @@ function renderLegend(chart){
   const daysRel = legendStats.daysRelText ? (function(){ const s=document.createElement('span'); s.className='legend-daysrel'; s.textContent = legendStats.daysRelText; return s; })() : null;
 
   // Baseline
-  mk('legendBaselineCheckbox', 'Baseline', 'legend-baseline', baselineVisible, (e)=>{    baselineVisible = e.target.checked; const meta = chart.getDatasetMeta(0); meta.hidden = !baselineVisible; computeAndRender();  }, legendStats.baselinePct!=null ? (legendStats.baselinePct + '%') : null, null);
+  mk('legendBaselineCheckbox', 'Baseline', 'legend-baseline', baselineVisible, (e)=>{    baselineVisible = e.target.checked; const meta = chart.getDatasetMeta(0); meta.hidden = !baselineVisible; computeAndRender(); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650);  }, legendStats.baselinePct!=null ? (legendStats.baselinePct + '%') : null, null);
 
   // Planned
-  mk('legendPlannedCheckbox', 'Plan', 'legend-planned', plannedVisible, (e)=>{    plannedVisible = e.target.checked; const meta = chart.getDatasetMeta(1); meta.hidden = !plannedVisible; computeAndRender();  }, legendStats.plannedPct!=null ? (legendStats.plannedPct + '%') : null, null);
+  mk('legendPlannedCheckbox', 'Plan', 'legend-planned', plannedVisible, (e)=>{    plannedVisible = e.target.checked; const meta = chart.getDatasetMeta(1); meta.hidden = !plannedVisible; computeAndRender(); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650);  }, legendStats.plannedPct!=null ? (legendStats.plannedPct + '%') : null, null);
 
   // Actual + daysRel to the right
   mk('legendActualCheckbox', 'Actual', 'legend-actual', actualVisible, (e)=>{
-    actualVisible = e.target.checked; const meta = chart.getDatasetMeta(2); meta.hidden = !actualVisible; computeAndRender();
+    actualVisible = e.target.checked; const meta = chart.getDatasetMeta(2); meta.hidden = !actualVisible; computeAndRender(); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650);
   }, legendStats.actualPct!=null ? (legendStats.actualPct + '%') : null, daysRel);
 }
 
@@ -529,7 +567,7 @@ function renderDailyTable(days, baseline, planned, actual){
       <td class="right">${(p==null? '' : (Number(p)||0).toFixed(1)+'%')}</td>
       <td class="right"><input class="right-input" data-day="${d}" type="number" step="0.1" min="0" max="100" value="${a==null? '' : a.toFixed(1)}" style="width:50px"></td>
     `; tb.appendChild(tr); });
-  $$('#dailyTable input[type=number]').forEach(inp=>{ const handler = ()=>{ const day = inp.dataset.day; const raw = inp.value; const v = raw===''? undefined : clamp(parseFloat(raw)||0,0,100); model.dailyActuals[day] = v; computeAndRender(); }; inp.addEventListener('change', handler); inp.addEventListener('blur', handler); });
+  $$('#dailyTable input[type=number]').forEach(inp=>{ const handler = ()=>{ const day = inp.dataset.day; const raw = inp.value; const v = raw===''? undefined : clamp(parseFloat(raw)||0,0,100); model.dailyActuals[day] = v; computeAndRender(); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); }; inp.addEventListener('change', handler); inp.addEventListener('blur', handler); });
 }
 
 /*****************
@@ -760,9 +798,9 @@ function uploadCSVAndLoad(){ const inp = document.createElement('input'); inp.ty
             return;
           }
         }
-        if(/^Date,Planned_Cumulative,Actual_Cumulative/m.test(text)){ const lines = text.trim().split(/\r?\n/); lines.shift(); model.dailyActuals = {}; for(const line of lines){ const parts = line.split(','); const d = parts[0]; const a = parts[2]; if(d && a!=='' && !isNaN(parseFloat(a))) model.dailyActuals[d] = clamp(parseFloat(a),0,100); } computeAndRender(); alert('Legacy daily CSV loaded.'); return; }
-        const rows = parseCSV(text); let section = ''; model = { project:{name:'',startup:'', markerLabel:'Baseline Complete'}, scopes:[], history:[], dailyActuals:{}, baseline:null, daysRelativeToPlan:null };
-try{ computeAndRender(); }catch(e){}
+        if(/^Date,Planned_Cumulative,Actual_Cumulative/m.test(text)){ const lines = text.trim().split(/\r?\n/); lines.shift(); model.dailyActuals = {}; for(const line of lines){ const parts = line.split(','); const d = parts[0]; const a = parts[2]; if(d && a!=='' && !isNaN(parseFloat(a))) model.dailyActuals[d] = clamp(parseFloat(a),0,100); } computeAndRender(); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); alert('Legacy daily CSV loaded.'); return; }
+        const rows = parseCSV(text); let section = ''; model = { project:{name:'',startup:'', markerLabel:'Baseline Complete'}, scopes:[], history:[], dailyActuals:{}, baseline:null, daysRelativeToPlan:null }; window.model = model; window.model = model;
+try{ computeAndRender(); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); }catch(e){}
         let scopeHeaders = []; let baselineRows = [];
         for(let r of rows){ if(r.length===1 && r[0].startsWith('#SECTION:')){ section = r[0].slice('#SECTION:'.length).trim(); continue; } if(r.length===0 || (r.length===1 && r[0]==='')) continue;
           if(section==='PROJECT'){ if(r[0]==='key') { continue; } if(r[0]==='name') model.project.name = r[1]||''; if(r[0]==='startup') model.project.startup = r[1]||''; if(r[0]==='markerLabel') model.project.markerLabel = r[1]||'Baseline Complete'; }
@@ -773,7 +811,7 @@ try{ computeAndRender(); }catch(e){}
         }
         if(baselineRows.length){ model.baseline = { days: baselineRows.map(r=>r.date), planned: baselineRows.map(r=> (r.val==null? null : clamp(r.val,0,100))) }; }
         $('#projectName').value = model.project.name||''; $('#projectStartup').value = model.project.startup||''; $('#startupLabelInput').value = model.project.markerLabel || 'Baseline Complete';
-        syncScopeRowsToModel(); computeAndRender(); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); 
+        syncScopeRowsToModel(); computeAndRender(); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); 
 // alert('Full CSV loaded.');
       }catch(err){ alert('Failed to parse CSV: '+err.message); } };
     reader.readAsText(file);
@@ -852,7 +890,7 @@ function loadFromXml(xmlText){
   document.getElementById('projectStartup').value = model.project.startup || '';
   document.getElementById('startupLabelInput').value = model.project.markerLabel || 'Baseline Complete';
   syncScopeRowsToModel();
-  computeAndRender();
+  computeAndRender(); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650);
   setCookie(COOKIE_KEY, JSON.stringify(model), 3650);
 }
 
@@ -860,6 +898,7 @@ function loadFromXml(xmlText){
  * Persistence and Controls
  *****************/
 const COOKIE_KEY='progress_tracker_v3b';
+window.COOKIE_KEY = COOKIE_KEY;
 function defaultAll(){
   delCookie(COOKIE_KEY);
   model = {
@@ -870,12 +909,13 @@ function defaultAll(){
     baseline:null,
     daysRelativeToPlan:null
   };
+  window.model = model;
   $('#projectName').value = '';
   $('#projectStartup').value = '';
   $('#startupLabelInput').value = 'Baseline Complete';
   const scopeContainer = document.getElementById('scopeRows');
   if(scopeContainer){ scopeContainer.innerHTML = ''; }
-  computeAndRender();
+  computeAndRender(); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650);
 }
 
 /*****************
@@ -886,10 +926,10 @@ $('#projectStartup').addEventListener('change', computeAndRender);
 $('#startupLabelInput').addEventListener('input', computeAndRender);
 $('#labelToggle').addEventListener('change', computeAndRender);
 
-$('#snapshot').addEventListener('click', ()=>{ const chosen=document.getElementById('historyDate'); const d = (chosen && chosen.value)? chosen.value : fmtDate(today); const pct = calcTotalActualProgress(); const idx = model.history.findIndex(h=>h.date===d); if(idx>=0) model.history[idx].actualPct = pct; else model.history.push({date:d, actualPct:pct}); model.dailyActuals[d] = pct; computeAndRender(); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); });
+$('#snapshot').addEventListener('click', ()=>{ const chosen=document.getElementById('historyDate'); const d = (chosen && chosen.value)? chosen.value : fmtDate(today); const pct = calcTotalActualProgress(); const idx = model.history.findIndex(h=>h.date===d); if(idx>=0) model.history[idx].actualPct = pct; else model.history.push({date:d, actualPct:pct}); model.dailyActuals[d] = pct; computeAndRender(); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); });
 
 // Toolbar Save/Load/Clear with confirmations
-$('#toolbarClear').addEventListener('click', ()=>{ if(!confirm('Clear scope fields and history?')) return; const ps = calcEarliestStart(); model.scopes = model.scopes.map(s=> ({...s, start:'', end:'', cost:0, unitsToDate:0, totalUnits:'', actualPct:0 })); if(ps){ const psStr = fmtDate(ps); Object.keys(model.dailyActuals).forEach(k=>{ if(k>=psStr) delete model.dailyActuals[k]; }); model.history = model.history.filter(h=> h.date < psStr); } syncScopeRowsToModel(); computeAndRender(); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); });
+$('#toolbarClear').addEventListener('click', ()=>{ if(!confirm('Clear scope fields and history?')) return; const ps = calcEarliestStart(); model.scopes = model.scopes.map(s=> ({...s, start:'', end:'', cost:0, unitsToDate:0, totalUnits:'', actualPct:0 })); if(ps){ const psStr = fmtDate(ps); Object.keys(model.dailyActuals).forEach(k=>{ if(k>=psStr) delete model.dailyActuals[k]; }); model.history = model.history.filter(h=> h.date < psStr); } syncScopeRowsToModel(); computeAndRender(); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); });
 
 
 // Baseline button behavior
@@ -900,7 +940,7 @@ $('#baselineBtn').addEventListener('click', ()=>{
   if(!confirm('Are you sure you want to establish a new baseline for the project?')) return;
 
   takeBaseline(days, plannedCum);
-  computeAndRender();
+  computeAndRender(); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650);
   // alert('Baseline captured.'); // (optional)
 });
 
@@ -923,8 +963,6 @@ $('#baselineBtn').addEventListener('click', ()=>{
  * Init
  *****************/
 
-computeAndRender();
-computeAndRender();
 
 
 // Ensure legend text renders after files are loaded without needing a toggle
@@ -993,7 +1031,7 @@ function parseAndLoadFullCSV(text){
   document.getElementById('projectStartup').value = model.project.startup||'';
   document.getElementById('startupLabelInput').value = model.project.markerLabel || 'Baseline Complete';
   syncScopeRowsToModel();
-  computeAndRender();
+  computeAndRender(); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650);
   setCookie(COOKIE_KEY, JSON.stringify(model), 3650);
 }
 
@@ -1039,8 +1077,10 @@ document.addEventListener('DOMContentLoaded', function () {
     e.stopPropagation();
     closeDropdown();
 
-    // Use existing CSV save helper if present
-    if (typeof saveAll === 'function') {
+    // Require auth before saving CSV
+    if (typeof window.requireAuthForSaveAll === 'function') {
+      window.requireAuthForSaveAll();
+    } else if (typeof saveAll === 'function') {
       saveAll();
     } else if (typeof saveCsv === 'function') {
       saveCsv();
@@ -1051,7 +1091,10 @@ document.addEventListener('DOMContentLoaded', function () {
     e.stopPropagation();
     closeDropdown();
 
-    if (typeof saveXml === 'function') {
+    // Require auth before saving XML
+    if (typeof window.requireAuthForSaveXml === 'function') {
+      window.requireAuthForSaveXml();
+    } else if (typeof saveXml === 'function') {
       saveXml();
     }
   });
@@ -1121,8 +1164,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
 function loadFromCsvText(text){
   try{
-    const rows = parseCSV(text); let section = ''; model = { project:{name:'',startup:'', markerLabel:'Baseline Complete'}, scopes:[], history:[], dailyActuals:{}, baseline:null, daysRelativeToPlan:null };
-    try{ computeAndRender(); }catch(e){}
+    const rows = parseCSV(text); let section = ''; model = { project:{name:'',startup:'', markerLabel:'Baseline Complete'}, scopes:[], history:[], dailyActuals:{}, baseline:null, daysRelativeToPlan:null }; window.model = model; window.model = model;
+    try{ computeAndRender(); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); }catch(e){}
             let scopeHeaders = []; let baselineRows = [];
             for(let r of rows){ if(r.length===1 && r[0].startsWith('#SECTION:')){ section = r[0].slice('#SECTION:'.length).trim(); continue; } if(r.length===0 || (r.length===1 && r[0]==='')) continue;
               if(section==='PROJECT'){ if(r[0]==='key') { continue; } if(r[0]==='name') model.project.name = r[1]||''; if(r[0]==='startup') model.project.startup = r[1]||''; if(r[0]==='markerLabel') model.project.markerLabel = r[1]||'Baseline Complete'; }
@@ -1133,7 +1176,7 @@ function loadFromCsvText(text){
             }
             if(baselineRows.length){ model.baseline = { days: baselineRows.map(r=>r.date), planned: baselineRows.map(r=> (r.val==null? null : clamp(r.val,0,100))) }; }
             $('#projectName').value = model.project.name||''; $('#projectStartup').value = model.project.startup||''; $('#startupLabelInput').value = model.project.markerLabel || 'Baseline Complete';
-            syncScopeRowsToModel(); computeAndRender(); setCookie(COOKIE_KEY, JSON.stringify(model), 3650);
+            syncScopeRowsToModel(); computeAndRender(); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650);
   }catch(err){
     alert('Failed to parse CSV: '+err.message);
   }
@@ -1167,10 +1210,44 @@ document.querySelectorAll('#loadDropdown div').forEach(it=>{
   };
 });
 
-// default load
-fetch('Project_Files/default_progress_all.csv')
-  .then(r => r.text())
-  .then(t => loadFromCsvText(t))
-  .catch(err => {
-    console.error('Failed to auto-load default CSV:', err);
-  });
+// default load with cookie preference
+(function () {
+  try {
+    const saved = (typeof getCookie === 'function') ? getCookie(COOKIE_KEY) : null;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') {
+          model = Object.assign({}, model, parsed);
+          window.model = model;
+          if (!model.project) model.project = { name: '', startup: '', markerLabel: 'Baseline Complete' };
+          if (!Array.isArray(model.scopes)) model.scopes = [];
+          if (!Array.isArray(model.history)) model.history = [];
+          if (!model.dailyActuals) model.dailyActuals = {};
+          document.getElementById('projectName').value = model.project.name || '';
+          document.getElementById('projectStartup').value = model.project.startup || '';
+          document.getElementById('startupLabelInput').value = model.project.markerLabel || 'Baseline Complete';
+          syncScopeRowsToModel();
+          computeAndRender(); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650);
+          return; // do not overwrite with default CSV
+        }
+      } catch (e) {
+        console.error('Failed to parse saved progress cookie', e);
+      }
+    }
+  } catch (err) {
+    console.error('Error while attempting cookie-based restore', err);
+  }
+
+  // Fallback: auto-load default CSV
+  fetch('Project_Files/default_progress_all.csv')
+    .then(r => r.text())
+    .then(t => loadFromCsvText(t))
+    .catch(err => {
+      console.error('Failed to auto-load default CSV:', err);
+    });
+})();
+
+// Expose save helpers for auth wrapper
+window.saveAll = saveAll;
+window.saveXml = saveXml;
