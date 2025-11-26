@@ -930,8 +930,6 @@ $('#baselineBtn').addEventListener('click', ()=>{
  * Init
  *****************/
 
-computeAndRender();
-computeAndRender();
 
 
 // Ensure legend text renders after files are loaded without needing a toggle
