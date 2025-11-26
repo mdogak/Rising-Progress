@@ -25,6 +25,12 @@ function setCookie(name, value, days=365){ const d = new Date(); d.setTime(d.get
 function getCookie(name){ const n = name + '='; const ca = document.cookie.split(';'); for(let c of ca){ while(c.charAt(0)==' ') c = c.substring(1); if(c.indexOf(n)==0) return decodeURIComponent(c.substring(n.length,c.length)); } return null; }
 function delCookie(name){ document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;` }
 
+window.setCookie = setCookie;
+window.getCookie = getCookie;
+window.delCookie = delCookie;
+window.model = model;
+
+
 /*****************
  * Data model
  *****************/
@@ -860,6 +866,7 @@ function loadFromXml(xmlText){
  * Persistence and Controls
  *****************/
 const COOKIE_KEY='progress_tracker_v3b';
+window.COOKIE_KEY = COOKIE_KEY;
 function defaultAll(){
   delCookie(COOKIE_KEY);
   model = {
@@ -1039,8 +1046,10 @@ document.addEventListener('DOMContentLoaded', function () {
     e.stopPropagation();
     closeDropdown();
 
-    // Use existing CSV save helper if present
-    if (typeof saveAll === 'function') {
+    // Require auth before saving CSV
+    if (typeof window.requireAuthForSaveAll === 'function') {
+      window.requireAuthForSaveAll();
+    } else if (typeof saveAll === 'function') {
       saveAll();
     } else if (typeof saveCsv === 'function') {
       saveCsv();
@@ -1051,7 +1060,10 @@ document.addEventListener('DOMContentLoaded', function () {
     e.stopPropagation();
     closeDropdown();
 
-    if (typeof saveXml === 'function') {
+    // Require auth before saving XML
+    if (typeof window.requireAuthForSaveXml === 'function') {
+      window.requireAuthForSaveXml();
+    } else if (typeof saveXml === 'function') {
       saveXml();
     }
   });
@@ -1167,10 +1179,39 @@ document.querySelectorAll('#loadDropdown div').forEach(it=>{
   };
 });
 
-// default load
-fetch('Project_Files/default_progress_all.csv')
-  .then(r => r.text())
-  .then(t => loadFromCsvText(t))
-  .catch(err => {
-    console.error('Failed to auto-load default CSV:', err);
-  });
+// default load with cookie preference
+(function () {
+  try {
+    const saved = (typeof getCookie === 'function') ? getCookie(COOKIE_KEY) : null;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') {
+          model = Object.assign({}, model, parsed);
+          if (!model.project) model.project = { name: '', startup: '', markerLabel: 'Baseline Complete' };
+          if (!Array.isArray(model.scopes)) model.scopes = [];
+          if (!Array.isArray(model.history)) model.history = [];
+          if (!model.dailyActuals) model.dailyActuals = {};
+          document.getElementById('projectName').value = model.project.name || '';
+          document.getElementById('projectStartup').value = model.project.startup || '';
+          document.getElementById('startupLabelInput').value = model.project.markerLabel || 'Baseline Complete';
+          syncScopeRowsToModel();
+          computeAndRender();
+          return; // do not overwrite with default CSV
+        }
+      } catch (e) {
+        console.error('Failed to parse saved progress cookie', e);
+      }
+    }
+  } catch (err) {
+    console.error('Error while attempting cookie-based restore', err);
+  }
+
+  // Fallback: auto-load default CSV
+  fetch('Project_Files/default_progress_all.csv')
+    .then(r => r.text())
+    .then(t => loadFromCsvText(t))
+    .catch(err => {
+      console.error('Failed to auto-load default CSV:', err);
+    });
+})();
