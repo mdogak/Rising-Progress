@@ -768,7 +768,7 @@ function uploadCSVAndLoad(){ const inp = document.createElement('input'); inp.ty
           }
         }
         if(/^Date,Planned_Cumulative,Actual_Cumulative/m.test(text)){ const lines = text.trim().split(/\r?\n/); lines.shift(); model.dailyActuals = {}; for(const line of lines){ const parts = line.split(','); const d = parts[0]; const a = parts[2]; if(d && a!=='' && !isNaN(parseFloat(a))) model.dailyActuals[d] = clamp(parseFloat(a),0,100); } computeAndRender(); alert('Legacy daily CSV loaded.'); return; }
-        const rows = parseCSV(text); let section = ''; model = { project:{name:'',startup:'', markerLabel:'Baseline Complete'}, scopes:[], history:[], dailyActuals:{}, baseline:null, daysRelativeToPlan:null };
+        const rows = parseCSV(text); let section = ''; model = { project:{name:'',startup:'', markerLabel:'Baseline Complete'}, scopes:[], history:[], dailyActuals:{}, baseline:null, daysRelativeToPlan:null }; window.model = model; window.model = model;
 try{ computeAndRender(); }catch(e){}
         let scopeHeaders = []; let baselineRows = [];
         for(let r of rows){ if(r.length===1 && r[0].startsWith('#SECTION:')){ section = r[0].slice('#SECTION:'.length).trim(); continue; } if(r.length===0 || (r.length===1 && r[0]==='')) continue;
@@ -878,6 +878,7 @@ function defaultAll(){
     baseline:null,
     daysRelativeToPlan:null
   };
+  window.model = model;
   $('#projectName').value = '';
   $('#projectStartup').value = '';
   $('#startupLabelInput').value = 'Baseline Complete';
@@ -1132,7 +1133,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 function loadFromCsvText(text){
   try{
-    const rows = parseCSV(text); let section = ''; model = { project:{name:'',startup:'', markerLabel:'Baseline Complete'}, scopes:[], history:[], dailyActuals:{}, baseline:null, daysRelativeToPlan:null };
+    const rows = parseCSV(text); let section = ''; model = { project:{name:'',startup:'', markerLabel:'Baseline Complete'}, scopes:[], history:[], dailyActuals:{}, baseline:null, daysRelativeToPlan:null }; window.model = model; window.model = model;
     try{ computeAndRender(); }catch(e){}
             let scopeHeaders = []; let baselineRows = [];
             for(let r of rows){ if(r.length===1 && r[0].startsWith('#SECTION:')){ section = r[0].slice('#SECTION:'.length).trim(); continue; } if(r.length===0 || (r.length===1 && r[0]==='')) continue;
@@ -1187,6 +1188,7 @@ document.querySelectorAll('#loadDropdown div').forEach(it=>{
         const parsed = JSON.parse(saved);
         if (parsed && typeof parsed === 'object') {
           model = Object.assign({}, model, parsed);
+          window.model = model;
           if (!model.project) model.project = { name: '', startup: '', markerLabel: 'Baseline Complete' };
           if (!Array.isArray(model.scopes)) model.scopes = [];
           if (!Array.isArray(model.history)) model.history = [];
@@ -1214,3 +1216,7 @@ document.querySelectorAll('#loadDropdown div').forEach(it=>{
       console.error('Failed to auto-load default CSV:', err);
     });
 })();
+
+// Expose save helpers for auth wrapper
+window.saveAll = saveAll;
+window.saveXml = saveXml;
