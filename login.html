@@ -8,9 +8,11 @@
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
   gtag('js', new Date());
+
   gtag('config', 'G-VV4YLNW79F');
 </script>
 
+    
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Rising Progress – Login</title>
@@ -35,8 +37,7 @@
         padding: 32px;
         box-shadow: 0px 12px 32px rgba(0,0,0,0.10);
         animation: fadeIn 0.5s ease;
-        border-top: 8px solid #2563eb;
-        text-align: center;
+        border-top: 8px solid #2563eb; /* Blue accent */
     }
 
     @keyframes fadeIn {
@@ -44,16 +45,11 @@
         to { opacity: 1; transform: translateY(0); }
     }
 
-    .logo-img {
-        width: 180px;
-        margin: 0 auto 16px auto;
-        display: block;
-    }
-
-    .instructions {
-        font-size: 14px;
-        color: #4b5563;
-        margin-bottom: 20px;
+    h2 {
+        margin: 0 0 24px;
+        font-weight: 600;
+        text-align: center;
+        color: #1f2937;
     }
 
     input {
@@ -80,14 +76,18 @@
         background: #2563eb;
         color: white;
     }
-    .btn-login:hover { background: #1e4fc2; }
+    .btn-login:hover {
+        background: #1e4fc2;
+    }
 
     .btn-signup {
-        background: #ea580c;
+        background: #ea580c; 
         color: white;
         margin-top: 8px;
     }
-    .btn-signup:hover { background: #c94a0a; }
+    .btn-signup:hover {
+        background: #c94a0a;
+    }
 
     .google-btn {
         margin-top: 16px;
@@ -100,33 +100,25 @@
         gap: 8px;
     }
 
-    .google-btn img { width: 18px; }
+    .google-btn img {
+        width: 18px;
+    }
 
     .forgot {
         text-align: right;
         margin-top: -10px;
         margin-bottom: 16px;
     }
+
     .forgot a {
         color: #2563eb;
         text-decoration: none;
         font-size: 14px;
     }
-    .forgot a:hover { text-decoration: underline; }
 
-    .terms {
-        margin-top: 18px;
-        text-align: center;
-        font-size: 13px;
-        color: #374151;
+    .forgot a:hover {
+        text-decoration: underline;
     }
-
-    .terms a {
-        color: #2563eb;
-        text-decoration: none;
-        font-weight: 600;
-    }
-    .terms a:hover { text-decoration: underline; }
 </style>
 
 <script type="module">
@@ -140,66 +132,64 @@
         GoogleAuthProvider
     } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 
+    
 function getRedirectTarget() {
     const params = new URLSearchParams(window.location.search);
     const target = params.get("redirect") || "progress.html";
     return target;
 }
-
 const firebaseConfig = {
       apiKey: "AIzaSyDai5gpX1x9I3uaF4MI7WAzq2oItLRPoZA",
       authDomain: "rising-progress.firebaseapp.com",
       projectId: "rising-progress",
-};
+    };
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const provider = new GoogleAuthProvider();
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const provider = new GoogleAuthProvider();
 
-window.login = function () {
-    const email = document.getElementById("email").value;
-    const password = document.getElementById("password").value;
-    signInWithEmailAndPassword(auth, email, password)
-        .then(() => window.location.href = getRedirectTarget())
-        .catch(err => alert(err.message));
-};
+    window.login = function () {
+        const email = document.getElementById("email").value;
+        const password = document.getElementById("password").value;
 
-window.signup = function () {
-    const email = document.getElementById("email").value;
-    const password = document.getElementById("password").value;
-    createUserWithEmailAndPassword(auth, email, password)
-        .then(() => window.location.href = getRedirectTarget())
-        .catch(err => alert(err.message));
-};
+        signInWithEmailAndPassword(auth, email, password)
+            .then(() => window.location.href = getRedirectTarget())
+            .catch(err => alert(err.message));
+    };
 
-window.googleLogin = function () {
-    signInWithPopup(auth, provider)
-        .then(() => window.location.href = getRedirectTarget())
-        .catch(err => alert(err.message));
-};
+    window.signup = function () {
+        const email = document.getElementById("email").value;
+        const password = document.getElementById("password").value;
 
-window.resetPassword = function () {
-    const email = document.getElementById("email").value;
-    if (!email) {
-        alert("Enter your email above first.");
-        return;
-    }
-    sendPasswordResetEmail(auth, email)
-        .then(() => alert("Password reset email sent."))
-        .catch(err => alert(err.message));
-};
+        createUserWithEmailAndPassword(auth, email, password)
+            .then(() => window.location.href = getRedirectTarget())
+            .catch(err => alert(err.message));
+    };
+
+    window.googleLogin = function () {
+        signInWithPopup(auth, provider)
+            .then(() => window.location.href = getRedirectTarget())
+            .catch(err => alert(err.message));
+    };
+
+    window.resetPassword = function () {
+        const email = document.getElementById("email").value;
+        if (!email) {
+            alert("Enter your email above first.");
+            return;
+        }
+
+        sendPasswordResetEmail(auth, email)
+            .then(() => alert("Password reset email sent."))
+            .catch(err => alert(err.message));
+    };
 </script>
 
 </head>
 
 <body>
     <div class="card">
-
-        <img src="risingprogress.png" alt="Rising Progress" class="logo-img">
-
-        <div class="instructions">
-            Login for saving Rising Progress project files.
-        </div>
+        <h2>Rising Progress</h2>
 
         <input id="email" type="email" placeholder="Email" />
         <input id="password" type="password" placeholder="Password" />
@@ -215,10 +205,6 @@ window.resetPassword = function () {
             <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" />
             Sign in with Google
         </button>
-
-        <div class="terms">
-            By logging in, you accept the <a href="terms.html" target="_blank">Terms & Conditions</a>.
-        </div>
     </div>
 </body>
 </html>
