@@ -28,7 +28,6 @@ function delCookie(name){ document.cookie = `${name}=; expires=Thu, 01 Jan 1970 
 window.setCookie = setCookie;
 window.getCookie = getCookie;
 window.delCookie = delCookie;
-window.model = model;
 
 
 /*****************
@@ -42,6 +41,8 @@ let model = {
   baseline:null,   // { days:[], planned:[] } snapshot
   daysRelativeToPlan: null
 };
+window.model = model;
+
 try{ computeAndRender(); }catch(e){}
 
 function defaultScope(i){
