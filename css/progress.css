@@ -43,7 +43,7 @@
     80px    /* Units */
     100px   /* Planned */
     80px    /* Actions */;  /* Actions */
-  gap:8px;
+  gap:16px;
   align-items:center;
 }
     
@@ -82,7 +82,7 @@
     .row .iconbtn.del{background:#fff1f2;border:1px solid #fee2e2}
     .actions{display:flex;gap:6px;justify-content:center}
     .btn-primary{background:var(--ok)!important;color:#fff!important;font-weight:700;border-color:#16a34a}
-    .chart-header{display:flex;justify-content:space-between;gap:12px;align-items:end;margin-bottom:8px}
+    .chart-header{display:flex;justify-content:space-between;gap:16px;align-items:end;margin-bottom:8px}
     .chart-header .left,.chart-header .right{display:flex;gap:8px;align-items:end}
     .input-inline label{display:block;font-size:12px;margin-bottom:2px}
     .input-inline input{min-width:90px}
@@ -208,3 +208,5 @@
 #saveDropdown div:hover {
   background:#2563eb22;
 }
+
+#dailyTable th:nth-child(2), #dailyTable th:nth-child(3){min-width:90px;}
