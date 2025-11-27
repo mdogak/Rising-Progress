@@ -964,7 +964,7 @@ document.querySelectorAll('input[type="file"]').forEach(el=>{
 });
 
 // === Embedded CSV loader for "Pipeline" preset (default) ===
-function parseAndLoadFullCSV(text){
+function loadFromPresetCsv(text){
   const rows = parseCSV(text);
   let section = '';
   let localModel = { project:{name:'',startup:'', markerLabel:'Baseline Complete'}, scopes:[], history:[], dailyActuals:{}, baseline:null, daysRelativeToPlan:null };
@@ -1141,7 +1141,7 @@ document.addEventListener('DOMContentLoaded', function () {
           fetch(file)
             .then(r => r.text())
             .then(t => {
-              loadFromCsvText(t);
+              loadFromPresetCsv(t);
             })
             .catch(err => {
               alert('Failed to load preset CSV: ' + err.message);
@@ -1195,7 +1195,7 @@ document.addEventListener('DOMContentLoaded', function () {
   // Fallback: auto-load default CSV
   fetch('Project_Files/default_progress_all.csv')
     .then(r => r.text())
-    .then(t => loadFromCsvText(t))
+    .then(t => loadFromPresetCsv(t))
     .catch(err => {
       console.error('Failed to auto-load default CSV:', err);
     });
