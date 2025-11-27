@@ -417,7 +417,7 @@ function renderLegend(chart){
   mk('legendBaselineCheckbox','Original Plan', 'legend-baseline', baselineVisible, (e)=>{    baselineVisible = e.target.checked; const meta = chart.getDatasetMeta(0); meta.hidden = !baselineVisible; computeAndRender(); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650);  }, legendStats.baselinePct!=null ? (legendStats.baselinePct + '%') : null, null);
 
   // Planned
-  mk('legendPlannedCheckbox','Current Plan', 'legend-planned', plannedVisible, (e)=>{    plannedVisible = e.target.checked; const meta = chart.getDatasetMeta(1); meta.hidden = !plannedVisible; computeAndRender(); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650);  }, legendStats.plannedPct!=null ? (legendStats.plannedPct + '%') : null, null);
+  mk('legendPlannedCheckbox', 'Plan', 'legend-planned', plannedVisible, (e)=>{    plannedVisible = e.target.checked; const meta = chart.getDatasetMeta(1); meta.hidden = !plannedVisible; computeAndRender(); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650);  }, legendStats.plannedPct!=null ? (legendStats.plannedPct + '%') : null, null);
 
   // Actual + daysRel to the right
   mk('legendActualCheckbox', 'Actual', 'legend-actual', actualVisible, (e)=>{
@@ -508,7 +508,7 @@ function drawChart(days, baseline, planned, actual){
   },
   content: [greenText],
   backgroundColor: 'rgba(0,0,0,0)',
-  color: 'rgba(107,114,128,1)',
+  color: 'rgba(37,99,235,1)',
   rotation: -90,
   yAdjust: 0,
   font: { weight: 'bold', size: 16 }
@@ -685,10 +685,10 @@ async function saveXml(){
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-      alert('XML saved (downloaded).');
+      
     }
   }catch(e){
-    
+    alert('XML save failed: ' + e.message);
   }
 }
 
@@ -780,7 +780,7 @@ async function saveAll(){
       // Fallback download
       const blob = new Blob([csv], {type:'text/csv'}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = (model.project.name? model.project.name.replace(/\s+/g,'_')+'_': '') + 'progress_all.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); 
     }
-  }catch(e){  }
+  }catch(e){ alert('Save failed: ' + e.message); }
 }
 
 function parseCSV(text){ const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n'); const rows=[]; let cur=[]; let inQuote=false; let field=''; function pushField(){ cur.push(field); field=''; } function pushRow(){ rows.push(cur); cur=[]; }
@@ -794,7 +794,7 @@ function uploadCSVAndLoad(){ const inp = document.createElement('input'); inp.ty
             loadFromXml(text);
             return;
           }catch(err){
-            
+            alert('Failed to parse XML: ' + err.message);
             return;
           }
         }
@@ -812,8 +812,8 @@ try{ computeAndRender(); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); set
         if(baselineRows.length){ model.baseline = { days: baselineRows.map(r=>r.date), planned: baselineRows.map(r=> (r.val==null? null : clamp(r.val,0,100))) }; }
         $('#projectName').value = model.project.name||''; $('#projectStartup').value = model.project.startup||''; $('#startupLabelInput').value = model.project.markerLabel || 'Baseline Complete';
         syncScopeRowsToModel(); computeAndRender(); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); 
-// 
-      }catch(err){  } };
+// alert('Full CSV loaded.');
+      }catch(err){ alert('Failed to parse CSV: '+err.message); } };
     reader.readAsText(file);
   };
   inp.click(); }
@@ -941,7 +941,7 @@ $('#baselineBtn').addEventListener('click', ()=>{
 
   takeBaseline(days, plannedCum);
   computeAndRender(); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650);
-  //  // (optional)
+  // alert('Baseline captured.'); // (optional)
 });
 
 /*****************
@@ -1178,7 +1178,7 @@ function loadFromCsvText(text){
             $('#projectName').value = model.project.name||''; $('#projectStartup').value = model.project.startup||''; $('#startupLabelInput').value = model.project.markerLabel || 'Baseline Complete';
             syncScopeRowsToModel(); computeAndRender(); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650);
   }catch(err){
-    
+    alert('Failed to parse CSV: '+err.message);
   }
 }
 
@@ -1203,7 +1203,7 @@ document.querySelectorAll('#loadDropdown div').forEach(it=>{
           loadFromCsvText(t);
         })
         .catch(err => {
-          
+          alert('Failed to load preset CSV: ' + err.message);
         });
     }
     closeDropdown();   // <-- closes after any preset is selected
