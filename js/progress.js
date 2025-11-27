@@ -778,7 +778,7 @@ async function saveAll(){
       setCookie(COOKIE_KEY, JSON.stringify(model), 3650); alert('Saved.');
     } else {
       // Fallback download
-      const blob = new Blob([csv], {type:'text/csv'}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = (model.project.name? model.project.name.replace(/\s+/g,'_')+'_': '') + 'progress_all.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); alert('Saved (downloaded).');
+      const blob = new Blob([csv], {type:'text/csv'}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = (model.project.name? model.project.name.replace(/\s+/g,'_')+'_': '') + 'progress_all.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); alert('');
     }
   }catch(e){ alert('Save failed: ' + e.message); }
 }
