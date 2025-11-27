@@ -417,7 +417,7 @@ function renderLegend(chart){
   mk('legendBaselineCheckbox','Original Plan', 'legend-baseline', baselineVisible, (e)=>{    baselineVisible = e.target.checked; const meta = chart.getDatasetMeta(0); meta.hidden = !baselineVisible; computeAndRender(); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650);  }, legendStats.baselinePct!=null ? (legendStats.baselinePct + '%') : null, null);
 
   // Planned
-  mk('legendPlannedCheckbox', 'Plan', 'legend-planned', plannedVisible, (e)=>{    plannedVisible = e.target.checked; const meta = chart.getDatasetMeta(1); meta.hidden = !plannedVisible; computeAndRender(); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650);  }, legendStats.plannedPct!=null ? (legendStats.plannedPct + '%') : null, null);
+  mk('legendPlannedCheckbox', 'Current Plan', 'legend-planned', plannedVisible, (e)=>{    plannedVisible = e.target.checked; const meta = chart.getDatasetMeta(1); meta.hidden = !plannedVisible; computeAndRender(); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650);  }, legendStats.plannedPct!=null ? (legendStats.plannedPct + '%') : null, null);
 
   // Actual + daysRel to the right
   mk('legendActualCheckbox', 'Actual', 'legend-actual', actualVisible, (e)=>{
