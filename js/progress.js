@@ -1,3 +1,5 @@
+import { getBaselineSeries, takeBaseline, renderDailyTable, initHistory } from './history.js';
+
 // Ensure legend text renders after files are loaded without needing a toggle
 document.querySelectorAll('input[type="file"]').forEach(el=>{
   el.addEventListener('change', ()=>{
@@ -265,16 +267,7 @@ function computeDaysRelativeToPlan(days, planned, actual){ if(!days.length) retu
 /*****************
  * Baseline helpers
  *****************/
-function getBaselineSeries(days, plannedCum){
-  if(model.baseline && Array.isArray(model.baseline.days) && Array.isArray(model.baseline.planned)){
-    // map baseline snapshot to current days
-    const map = new Map(); model.baseline.days.forEach((d,idx)=> map.set(d, model.baseline.planned[idx]));
-    return days.map(d=> map.has(d) ? map.get(d) : null);
-  }
-  // no baseline yet -> mirrors planned
-  return plannedCum.slice();
-}
-function takeBaseline(days, plannedCum){ model.baseline = { days: days.slice(), planned: plannedCum.slice(), ts: Date.now() }; setCookie(COOKIE_KEY, JSON.stringify(model), 3650); }
+; setCookie(COOKIE_KEY, JSON.stringify(model), 3650); }
 
 /*****************
  * Rendering & Chart
@@ -309,7 +302,7 @@ function computeAndRender(){
   $$('#scopeRows .row').forEach((row)=>{ const i = Number(row.dataset.index); updatePlannedCell(row, model.scopes[i]); });
   const totalActual = calcTotalActualProgress(); $('#totalActual').textContent = totalActual.toFixed(1)+'%'; const hd = document.getElementById('historyDate'); if(hd && !hd.value){ hd.value = fmtDate(new Date()); }
   const plan = calcPlannedSeriesByDay(); const days = plan.days || []; const plannedCum = plan.plannedCum || plan.planned || []; const actualCum = calcActualSeriesByDay(days); const baselineCum = getBaselineSeries(days, plannedCum);
-  renderDailyTable(days, baselineCum, plannedCum, actualCum);
+  renderDailyTable(days, baselineCum, plannedCum, actualCum, { computeAndRender });
   drawChart(days, baselineCum, plannedCum, actualCum);
   updateBelowChartStats(days, baselineCum, plannedCum, actualCum);
   requestAnimationFrame(()=>{ refreshLegendNow(); });
@@ -557,17 +550,6 @@ function drawChart(days, baseline, planned, actual){
   if(chart){ chart.destroy(); }
   const ctx = document.getElementById('progressChart').getContext('2d');
   chart = new Chart(ctx, cfg);
-}
-
-function renderDailyTable(days, baseline, planned, actual){
-  const tb = $('#dailyTable tbody'); tb.innerHTML = '';
-  days.forEach((d, idx)=>{ const tr = document.createElement('tr'); const b = baseline[idx]; const p = planned[idx]; const a = actual[idx]; tr.innerHTML = `
-      <td>${d}</td>
-      <td class="right">${(b==null? '' : (Number(b)||0).toFixed(1)+'%')}</td>
-      <td class="right">${(p==null? '' : (Number(p)||0).toFixed(1)+'%')}</td>
-      <td class="right"><input class="right-input" data-day="${d}" type="number" step="0.1" min="0" max="100" value="${a==null? '' : a.toFixed(1)}" style="width:50px"></td>
-    `; tb.appendChild(tr); });
-  $$('#dailyTable input[type=number]').forEach(inp=>{ const handler = ()=>{ const day = inp.dataset.day; const raw = inp.value; const v = raw===''? undefined : clamp(parseFloat(raw)||0,0,100); model.dailyActuals[day] = v; computeAndRender(); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); }; inp.addEventListener('change', handler); inp.addEventListener('blur', handler); });
 }
 
 /*****************
@@ -926,8 +908,6 @@ $('#projectStartup').addEventListener('change', computeAndRender);
 $('#startupLabelInput').addEventListener('input', computeAndRender);
 $('#labelToggle').addEventListener('change', computeAndRender);
 
-$('#snapshot').addEventListener('click', ()=>{ const chosen=document.getElementById('historyDate'); const d = (chosen && chosen.value)? chosen.value : fmtDate(today); const pct = calcTotalActualProgress(); const idx = model.history.findIndex(h=>h.date===d); if(idx>=0) model.history[idx].actualPct = pct; else model.history.push({date:d, actualPct:pct}); model.dailyActuals[d] = pct; computeAndRender(); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); });
-
 // Toolbar Save/Load/Clear with confirmations
 $('#toolbarClear').addEventListener('click', ()=>{ if(!confirm('Clear scope fields and history?')) return; const ps = calcEarliestStart(); model.scopes = model.scopes.map(s=> ({...s, start:'', end:'', cost:0, unitsToDate:0, totalUnits:'', actualPct:0 })); if(ps){ const psStr = fmtDate(ps); Object.keys(model.dailyActuals).forEach(k=>{ if(k>=psStr) delete model.dailyActuals[k]; }); model.history = model.history.filter(h=> h.date < psStr); } syncScopeRowsToModel(); computeAndRender(); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); });
 
@@ -939,14 +919,24 @@ $('#baselineBtn').addEventListener('click', ()=>{
   // Always ask before saving baseline
   if(!confirm('Are you sure you want to establish a new baseline for the project?')) return;
 
-  takeBaseline(days, plannedCum);
-  computeAndRender(); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650);
+  // Delegate baseline capture to history.js helper
+  takeBaseline(days, plannedCum, model, setCookie, COOKIE_KEY);
+  computeAndRender();
   // alert('Baseline captured.'); // (optional)
 });
-
-/*****************
+**
  * Lightweight self-tests (console)
  *****************/
+
+// Initialize history-related behavior (snapshot button, history table inputs)
+document.addEventListener('DOMContentLoaded', () => {
+  try {
+    initHistory({ calcTotalActualProgress, fmtDate, today, computeAndRender });
+  } catch (e) {
+    console.error('Failed to initialize history module', e);
+  }
+});
+
 (function runSelfTests(){
   try{
 
