@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 
-<!-- save login save automatically -->
+<!-- refresh local storage test -->
 
 <html lang="en">
 <head>
@@ -273,6 +273,7 @@
           console.error("Unable to read pendingSave from sessionStorage", e);
         }
 
+        window._autoSaving = true;
         if (pending) {
           if (typeof showToast === "function") {
             showToast("Saving project...");
@@ -286,7 +287,7 @@
               }
             } finally {
               try {
-                sessionStorage.removeItem("pendingSave");
+                sessionStorage.removeItem("pendingSave"); window._autoSaving=false;
               } catch (e) {
                 console.error("Unable to clear pendingSave from sessionStorage", e);
               }
