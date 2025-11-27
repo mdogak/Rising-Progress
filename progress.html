@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 
-<!-- formatting after autosave rev1 -->
+<!-- refresh local storage test -->
 
 <html lang="en">
 <head>
@@ -83,7 +83,7 @@
 </div>
 <div class="right input-inline" style="margin-left:auto; gap:6px">
 <input type="checkbox" id="labelToggle" checked style="accent-color:grey; width:16px; height:16px; margin-right:-35px; vertical-align:middle;margin-top:30px;"><label for="startupLabelInput">Label:</label>
-<input class="inline-skinny" id="startupLabelInput" value="Plan Complete"/>
+<input class="inline-skinny" id="startupLabelInput" value="Baseline Complete"/>
 <input id="projectStartup" type="date"/>
 
 
@@ -276,7 +276,7 @@
         window._autoSaving = true;
         if (pending) {
           if (typeof showToast === "function") {
-            showToast("Saving project...");
+            
           }
           setTimeout(() => {
             try {
