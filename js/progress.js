@@ -267,7 +267,6 @@ function computeDaysRelativeToPlan(days, planned, actual){ if(!days.length) retu
 /*****************
  * Baseline helpers
  *****************/
-; setCookie(COOKIE_KEY, JSON.stringify(model), 3650); }
 
 /*****************
  * Rendering & Chart
