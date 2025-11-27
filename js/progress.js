@@ -663,7 +663,7 @@ async function saveXml(){
   try{
     const xml = buildMSPXML();
     const suggested = (model.project.name ? model.project.name.replace(/\s+/g,'_') + '_' : '') + 'progress_all.xml';
-    if(window.showSaveFilePicker){
+    if(!window._autoSaving && window.showSaveFilePicker){
       const handle = await window.showSaveFilePicker({
         suggestedName: suggested,
         types:[{
@@ -772,7 +772,7 @@ function buildAllCSV(){
 async function saveAll(){
   try{
     const csv = buildAllCSV();
-    if(window.showSaveFilePicker){
+    if(!window._autoSaving && window.showSaveFilePicker){
       const handle = await window.showSaveFilePicker({ suggestedName: (model.project.name? model.project.name.replace(/\s+/g,'_')+'_': '') + 'progress_all.csv', types:[{ description:'CSV', accept:{ 'text/csv':['.csv'] } }] });
       const writable = await handle.createWritable(); await writable.write(new Blob([csv], {type:'text/csv'})); await writable.close();
       setCookie(COOKIE_KEY, JSON.stringify(model), 3650); alert('Saved.');
