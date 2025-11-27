@@ -85,7 +85,7 @@
     .chart-header{display:flex;justify-content:space-between;gap:16px;align-items:end;margin-bottom:8px}
     .chart-header .left,.chart-header .right{display:flex;gap:8px;align-items:end}
     .input-inline label{display:block;font-size:12px;margin-bottom:2px}
-    .input-inline input{min-width:90px}
+    .input-inline input{min-width:16px}
     .right-input{ text-align:right }
     .inline-skinny{width:200px; } /* narrower label field */
     @media (max-width: 640px){ .chart-header{flex-direction:row; align-items:center;align-items:stretch} .input-inline input{width:100%} .row{grid-template-columns:
