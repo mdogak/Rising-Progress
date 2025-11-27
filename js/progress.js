@@ -769,7 +769,11 @@ function parseCSV(text){ const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,
   for(const line of lines){ let i=0; inQuote=false; field=''; cur=[]; while(i<line.length){ const ch = line[i]; if(inQuote){ if(ch==='"' && line[i+1]==='"'){ field+='"'; i+=2; continue; } if(ch==='"'){ inQuote=false; i++; continue; } field+=ch; i++; continue; } else { if(ch==='"'){ inQuote=true; i++; continue; } if(ch===','){ pushField(); i++; continue; } field+=ch; i++; continue; } } pushField(); pushRow(); }
   return rows; }
 
-function uploadCSVAndLoad(){ const inp = document.createElement('input'); inp.type='file'; inp.accept='.csv,text/csv,application/xml,.xml'; inp.onchange = () => { const file = inp.files[0]; if(!file) return; const reader = new FileReader(); reader.onload = (e)=>{ try{ const text = e.target.result;
+function uploadCSVAndLoad(){
+  // Clear saved data when opening a file
+  if (typeof delCookie === 'function') delCookie(COOKIE_KEY);
+  model = { project:{name:'', startup:'', markerLabel:'Baseline Complete'}, scopes:[], history:[], dailyActuals:{}, baseline:null, daysRelativeToPlan:null };
+  window.model = model; const inp = document.createElement('input'); inp.type='file'; inp.accept='.csv,text/csv,application/xml,.xml'; inp.onchange = () => { const file = inp.files[0]; if(!file) return; const reader = new FileReader(); reader.onload = (e)=>{ try{ const text = e.target.result;
         const isXml = file && file.name && file.name.toLowerCase().endsWith('.xml');
         if(isXml || /^\s*</.test(text)){
           try{
@@ -965,6 +969,10 @@ document.querySelectorAll('input[type="file"]').forEach(el=>{
 
 // === Embedded CSV loader for "Pipeline" preset (default) ===
 function loadFromPresetCsv(text){
+  // Clear saved data when loading any preset
+  if (typeof delCookie === 'function') delCookie(COOKIE_KEY);
+  model = { project:{name:'', startup:'', markerLabel:'Baseline Complete'}, scopes:[], history:[], dailyActuals:{}, baseline:null, daysRelativeToPlan:null };
+  window.model = model;
   const rows = parseCSV(text);
   let section = '';
   let localModel = { project:{name:'',startup:'', markerLabel:'Baseline Complete'}, scopes:[], history:[], dailyActuals:{}, baseline:null, daysRelativeToPlan:null };
