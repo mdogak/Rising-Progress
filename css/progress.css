@@ -213,3 +213,27 @@
 }
 
 #dailyTable th:nth-child(2), #dailyTable th:nth-child(3){min-width:90px;}
+
+
+/* StartupControls Single-Line Fix */
+#startupControls {
+  display:flex !important;
+  flex-direction:row !important;
+  align-items:center !important;
+  gap:10px !important;
+  margin-top:8px !important;
+}
+#startupControls label,
+#startupControls input {
+  display:inline-flex !important;
+  margin:0 !important;
+  width:auto !important;
+}
+#startupControls .inline-skinny {
+  width:200px !important;
+}
+#startupControls input[type="checkbox"] {
+  width:16px !important;
+  height:16px !important;
+  accent-color: rgba(37,99,235,1) !important;
+}
