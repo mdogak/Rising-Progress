@@ -30,6 +30,30 @@
 
 <link rel="stylesheet" href="css/progress.css">
   <link rel="icon" href="risingprogress.ico" type="image/x-icon"/>
+
+<style>
+#toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #2563eb; /* Rising Progress blue */
+  color: #ffffff;
+  padding: 10px 18px;
+  border-radius: 999px;
+  font-size: 14px;
+  border: 2px solid #ea580c; /* Rising Progress orange */
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.25);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+  z-index: 9999;
+}
+#toast.show {
+  opacity: 1;
+}
+</style>
+
 </head>
 <body>
 
@@ -59,7 +83,7 @@
 </div>
 <div class="right input-inline" style="margin-left:auto; gap:6px">
 <input type="checkbox" id="labelToggle" checked style="accent-color:grey; width:16px; height:16px; margin-right:-35px; vertical-align:middle;margin-top:30px;"><label for="startupLabelInput">Label:</label>
-<input class="inline-skinny" id="startupLabelInput" value="Original Complete"/>
+<input class="inline-skinny" id="startupLabelInput" value="Baseline Complete"/>
 <input id="projectStartup" type="date"/>
 
 
@@ -116,13 +140,13 @@
 <div class="card narrow">
 <div style="display:flex;align-items:center;gap:8px">
 <h2>History</h2>
-<button id="baselineBtn">🧱 Set Original (Baseline) Plan</button>
+<button id="baselineBtn">🧱 Baseline Schedule</button>
 </div>
 <table id="dailyTable" style="margin-top:8px;width:auto">
 <thead>
 <tr>
 <th>Date</th>
-<th class="right">Original Plan %</th>
+<th class="right">Baseline %</th>
 <th class="right">Planned %</th>
 <th class="right">Actual %</th>
 </tr>
@@ -152,6 +176,20 @@
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
 
+  function showToast(msg) {
+    const t = document.getElementById("toast");
+    if (!t) return;
+    t.textContent = msg;
+    t.classList.add("show");
+    if (window._toastTimer) {
+      clearTimeout(window._toastTimer);
+    }
+    window._toastTimer = setTimeout(() => {
+      t.classList.remove("show");
+    }, 1800);
+  }
+
+
   function redirectToLogin() {
     try {
       // Persist current model into cookie before redirect, if available
@@ -171,6 +209,11 @@
   window.requireAuthForSaveAll = function () {
     const user = auth.currentUser;
     if (!user) {
+      try {
+        sessionStorage.setItem("pendingSave", "csv");
+      } catch (e) {
+        console.error("Unable to set pendingSave in sessionStorage", e);
+      }
       redirectToLogin();
       return;
     }
@@ -184,6 +227,11 @@
   window.requireAuthForSaveXml = function () {
     const user = auth.currentUser;
     if (!user) {
+      try {
+        sessionStorage.setItem("pendingSave", "xml");
+      } catch (e) {
+        console.error("Unable to set pendingSave in sessionStorage", e);
+      }
       redirectToLogin();
       return;
     }
@@ -216,9 +264,41 @@
     onAuthStateChanged(auth, (user) => {
       window.currentUserForSave = user;
       updateUi(user);
+
+      if (user) {
+        let pending = null;
+        try {
+          pending = sessionStorage.getItem("pendingSave");
+        } catch (e) {
+          console.error("Unable to read pendingSave from sessionStorage", e);
+        }
+
+        if (pending) {
+          if (typeof showToast === "function") {
+            showToast("Saving project...");
+          }
+          setTimeout(() => {
+            try {
+              if (pending === "csv" && typeof window.saveAll === "function") {
+                window.saveAll();
+              } else if (pending === "xml" && typeof window.saveXml === "function") {
+                window.saveXml();
+              }
+            } finally {
+              try {
+                sessionStorage.removeItem("pendingSave");
+              } catch (e) {
+                console.error("Unable to clear pendingSave from sessionStorage", e);
+              }
+            }
+          }, 500);
+        }
+      }
     });
   });
 </script>
+
+  <div id="toast"></div>
 
 </body>
 </html>
