@@ -420,7 +420,7 @@ function renderLegend(chart){
   mk('legendPlannedCheckbox', 'Current Plan', 'legend-planned', plannedVisible, (e)=>{    plannedVisible = e.target.checked; const meta = chart.getDatasetMeta(1); meta.hidden = !plannedVisible; computeAndRender(); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650);  }, legendStats.plannedPct!=null ? (legendStats.plannedPct + '%') : null, null);
 
   // Actual + daysRel to the right
-  mk('legendActualCheckbox', 'Actual', 'legend-actual', actualVisible, (e)=>{
+  mk('legendActualCheckbox', 'Actual Progress', 'legend-actual', actualVisible, (e)=>{
     actualVisible = e.target.checked; const meta = chart.getDatasetMeta(2); meta.hidden = !actualVisible; computeAndRender(); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650);
   }, legendStats.actualPct!=null ? (legendStats.actualPct + '%') : null, daysRel);
 }
