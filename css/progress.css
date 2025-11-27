@@ -237,3 +237,7 @@
   height:16px !important;
   accent-color: rgba(37,99,235,1) !important;
 }
+
+#startupControls label {
+  font-weight: 400 !important;
+}
