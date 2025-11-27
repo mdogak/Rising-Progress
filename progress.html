@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 
-<!-- formatting rev 4 -->
+<!-- refresh local storage test -->
 
 <html lang="en">
 <head>
@@ -82,20 +82,17 @@
   
 </div>
 <div class="right input-inline" style="margin-left:auto; gap:6px">
-<input type="checkbox" id="labelToggle" checked style="accent-color:grey; width:16px; height:16px; margin-right:-35px; vertical-align:middle;margin-top:30px;"><label for="startupLabelInput">Label:</label>
-<input class="inline-skinny" id="startupLabelInput" value="Baseline Complete"/>
-<input id="projectStartup" type="date"/>
-
-
-  
   <button id="authButton">Logout</button>
-
-
-  
 </div>
 </div>
-<div style="position: relative; padding-bottom: 0;"><canvas id="progressChart"></canvas><img src="risingprogress.png" style="position: absolute; right: 20px; bottom: 85px; height: 50px; width: auto; z-index: 10; pointer-events: none;"/></div>
+<div style="position: relative; padding-bottom: 0;"><canvas id="progressChart"></canvas><img src="risingprogress.png" style="position: absolute; right: 50px; bottom: 85px; height: 50px; width: auto; z-index: 10; pointer-events: none;"/></div>
 <div class="custom-legend" id="customLegend"></div>
+<div id="startupControls" class="input-inline" style="margin-top:8px; gap:8px; align-items:center;">
+  <input type="checkbox" id="labelToggle" checked style="width:16px; height:16px;">
+  <label for="startupLabelInput">Label:</label>
+  <input class="inline-skinny" id="startupLabelInput" value="Baseline Complete"/>
+  <input id="projectStartup" type="date"/>
+</div>
 <div class="small" id="bpStats" style="margin-top:6px; display:flex; gap:16px;"></div>
 <div class="pill" id="planDelta" style="margin-top:8px"></div>
 </div>
