@@ -105,7 +105,8 @@
 #projectName,
 #startupLabelInput,
 #projectStartup,
-.chart-header .right label { font-size: 1.25em; }
+.chart-header .right label,
+#startupControls label { font-size: 1.25em; }
 
 
 /* Custom HTML legend mimicking Chart.js with Baseline checkbox */
@@ -151,6 +152,7 @@
 .legend-baseline{ color: rgba(107,114,128,1); }   /* gray-500 */
 .legend-planned{  color: rgba(37,99,235,1); }     /* blue-600 */
 .legend-actual{   color: rgba(234,88,12,1); }     /* orange-600 */
+#labelToggle{ accent-color: rgba(37,99,235,1); }
 #legendBaselineCheckbox{ accent-color: rgba(107,114,128,1); }
 #legendPlannedCheckbox{  accent-color: rgba(37,99,235,1); }
 #legendActualCheckbox{   accent-color: rgba(234,88,12,1); }
@@ -164,6 +166,7 @@
 .legend-baseline{ color: rgba(107,114,128,1); }
 .legend-planned{  color: rgba(37,99,235,1); }
 .legend-actual{   color: rgba(234,88,12,1); }
+#labelToggle{ accent-color: rgba(37,99,235,1); }
 #legendBaselineCheckbox{ accent-color: rgba(107,114,128,1); }
 #legendPlannedCheckbox{  accent-color: rgba(37,99,235,1); }
 #legendActualCheckbox{   accent-color: rgba(234,88,12,1); }
