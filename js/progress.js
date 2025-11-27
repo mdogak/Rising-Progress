@@ -267,6 +267,7 @@ function computeDaysRelativeToPlan(days, planned, actual){ if(!days.length) retu
 /*****************
  * Baseline helpers
  *****************/
+// (baseline-specific helpers are implemented in history.js via getBaselineSeries/takeBaseline)
 
 /*****************
  * Rendering & Chart
@@ -515,9 +516,9 @@ function drawChart(days, baseline, planned, actual){
   const cfg = {
     type:'line',
     data:{ labels, datasets:[
-      {label:'Baseline', order:100, hidden:(!baselineVisible), hidden:(!baselineVisible), data:dataBaseline, borderColor:'rgba(107,114,128,1)', backgroundColor:'rgba(107,114,128,.10)', tension:.15, borderWidth:2, pointRadius:0},
-      {label:'Planned', order:0, hidden:(!plannedVisible), hidden:(!plannedVisible), data:dataPlanned, borderColor:'rgba(37,99,235,1)', backgroundColor:'rgba(37,99,235,.12)', tension:.15, borderWidth:2, pointRadius:0},
-      {label:'Actual', order:-100, hidden:(!actualVisible), hidden:(!actualVisible), data:dataActual, spanGaps:false, borderColor:'rgba(234,88,12,1)', backgroundColor:'rgba(234,88,12,.12)', tension:.15, borderWidth:2, pointRadius:0}
+      {label:'Baseline', order:100, hidden:(!baselineVisible), data:dataBaseline, borderColor:'rgba(107,114,128,1)', backgroundColor:'rgba(107,114,128,.10)', tension:.15, borderWidth:2, pointRadius:0},
+      {label:'Planned', order:0, hidden:(!plannedVisible), data:dataPlanned, borderColor:'rgba(37,99,235,1)', backgroundColor:'rgba(37,99,235,.12)', tension:.15, borderWidth:2, pointRadius:0},
+      {label:'Actual', order:-100, hidden:(!actualVisible), data:dataActual, spanGaps:false, borderColor:'rgba(234,88,12,1)', backgroundColor:'rgba(234,88,12,.12)', tension:.15, borderWidth:2, pointRadius:0}
     ]},
     options:{
       responsive:true, maintainAspectRatio:false,
@@ -923,7 +924,7 @@ $('#baselineBtn').addEventListener('click', ()=>{
   computeAndRender();
   // alert('Baseline captured.'); // (optional)
 });
-**
+/*****************
  * Lightweight self-tests (console)
  *****************/
 
@@ -1121,23 +1122,33 @@ document.addEventListener('DOMContentLoaded', function () {
     e.stopPropagation();
     toggleDropdown();
   });
-
   // Handle dropdown actions
   dd.querySelectorAll('div[data-act]').forEach(function (item) {
     item.addEventListener('click', function (e) {
       const act = item.dataset.act;
+
       if (act === 'open') {
         // reuse existing file loader
         uploadCSVAndLoad();
-      } else if (act === 'default') {
-        if (btnReset) btnReset.click();
-      } else if (act === 'pipeline') {
-        if (btnPipe) btnPipe.click();
-      } else if (act === 'mech') {
-        if (btnMech) btnMech.click();
-      } else if (act === 'ie') {
-        if (btnIE) btnIE.click();
+      } else {
+        let file = '';
+        if (act === 'default') file = 'Project_Files/default_progress_all.csv';
+        if (act === 'pipeline') file = 'Project_Files/Pipeline_progress_all.csv';
+        if (act === 'mech') file = 'Project_Files/Mech_Facility_progress_all.csv';
+        if (act === 'ie') file = 'Project_Files/I&E_Facility_progress_all.csv';
+
+        if (file) {
+          fetch(file)
+            .then(r => r.text())
+            .then(t => {
+              loadFromCsvText(t);
+            })
+            .catch(err => {
+              alert('Failed to load preset CSV: ' + err.message);
+            });
+        }
       }
+
       closeDropdown();
       e.stopPropagation();
     });
@@ -1150,10 +1161,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
 });
-
-function loadFromCsvText(text){
-  try{
-    const rows = parseCSV(text); let section = ''; model = { project:{name:'',startup:'', markerLabel:'Baseline Complete'}, scopes:[], history:[], dailyActuals:{}, baseline:null, daysRelativeToPlan:null }; window.model = model; window.model = model;
+.model = model;
     try{ computeAndRender(); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); setCookie(COOKIE_KEY, JSON.stringify(model), 3650); }catch(e){}
             let scopeHeaders = []; let baselineRows = [];
             for(let r of rows){ if(r.length===1 && r[0].startsWith('#SECTION:')){ section = r[0].slice('#SECTION:'.length).trim(); continue; } if(r.length===0 || (r.length===1 && r[0]==='')) continue;
@@ -1170,34 +1178,6 @@ function loadFromCsvText(text){
     alert('Failed to parse CSV: '+err.message);
   }
 }
-
-// override load project
-document.querySelectorAll('#loadDropdown div').forEach(it=>{
-  it.onclick = () => {
-    const act = it.dataset.act;
-    if(act === 'open'){
-      // Use the same file uploader used by the toolbar
-      // uploadCSVAndLoad();  // ❌ Disable this to stop double dialog
-      return;
-    }
-    let file = '';
-    if(act === 'default') file = 'Project_Files/default_progress_all.csv';
-    if(act === 'pipeline') file = 'Project_Files/Pipeline_progress_all.csv';
-    if(act === 'mech') file = 'Project_Files/Mech_Facility_progress_all.csv';
-    if(act === 'ie') file = 'Project_Files/I&E_Facility_progress_all.csv';
-    if(file){
-      fetch(file)
-        .then(r => r.text())
-        .then(t => {
-          loadFromCsvText(t);
-        })
-        .catch(err => {
-          alert('Failed to load preset CSV: ' + err.message);
-        });
-    }
-    closeDropdown();   // <-- closes after any preset is selected
-  };
-});
 
 // default load with cookie preference
 (function () {
