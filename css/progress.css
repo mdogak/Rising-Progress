@@ -156,6 +156,9 @@
 #legendBaselineCheckbox{ accent-color: rgba(107,114,128,1); }
 #legendPlannedCheckbox{  accent-color: rgba(37,99,235,1); }
 #legendActualCheckbox{   accent-color: rgba(234,88,12,1); }
+#legendForecastCheckbox{  accent-color: rgba(22,163,74,1); }
+.legend-forecast{  color: rgba(22,163,74,1); }
+
 
 
 /* Legend with subtext lines and colored labels */
@@ -170,6 +173,9 @@
 #legendBaselineCheckbox{ accent-color: rgba(107,114,128,1); }
 #legendPlannedCheckbox{  accent-color: rgba(37,99,235,1); }
 #legendActualCheckbox{   accent-color: rgba(234,88,12,1); }
+#legendForecastCheckbox{  accent-color: rgba(22,163,74,1); }
+.legend-forecast{  color: rgba(22,163,74,1); }
+
 .legend-sub{ font-weight:500; font-size:.95em; }
 /* Match bottom-of-chart baseline/planned font size to Actual % legend */
 #bpStats { font-size: 1em; }
@@ -177,13 +183,15 @@
 .legend-sub.baseline{ color: rgba(107,114,128,1); }
 .legend-sub.planned{  color: rgba(37,99,235,1); }
 .legend-sub.actual{   color: rgba(234,88,12,1); }
-.legend-daysrel{ white-space:nowrap; color:#000000; font-weight:400; margin-left:6px; }
+.legend-daysrel{ white-space:nowrap; color:rgba(22,163,74,1); font-weight:500; margin-left:0; }
+.legend-sub.forecast{ color: rgba(22,163,74,1); }
 
 
 /* Stabilize legend layout so subtext remains under its header and daysRel stays to the right */
 .custom-legend{ align-items:flex-start; }
 .custom-legend .legend-row{ display:flex; align-items:center; gap:8px; flex-wrap:nowrap; }
-.legend-daysrel{ white-space:nowrap; color:#000000; font-weight:400; margin-left:6px; }
+.legend-daysrel{ white-space:nowrap; color:rgba(22,163,74,1); font-weight:500; margin-left:0; }
+.legend-sub.forecast{ color: rgba(22,163,74,1); }
 .custom-legend .legend-item{ align-items:flex-start; }
 
 
@@ -241,5 +249,3 @@
 #startupControls label {
   font-weight: 400 !important;
 }
-
-.chart-align-left { margin-left:16px; margin-right:16px; }
