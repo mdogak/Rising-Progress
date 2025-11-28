@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 
-<!-- rev22 -->
+<!-- rev13 -->
 
 <html lang="en">
 <head>
@@ -27,6 +27,8 @@
     Chart.register(window['chartjs-plugin-annotation']);
   }
 </script>
+
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 
 <link rel="stylesheet" href="css/progress.css">
   <link rel="icon" href="risingprogress.ico" type="image/x-icon"/>
@@ -72,7 +74,7 @@
 <option value="Centimeters"></option>
 </datalist>
 <!-- Big Chart Card -->
-<div class="card" style="margin-top:16px">
+<div class="card" id="chartCard" style="margin-top:16px">
 <div class="chart-header">
 <div class="left input-inline">
 <label for="projectName">Project Name:</label>
@@ -107,10 +109,12 @@
 <div id="saveDropdown" style="display:none; position:absolute; background:white; border:1px solid #ccc; z-index:1000;">
   <div id="saveCSV" style="padding:8px; cursor:pointer;">Save as CSV</div>
   <div id="saveXML" style="padding:8px; cursor:pointer;">Save as XML</div>
+  <div id="saveIMG" style="padding:8px; cursor:pointer;">Save Image</div>
 </div>
 
 <div style="position:relative;"><button id="toolbarLoad">📂 Load Project ▾</button><div id="loadDropdown" style="display:none; position:absolute; background:white; border:1px solid #ccc; z-index:1000;"><div data-act="open" style="padding:8px; cursor:pointer;">Open File</div><div data-act="default" style="padding:8px; cursor:pointer;">Default</div><div data-act="pipeline" style="padding:8px; cursor:pointer;">Pipeline</div><div data-act="mech" style="padding:8px; cursor:pointer;">Mech Facility</div><div data-act="ie" style="padding:8px; cursor:pointer;">I&E Facility</div></div></div>
 <button id="toolbarClear">🔄 Clear</button>
+<button id="toolbarCopy">📷 Copy Chart</button>
 </div>
 <div class="row head" style="margin-top:8px">
 <div>Scope</div>
@@ -288,6 +292,7 @@
   });
 </script>
 <script type="module" src="js/progress.js"></script>
+<script type="module" src="js/image.js"></script>
 
 
   <div id="toast"></div>
