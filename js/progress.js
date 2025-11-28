@@ -904,7 +904,7 @@ $('#baselineBtn').addEventListener('click', ()=>{
   if(!confirm('Are you sure you want to establish a new baseline for the project?')) return;
 
   // Delegate baseline capture to history.js helper
-  takeBaseline(days, plannedCum, model, setCookie, SESSION_KEY);
+  takeBaseline(days, plannedCum, model);
   computeAndRender();
   // alert('Baseline captured.'); // (optional)
 });
