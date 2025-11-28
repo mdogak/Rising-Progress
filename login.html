@@ -1,9 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-VV4YLNW79F"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-VV4YLNW79F');
+</script>
+
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Rising Progress – Login</title>
+
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet" />
 
 <style>
@@ -25,7 +36,6 @@
         box-shadow: 0px 12px 32px rgba(0,0,0,0.10);
         animation: fadeIn 0.5s ease;
         border-top: 8px solid #2563eb;
-        position: relative;
     }
 
     @keyframes fadeIn {
@@ -83,6 +93,7 @@
         justify-content: center;
         gap: 8px;
     }
+
     .google-btn img { width: 18px; }
 
     .forgot {
@@ -95,6 +106,7 @@
         text-decoration: none;
         font-size: 14px;
     }
+    .forgot a:hover { text-decoration: underline; }
 
     .terms {
         margin-top: 18px;
@@ -102,141 +114,80 @@
         font-size: 13px;
         color: #374151;
     }
+
     .terms a {
         color: #2563eb;
         text-decoration: none;
         font-weight: 600;
     }
-
-    /* Error banner + shake */
-    .error-banner {
-        display: none;
-        background: #b91c1c;
-        color: #fee2e2;
-        padding: 10px 12px;
-        border-radius: 8px;
-        margin-bottom: 14px;
-        font-size: 14px;
-        border: 1px solid #fecaca;
-        text-align: center;
-    }
-    .error-banner.show {
-        display: block;
-    }
-
-    .shake {
-        animation: shake 0.22s ease-in-out;
-    }
-    @keyframes shake {
-        0% { transform: translateX(0); }
-        25% { transform: translateX(-5px); }
-        50% { transform: translateX(4px); }
-        75% { transform: translateX(-4px); }
-        100% { transform: translateX(0); }
-    }
+    .terms a:hover { text-decoration: underline; }
 </style>
 
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
-import {
-    getAuth,
-    signInWithEmailAndPassword,
-    createUserWithEmailAndPassword,
-    sendPasswordResetEmail,
-    signInWithPopup,
-    GoogleAuthProvider,
-    onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+    import {
+        getAuth,
+        signInWithEmailAndPassword,
+        createUserWithEmailAndPassword,
+        sendPasswordResetEmail,
+        signInWithPopup,
+        GoogleAuthProvider
+    } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 
 function getRedirectTarget() {
     const params = new URLSearchParams(window.location.search);
-    return params.get("redirect") || "progress.html";
+    const target = params.get("redirect") || "progress.html";
+    return target;
 }
 
 const firebaseConfig = {
-    apiKey: "AIzaSyDai5gpX1x9I3uaF4MI7WAzq2oItLRPoZA",
-    authDomain: "rising-progress.firebaseapp.com",
-    projectId: "rising-progress"
+      apiKey: "AIzaSyDai5gpX1x9I3uaF4MI7WAzq2oItLRPoZA",
+      authDomain: "rising-progress.firebaseapp.com",
+      projectId: "rising-progress",
 };
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
-const banner = document.getElementById("errorBanner");
-const card = document.querySelector(".card");
-
-function showError(msg) {
-    banner.textContent = msg;
-    banner.classList.add("show");
-    card.classList.remove("shake");
-    void card.offsetWidth;
-    card.classList.add("shake");
-}
-
-function clearError() {
-    banner.classList.remove("show");
-}
-
-async function completeLogin() {
-    try {
-        if (window.parent && window.parent !== window) {
-            window.parent.postMessage({ type: "LOGIN_SUCCESS" }, "*");
-        } else {
-            window.location.href = getRedirectTarget();
-        }
-    } catch (e) {
-        console.warn("Login success message failed", e);
-    }
-}
-
 window.login = function () {
-    clearError();
     const email = document.getElementById("email").value;
     const password = document.getElementById("password").value;
-
     signInWithEmailAndPassword(auth, email, password)
-        .then(completeLogin)
-        .catch(err => showError(err.message));
+        .then(() => window.location.href = getRedirectTarget())
+        .catch(err => alert(err.message));
 };
 
 window.signup = function () {
-    clearError();
     const email = document.getElementById("email").value;
     const password = document.getElementById("password").value;
-
     createUserWithEmailAndPassword(auth, email, password)
-        .then(completeLogin)
-        .catch(err => showError(err.message));
+        .then(() => window.location.href = getRedirectTarget())
+        .catch(err => alert(err.message));
 };
 
 window.googleLogin = function () {
-    clearError();
     signInWithPopup(auth, provider)
-        .then(completeLogin)
-        .catch(err => showError(err.message));
+        .then(() => window.location.href = getRedirectTarget())
+        .catch(err => alert(err.message));
 };
 
 window.resetPassword = function () {
-    clearError();
     const email = document.getElementById("email").value;
-    if (!email) return showError("Enter your email first.");
-
+    if (!email) {
+        alert("Enter your email above first.");
+        return;
+    }
     sendPasswordResetEmail(auth, email)
-        .then(() => showError("Password reset email sent."))
-        .catch(err => showError(err.message));
+        .then(() => alert("Password reset email sent."))
+        .catch(err => alert(err.message));
 };
-
-onAuthStateChanged(auth, (user) => {
-    if (user) completeLogin();
-});
 </script>
+
 </head>
 
 <body>
     <div class="card">
-        <div id="errorBanner" class="error-banner"></div>
-
         <h2>Rising Progress</h2>
 
         <input id="email" type="email" placeholder="Email" />
