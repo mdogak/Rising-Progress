@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 
-<!-- rev14 -->
+<!-- rev13 -->
 
 <html lang="en">
 <head>
@@ -189,8 +189,7 @@
   function redirectToLogin() {
     try {
       // Persist current model into cookie before redirect, if available
-      if (window.model && typeof window.setCookie === "function" && window.COOKIE_KEY) {
-        window.setCookie(window.COOKIE_KEY, JSON.stringify(window.model), 3650);
+      if (window.model && typeof // removed persistent cookie write;
       }
     } catch (e) {
       console.error("Failed to persist model before login redirect", e);
