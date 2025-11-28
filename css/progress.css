@@ -242,6 +242,4 @@
   font-weight: 400 !important;
 }
 
-.card-content { padding-left:24px; padding-right:24px; }
-
-.align-block { padding-left:24px; padding-right:24px; }
+.chart-align-left { margin-left:24px; margin-right:24px; }
