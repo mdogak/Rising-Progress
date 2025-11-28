@@ -1129,15 +1129,22 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 });
 
-// Cookie restore removed — session-only persistence
-// Fallback: auto-load default CSV
-  fetch('Project_Files/default_progress_all.csv')
-    .then(r => r.text())
-    .then(t => loadFromPresetCsv(t))
-    .catch(err => {
-      console.error('Failed to auto-load default CSV:', err);
-    });
-})();
+// Auto-load default CSV once on initial load (session-only persistence)
+document.addEventListener('DOMContentLoaded', () => {
+  try {
+    if (!window.sessionStorage || !sessionStorage.getItem(COOKIE_KEY)) {
+      fetch('Project_Files/default_progress_all.csv')
+        .then(r => r.text())
+        .then(t => loadFromPresetCsv(t))
+        .catch(err => {
+          console.error('Failed to auto-load default CSV:', err);
+        });
+    }
+  } catch (e) {
+    console.error('Auto-load default CSV failed:', e);
+  }
+});
+
 
 // Expose save helpers for auth wrapper
 window.saveAll = saveAll;
