@@ -1,6 +1,6 @@
 // History and baseline helpers for Rising Progress
 // This ES module works alongside progress.js and assumes that progress.js
-// has already attached `model`, `setCookie`, and `COOKIE_KEY` to `window`.
+// has already attached `model` and `SESSION_KEY` to `window` and uses sessionStorage for persistence.
 
 export function getBaselineSeries(days, plannedCum) {
   const model = window.model || {};
@@ -17,7 +17,7 @@ export function getBaselineSeries(days, plannedCum) {
   return plannedCum.slice();
 }
 
-export function takeBaseline(days, plannedCum, model, setCookie, COOKIE_KEY) {
+export function takeBaseline(days, plannedCum, model, _unusedSetCookie, _unusedSESSION_KEY) {
   // Fall back to globals if dependencies weren't passed explicitly
   const effectiveModel = model || (window.model || {});
 
@@ -29,16 +29,15 @@ export function takeBaseline(days, plannedCum, model, setCookie, COOKIE_KEY) {
 
   window.model = effectiveModel;
 
-  const effectiveSetCookie = setCookie || window.setCookie;
-  const effectiveCookieKey = COOKIE_KEY || window.COOKIE_KEY;
-
-  if (typeof effectiveSetCookie === "function" && effectiveCookieKey) {
-    try {
-      effectiveSetCookie(effectiveCookieKey, JSON.stringify(effectiveModel), 3650);
-    } catch (e) {
-      console.error("Failed to persist model after baseline capture", e);
+  // Persist updated model into sessionStorage if available
+  try {
+    if (window.sessionStorage && window.SESSION_KEY) {
+      window.sessionStorage.setItem(window.SESSION_KEY, JSON.stringify(effectiveModel));
     }
+  } catch (e) {
+    console.error("Failed to persist model after baseline capture", e);
   }
+}
 }
 
 /**
@@ -101,12 +100,12 @@ export function renderDailyTable(days, baseline, planned, actual, opts = {}) {
           computeAndRender();
         }
 
-        if (typeof window.setCookie === "function" && window.COOKIE_KEY) {
-          try {
-            window.setCookie(window.COOKIE_KEY, JSON.stringify(model), 3650);
-          } catch (e) {
-            console.error("Failed to persist model after daily edit", e);
+        try {
+          if (window.sessionStorage && window.SESSION_KEY) {
+            window.sessionStorage.setItem(window.SESSION_KEY, JSON.stringify(model));
           }
+        } catch (e) {
+          console.error("Failed to persist model after daily edit", e);
         }
       };
 
@@ -155,12 +154,12 @@ export function initHistory({ calcTotalActualProgress, fmtDate, today, computeAn
       computeAndRender();
     }
 
-    if (typeof window.setCookie === "function" && window.COOKIE_KEY) {
-      try {
-        window.setCookie(window.COOKIE_KEY, JSON.stringify(model), 3650);
-      } catch (e) {
-        console.error("Failed to persist model after snapshot", e);
+    try {
+      if (window.sessionStorage && window.SESSION_KEY) {
+        window.sessionStorage.setItem(window.SESSION_KEY, JSON.stringify(model));
       }
+    } catch (e) {
+      console.error("Failed to persist model after snapshot", e);
     }
   });
 }
