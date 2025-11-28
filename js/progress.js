@@ -223,111 +223,128 @@ function calcActualSeriesByDay(days){ if(!days || days.length===0){ const f=buil
 
 function calcForecastSeriesByDay(days, planned, actual){
   const n = days.length || 0;
-  if(!n || !Array.isArray(planned) || !Array.isArray(actual)) return [];
+  if (!n || !Array.isArray(planned) || !Array.isArray(actual)) return [];
   const forecast = new Array(n).fill(null);
 
-  // Find last actual point
+  // Find last actual point (most recent non-null)
   let aIdx = -1;
-  for(let i = actual.length - 1; i >= 0; i--){
-    if(actual[i] != null){
+  for (let i = actual.length - 1; i >= 0; i--) {
+    if (actual[i] != null) {
       aIdx = i;
       break;
     }
   }
-  if(aIdx < 0) return forecast;
+  if (aIdx < 0) return forecast;
 
   const aPct = actual[aIdx];
-  if(aPct == null || isNaN(aPct)) return forecast;
+  if (aPct == null || isNaN(aPct)) return forecast;
 
-  // Simple guard: if no planned values, just flat-line from last actual
+  // If we have no planned values at all, just hold flat from the last actual
   const hasPlanned = planned.some(v => v != null);
-  if(!hasPlanned){
-    for(let i=aIdx;i<n;i++){
+  if (!hasPlanned) {
+    for (let i = aIdx; i < n; i++) {
       forecast[i] = aPct;
     }
     return forecast;
   }
 
-  // Find first planned index where planned >= aPct
+  const lastPlanIdx = planned.length - 1;
+
+  // Find the segment on the plan where aPct would land and compute a fractional index pStar
   let j = -1;
-  for(let i = 0; i < planned.length; i++){
+  for (let i = 0; i < planned.length; i++) {
     const v = planned[i];
-    if(v != null && v >= aPct){
+    if (v != null && v >= aPct) {
       j = i;
       break;
     }
   }
-  if(j < 0){
-    // Actual already beyond end of plan curve; just hold flat
-    for(let i=aIdx;i<n;i++){
+
+  let pStar;
+  if (j <= 0) {
+    // aPct is at/below the first defined plan point, or we never found a v>=aPct but have plan values
+    // If j < 0, treat it as being at the last defined point (actual beyond plan end).
+    const idx = (j < 0 ? lastPlanIdx : 0);
+    pStar = idx;
+  } else {
+    const p0 = planned[j - 1] ?? 0;
+    const p1 = planned[j] ?? p0;
+    let t = 0;
+    if (Math.abs(p1 - p0) > 1e-9) {
+      t = (aPct - p0) / (p1 - p0);
+      if (!isFinite(t)) t = 0;
+      t = Math.max(0, Math.min(1, t));
+    }
+    pStar = (j - 1) + t;
+  }
+
+  // If even the max plan value is below aPct, just hold flat from last actual
+  if (j < 0 && (Math.max(...planned.filter(v => v != null)) || 0) < aPct) {
+    for (let i = aIdx; i < n; i++) {
       forecast[i] = aPct;
     }
     return forecast;
   }
 
-  // Use existing days-relative helper to determine ahead/behind
-  let rel = null;
-  try{
-    rel = computeDaysRelativeToPlan(days, planned, actual);
-  }catch(e){
-    rel = null;
-  }
-  const daysRel = rel && typeof rel.daysRelative === 'number' ? rel.daysRelative : 0;
+  const daysRel = pStar - aIdx; // >0 => plan point is to the RIGHT (later) of actual; <0 => plan is LEFT (earlier)
+  const startSrcIdx = Math.max(0, Math.min(lastPlanIdx, Math.floor(pStar)));
 
-  const lastPlanIdx = planned.length - 1;
-  const startPlanIdx = j;
-  const endPlanIdx = lastPlanIdx;
-  const planLen = endPlanIdx - startPlanIdx + 1;
-
-  const startForecastIdx = aIdx;
-  const endForecastIdx = Math.min(lastPlanIdx, n - 1);
-  const forecastLen = endForecastIdx - startForecastIdx + 1;
-  if(forecastLen <= 0){
-    forecast[aIdx] = aPct;
-    return forecast;
-  }
-
-  // Helper to sample planned curve (preserve shape)
-  function samplePlanned(t){
-    if(planLen <= 1){
-      const v = planned[startPlanIdx];
+  // Helper to sample the remaining plan curve (preserve shape)
+  function samplePlanSegment(tNorm) {
+    // tNorm in [0,1] over [startSrcIdx .. lastPlanIdx]
+    const len = lastPlanIdx - startSrcIdx + 1;
+    if (len <= 1) {
+      const v = planned[startSrcIdx];
       return v == null ? aPct : v;
     }
-    const pos = startPlanIdx + t * (planLen - 1);
+    const pos = startSrcIdx + tNorm * (len - 1);
     const i0 = Math.floor(pos);
-    const i1 = Math.min(endPlanIdx, i0 + 1);
+    const i1 = Math.min(lastPlanIdx, i0 + 1);
     const frac = pos - i0;
+
     const v0 = planned[i0];
     const v1 = planned[i1];
-    if(v0 == null && v1 == null) return aPct;
-    if(v0 == null) return v1;
-    if(v1 == null) return v0;
+
+    if (v0 == null && v1 == null) return aPct;
+    if (v0 == null) return v1;
+    if (v1 == null) return v0;
     return v0 + (v1 - v0) * frac;
   }
 
-  if(daysRel <= 0){
-    // On or behind plan: copy the remaining plan curve 1:1 where possible.
-    for(let i = startForecastIdx; i <= endForecastIdx; i++){
-      const pIdx = i;
-      let v = null;
-      if(pIdx >= 0 && pIdx < planned.length){
-        v = planned[pIdx];
-      }
-      if(v == null) v = aPct;
-      forecast[i] = v;
+  if (daysRel <= 0) {
+    // CASE 1: Plan point is to the LEFT or same day (plan date <= actual date):
+    // Copy the FUTURE of the plan curve 1:1 but SHIFT it so it starts at the last actual date.
+    // This uses the plan from startSrcIdx onward, but aligned so that startSrcIdx maps to aIdx.
+    let dst = aIdx;
+    for (let src = startSrcIdx; src <= lastPlanIdx && dst < n; src++, dst++) {
+      let v = planned[src];
+      if (v == null) v = aPct;
+      forecast[dst] = v;
     }
-  }else{
-    // Ahead of plan: preserve curve shape, but stretch the remaining plan
-    // to fit the remaining duration, so we do not forecast finishing sooner.
-    for(let k = 0; k < forecastLen; k++){
-      const t = (forecastLen === 1) ? 0 : (k / (forecastLen - 1));
-      const v = samplePlanned(t);
+  } else {
+    // CASE 2: Plan point is to the RIGHT (plan date > actual date, so we're ahead of plan):
+    // Stretch the remaining plan curve [startSrcIdx..lastPlanIdx] to fit into
+    // [aIdx..lastPlanIdx], so we NEVER forecast finishing earlier than the plan.
+    const startForecastIdx = aIdx;
+    const endForecastIdx = Math.min(lastPlanIdx, n - 1);
+    const forecastLen = endForecastIdx - startForecastIdx + 1;
+
+    if (forecastLen <= 0) {
+      forecast[aIdx] = aPct;
+      return forecast;
+    }
+
+    for (let k = 0; k < forecastLen; k++) {
+      const tNorm = (forecastLen === 1) ? 0 : (k / (forecastLen - 1));
+      const v = samplePlanSegment(tNorm);
       forecast[startForecastIdx + k] = v;
     }
   }
 
-  // Ensure the first forecast point matches the last actual point exactly
+  // Ensure the forecast starts exactly at the last actual percentage on that date
   forecast[aIdx] = aPct;
+
+  // Clamp and clean
   return forecast.map(v => v == null ? null : clamp(Number(v) || 0, 0, 100));
 }
 
