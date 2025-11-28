@@ -241,3 +241,5 @@
 #startupControls label {
   font-weight: 400 !important;
 }
+
+.card-content { padding-left:24px; padding-right:24px; }
