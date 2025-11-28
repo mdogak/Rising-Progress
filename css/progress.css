@@ -241,3 +241,5 @@
 #startupControls label {
   font-weight: 400 !important;
 }
+
+.chart-align-left { margin-left:24px; margin-right:24px; }

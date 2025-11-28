@@ -1024,7 +1024,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const btn     = document.getElementById('toolbarSave');
   const dd      = document.getElementById('saveDropdown');
   const btnCSV  = document.getElementById('saveCSV');
-  const btnXML  = document.getElementById('saveXML');
+  const btnXML = document.getElementById('saveXML');
 
   if (!btn || !dd || !btnCSV || !btnXML) return;
 
@@ -1191,3 +1191,26 @@ document.addEventListener('DOMContentLoaded', () => {
 // Expose save helpers for auth wrapper
 window.saveAll = saveAll;
 window.saveXml = saveXml;
+
+
+
+// Save Image & Copy Chart handlers
+document.addEventListener('DOMContentLoaded', () => {
+  const btnIMG = document.getElementById('saveIMG');
+  if (btnIMG) {
+    btnIMG.addEventListener('click', () => {
+      if (window.saveChartImageJpg) {
+        window.saveChartImageJpg();
+      }
+    });
+  }
+
+  const copyBtn = document.getElementById('toolbarCopy');
+  if (copyBtn) {
+    copyBtn.addEventListener('click', async () => {
+      if (window.copyChartImageToClipboard) {
+        await window.copyChartImageToClipboard();
+      }
+    });
+  }
+});
