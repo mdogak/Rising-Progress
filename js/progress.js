@@ -1025,7 +1025,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const dd      = document.getElementById('saveDropdown');
   const btnCSV  = document.getElementById('saveCSV');
   const btnXML = document.getElementById('saveXML');
-  const btnIMG = document.getElementById('saveIMG');  = document.getElementById('saveXML');
+  const btnIMG = document.getElementById('saveIMG');
 
   if (!btn || !dd || !btnCSV || !btnXML) return;
 
