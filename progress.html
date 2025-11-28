@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 
-<!-- rev13 -->
+<!-- rev21 -->
 
 <html lang="en">
 <head>
@@ -159,7 +159,6 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
   import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-  import "./js/progress.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyDai5gpX1x9I3uaF4MI7WAzq2oItLRPoZA",
@@ -188,21 +187,14 @@
 
 
   function redirectToLogin() {
-    try {
-      // Persist current model into cookie before redirect, if available
-      if (window.model && typeof window.setCookie === "function" && window.COOKIE_KEY) {
-        window.setCookie(window.COOKIE_KEY, JSON.stringify(window.model), 3650);
-      }
-    } catch (e) {
-      console.error("Failed to persist model before login redirect", e);
-    }
     const url = new URL(window.location.href);
     url.pathname = url.pathname.replace(/[^\/]*$/, "login.html");
-    url.searchParams.set("redirect", "progress.html");
+    // After login, send the user back to progress.html with a redirect flag
+    url.searchParams.set("redirect", "progress.html?redirected=1");
     window.location.href = url.toString();
   }
 
-  // Auth-gated save wrappers used by progress.js
+// Auth-gated save wrappers used by progress.js
   window.requireAuthForSaveAll = function () {
     const user = auth.currentUser;
     if (!user) {
@@ -295,6 +287,8 @@
     });
   });
 </script>
+<script type="module" src="js/progress.js"></script>
+
 
   <div id="toast"></div>
 
