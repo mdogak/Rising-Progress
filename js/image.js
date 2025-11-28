@@ -1,13 +1,13 @@
+
 // Image capture and clipboard helpers for Rising Progress
-// Captures the chart + watermark + custom legend (including days-rel text)
-// as a white-background JPG.
+// Captures chart + watermark + custom legend as a white-background JPG.
 
 function withTemporarilyHiddenElements(ids, fn) {
-  const previous = {};
+  const prev = {};
   ids.forEach(id => {
     const el = document.getElementById(id);
     if (el) {
-      previous[id] = el.style.display;
+      prev[id] = el.style.display;
       el.style.display = 'none';
     }
   });
@@ -15,9 +15,7 @@ function withTemporarilyHiddenElements(ids, fn) {
     ids.forEach(id => {
       const el = document.getElementById(id);
       if (el) {
-        el.style.display = Object.prototype.hasOwnProperty.call(previous, id)
-          ? previous[id]
-          : '';
+        el.style.display = Object.prototype.hasOwnProperty.call(prev, id) ? prev[id] : '';
       }
     });
   });
@@ -35,7 +33,6 @@ async function captureChartRegionAsCanvas() {
   const hideIds = ['startupControls', 'bpStats', 'planDelta'];
 
   return withTemporarilyHiddenElements(hideIds, async () => {
-    // Use devicePixelRatio for crisp exports
     const scale = window.devicePixelRatio || 2;
     const canvas = await html2canvas(card, {
       backgroundColor: '#ffffff',
@@ -67,7 +64,6 @@ async function clipboardWriteJpgFromCanvas(canvas) {
   if (!navigator.clipboard || typeof ClipboardItem === 'undefined') {
     throw new Error('Clipboard API not supported for images in this browser.');
   }
-
   const blob = await new Promise((resolve, reject) => {
     canvas.toBlob(b => {
       if (!b) {
@@ -77,12 +73,9 @@ async function clipboardWriteJpgFromCanvas(canvas) {
       }
     }, 'image/jpeg', 0.92);
   });
-
   const item = new ClipboardItem({ 'image/jpeg': blob });
   await navigator.clipboard.write([item]);
 }
-
-// Public helpers
 
 window.saveChartImageJpg = async function saveChartImageJpg() {
   try {
@@ -109,7 +102,6 @@ window.copyChartImageToClipboard = async function copyChartImageToClipboard() {
       }
     } catch (clipErr) {
       console.error('Clipboard image write failed, falling back to download', clipErr);
-      // Fallback: download instead of clipboard
       await downloadJpgFromCanvas(canvas);
       if (typeof window.showToast === 'function') {
         window.showToast('Clipboard not supported; image downloaded instead');

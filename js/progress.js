@@ -1024,10 +1024,10 @@ document.addEventListener('DOMContentLoaded', function () {
   const btn     = document.getElementById('toolbarSave');
   const dd      = document.getElementById('saveDropdown');
   const btnCSV  = document.getElementById('saveCSV');
-  const btnXML = document.getElementById('saveXML');
-  const btnIMG = document.getElementById('saveIMG');  = document.getElementById('saveXML');
+  const btnXML  = document.getElementById('saveXML');
+  const btnIMG  = document.getElementById('saveIMG');
 
-  if (!btn || !dd || !btnCSV || !btnXML) return;
+  if (!btn || !dd || !btnCSV || !btnXML || !btnIMG) return;
 
   function openDropdown() {
     const rect = btn.getBoundingClientRect();
@@ -1194,19 +1194,21 @@ window.saveAll = saveAll;
 window.saveXml = saveXml;
 
 
-// Save Image handler
-if (btnIMG) {
-    btnIMG.addEventListener('click', () => {
-        if (window.saveChartImageJpg) window.saveChartImageJpg();
-    });
-}
-
-// Copy Chart handler
-const copyBtn = document.getElementById('toolbarCopy');
-if (copyBtn) {
-    copyBtn.addEventListener('click', async () => {
-        if (window.copyChartImageToClipboard) {
-            await window.copyChartImageToClipboard();
-        }
-    });
-}
+// Copy Chart toolbar button -> use image.js helper
+document.addEventListener('DOMContentLoaded', () => {
+  const copyBtn = document.getElementById('toolbarCopy');
+  if (!copyBtn) return;
+  copyBtn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    if (typeof window.copyChartImageToClipboard === 'function') {
+      try {
+        await window.copyChartImageToClipboard();
+      } catch (err) {
+        console.error('Copy Chart failed', err);
+        alert('Copy to clipboard failed: ' + (err && err.message ? err.message : err));
+      }
+    } else {
+      alert('Copy to clipboard is not available.');
+    }
+  });
+});
