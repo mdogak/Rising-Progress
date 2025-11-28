@@ -1025,7 +1025,6 @@ document.addEventListener('DOMContentLoaded', function () {
   const dd      = document.getElementById('saveDropdown');
   const btnCSV  = document.getElementById('saveCSV');
   const btnXML = document.getElementById('saveXML');
-  const btnIMG = document.getElementById('saveIMG');
 
   if (!btn || !dd || !btnCSV || !btnXML) return;
 
@@ -1194,19 +1193,24 @@ window.saveAll = saveAll;
 window.saveXml = saveXml;
 
 
-// Save Image handler
-if (btnIMG) {
-    btnIMG.addEventListener('click', () => {
-        if (window.saveChartImageJpg) window.saveChartImageJpg();
-    });
-}
 
-// Copy Chart handler
-const copyBtn = document.getElementById('toolbarCopy');
-if (copyBtn) {
-    copyBtn.addEventListener('click', async () => {
-        if (window.copyChartImageToClipboard) {
-            await window.copyChartImageToClipboard();
-        }
+// Save Image & Copy Chart handlers
+document.addEventListener('DOMContentLoaded', () => {
+  const btnIMG = document.getElementById('saveIMG');
+  if (btnIMG) {
+    btnIMG.addEventListener('click', () => {
+      if (window.saveChartImageJpg) {
+        window.saveChartImageJpg();
+      }
     });
-}
+  }
+
+  const copyBtn = document.getElementById('toolbarCopy');
+  if (copyBtn) {
+    copyBtn.addEventListener('click', async () => {
+      if (window.copyChartImageToClipboard) {
+        await window.copyChartImageToClipboard();
+      }
+    });
+  }
+});
