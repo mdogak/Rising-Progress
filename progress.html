@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 
-<!-- rev19 -->
+<!-- rev13 -->
 
 <html lang="en">
 <head>
@@ -51,6 +51,58 @@
 }
 #toast.show {
   opacity: 1;
+}
+
+/* Login modal overlay */
+#loginModal {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: transparent; /* blur only, no dim */
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+  z-index: 10000;
+}
+#loginModal.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+#loginModal .modal-card {
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.4);
+  width: 420px;
+  max-width: 90vw;
+  height: 540px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+#loginModal .modal-header {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 8px 12px;
+}
+#loginModal .modal-close {
+  border: none;
+  background: transparent;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px;
+}
+#loginModal iframe {
+  flex: 1;
+  border: none;
+  width: 100%;
 }
 </style>
 
@@ -187,10 +239,27 @@
 
 
   function redirectToLogin() {
-    const url = new URL(window.location.href);
-    url.pathname = url.pathname.replace(/[^\/]*$/, "login.html");
-    url.searchParams.set("redirect", "progress.html");
-    window.location.href = url.toString();
+    const modal = document.getElementById("loginModal");
+    const iframe = document.getElementById("loginIframe");
+
+    // If modal is missing for some reason, fall back to full redirect
+    if (!modal || !iframe) {
+      const url = new URL(window.location.href);
+      url.pathname = url.pathname.replace(/[^\/]*$/, "login.html");
+      url.searchParams.set("redirect", "progress.html");
+      window.location.href = url.toString();
+      return;
+    }
+
+    if (!iframe.src) {
+      const url = new URL(window.location.href);
+      url.pathname = url.pathname.replace(/[^\/]*$/, "login.html");
+      url.searchParams.set("redirect", "progress.html");
+      url.searchParams.set("from", "modal");
+      iframe.src = url.toString();
+    }
+
+    modal.classList.add("show");
   }
 
 // Auth-gated save wrappers used by progress.js
@@ -231,6 +300,25 @@
   document.addEventListener("DOMContentLoaded", () => {
     const authButton = document.getElementById("authButton");
     const saveButton = document.getElementById("toolbarSave");
+    const loginModal = document.getElementById("loginModal");
+    const loginClose = document.getElementById("loginModalClose");
+
+    if (loginClose && loginModal) {
+      loginClose.addEventListener("click", () => {
+        loginModal.classList.remove("show");
+      });
+    }
+
+    window.addEventListener("message", (event) => {
+      if (!event || !event.data) return;
+      if (event.data.type === "LOGIN_SUCCESS") {
+        if (loginModal) {
+          loginModal.classList.remove("show");
+        }
+        showToast("Logged in");
+      }
+    });
+
 
   function updateUi(user) {
       if (!authButton || !saveButton) return;
@@ -254,6 +342,11 @@
       updateUi(user);
 
       if (user) {
+        const loginModal = document.getElementById("loginModal");
+        if (loginModal) {
+          loginModal.classList.remove("show");
+        }
+
         let pending = null;
         try {
           pending = sessionStorage.getItem("pendingSave");
@@ -289,7 +382,17 @@
 <script type="module" src="js/progress.js"></script>
 
 
+  <div id="loginModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <button id="loginModalClose" class="modal-close" aria-label="Close login">×</button>
+      </div>
+      <iframe id="loginIframe" title="Login"></iframe>
+    </div>
+  </div>
+
   <div id="toast"></div>
+
 
 </body>
 </html>
