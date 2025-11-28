@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 
-<!-- rev17 -->
+<!-- rev13 -->
 
 <html lang="en">
 <head>
@@ -188,16 +188,17 @@
 
   function redirectToLogin() {
     try {
-      // No persistent save before redirect; model will be restored via sessionStorage if needed
+      // Persist current model into cookie before redirect, if available
+      if (window.model && typeof // removed persistent cookie write;
+      }
     } catch (e) {
-      console.error("Pre-login redirect handling error", e);
+      console.error("Failed to persist model before login redirect", e);
     }
     const url = new URL(window.location.href);
     url.pathname = url.pathname.replace(/[^\/]*$/, "login.html");
     url.searchParams.set("redirect", "progress.html");
     window.location.href = url.toString();
-
-}
+  }
 
   // Auth-gated save wrappers used by progress.js
   window.requireAuthForSaveAll = function () {
