@@ -844,6 +844,34 @@ function loadFromXml(xmlText){
  *****************/
 const COOKIE_KEY='progress_tracker_v3b';
 window.COOKIE_KEY = COOKIE_KEY;
+
+function hydrateFromSession(){
+  try{
+    if(!window.sessionStorage) return false;
+    const raw = sessionStorage.getItem(COOKIE_KEY);
+    if(!raw) return false;
+    const stored = JSON.parse(raw);
+    if(!stored || typeof stored!=='object') return false;
+
+    model = stored;
+    window.model = model;
+
+    const nameEl = document.getElementById('projectName');
+    const startupEl = document.getElementById('projectStartup');
+    const labelEl = document.getElementById('startupLabelInput');
+
+    if(nameEl) nameEl.value = (model.project && model.project.name) || '';
+    if(startupEl) startupEl.value = (model.project && model.project.startup) || '';
+    if(labelEl) labelEl.value = (model.project && model.project.markerLabel) || 'Baseline Complete';
+
+    syncScopeRowsToModel();
+    computeAndRender();
+    return true;
+  }catch(e){
+    console.error('Failed to hydrate model from sessionStorage', e);
+    return false;
+  }
+}
 function defaultAll(){
   sessionStorage.removeItem(COOKIE_KEY);
   model = {
@@ -1132,13 +1160,27 @@ document.addEventListener('DOMContentLoaded', function () {
 // Auto-load default CSV once on initial load (session-only persistence)
 document.addEventListener('DOMContentLoaded', () => {
   try {
-    if (!window.sessionStorage || !sessionStorage.getItem(COOKIE_KEY)) {
+    const url = new URL(window.location.href);
+    const wasRedirected = url.searchParams.get('redirected') === '1';
+
+    // First try to restore any existing in-session project
+    const hydrated = (typeof hydrateFromSession === 'function') ? hydrateFromSession() : false;
+
+    // Only auto-load the default CSV if we did NOT hydrate from session
+    // and this is not a post-login redirect
+    if (!hydrated && !wasRedirected) {
       fetch('Project_Files/default_progress_all.csv')
         .then(r => r.text())
         .then(t => loadFromPresetCsv(t))
         .catch(err => {
           console.error('Failed to auto-load default CSV:', err);
         });
+    }
+
+    // Clean up the redirected flag from the URL to keep things tidy
+    if (wasRedirected) {
+      url.searchParams.delete('redirected');
+      window.history.replaceState({}, '', url.toString());
     }
   } catch (e) {
     console.error('Auto-load default CSV failed:', e);
