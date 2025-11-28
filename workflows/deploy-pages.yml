@@ -1,0 +1,29 @@
+name: Deploy branch to GitHub Pages
+
+on:
+  push:
+    branches:
+      - '**'        # deploy every branch
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./
+
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4
+        with:
+          destination_dir: ${{ github.ref_name }}
