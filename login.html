@@ -36,6 +36,7 @@
         box-shadow: 0px 12px 32px rgba(0,0,0,0.10);
         animation: fadeIn 0.5s ease;
         border-top: 8px solid #2563eb;
+        text-align: center;
     }
 
     @keyframes fadeIn {
@@ -43,11 +44,16 @@
         to { opacity: 1; transform: translateY(0); }
     }
 
-    h2 {
-        margin: 0 0 24px;
-        font-weight: 600;
-        text-align: center;
-        color: #1f2937;
+    .logo {
+        width: 180px;
+        margin: 0 auto 10px;
+        display: block;
+    }
+
+    .subtitle {
+        font-size: 15px;
+        color: #374151;
+        margin-bottom: 24px;
     }
 
     input {
@@ -188,7 +194,9 @@ window.resetPassword = function () {
 
 <body>
     <div class="card">
-        <h2>Rising Progress</h2>
+        <img src="risingprogress.png" class="logo" alt="Rising Progress Logo">
+
+        <div class="subtitle">Login to save project data...</div>
 
         <input id="email" type="email" placeholder="Email" />
         <input id="password" type="password" placeholder="Password" />
