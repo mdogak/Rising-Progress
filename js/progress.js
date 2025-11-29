@@ -220,59 +220,89 @@ function calcActualSeriesByDay(days){ if(!days || days.length===0){ const f=buil
   for(let i=0;i<inRangeKeys.length-1;i++){ const d1 = inRangeKeys[i]; const d2 = inRangeKeys[i+1]; const v1 = known.get(d1); const v2 = known.get(d2); const idx1 = days.indexOf(d1); const idx2 = days.indexOf(d2); const span = idx2-idx1; if(idx1>=0) actual[idx1]=v1; for(let k=1;k<span;k++){ const t = k/span; actual[idx1+k] = v1 + (v2 - v1) * t; } if(idx2>=0) actual[idx2]=v2; }
   const last = lastActualDate(); if(last){ for(let i=0;i<days.length;i++){ if(parseDate(days[i])>last) actual[i]=null; } }
   return actual.map(v=> v==null? v : clamp(Number(v)||0,0,100)); }
+
 function calcForecastSeriesByDay(days, planned, actual){
-  const baseLen = days.length || 0;
-  if (!baseLen || !Array.isArray(planned) || !Array.isArray(actual)) return [];
+  const n = Array.isArray(days) ? days.length : 0;
+  if (!n || !Array.isArray(planned) || !Array.isArray(actual)) return [];
+
+  const forecast = new Array(n).fill(null);
+
+  // Helper: last non-null numeric index
+  const lastNonNullIndex = (arr) => {
+    if (!Array.isArray(arr)) return -1;
+    for (let i = arr.length - 1; i >= 0; i--) {
+      const v = arr[i];
+      if (v != null && !isNaN(v)) return i;
+    }
+    return -1;
+  };
+
+  const clampPct = (v) => clamp(Number(v) || 0, 0, 100);
 
   // Find last actual point (most recent non-null)
   let aIdx = -1;
   for (let i = actual.length - 1; i >= 0; i--) {
-    if (actual[i] != null) {
+    if (actual[i] != null && !isNaN(actual[i])) {
       aIdx = i;
       break;
     }
   }
-  if (aIdx < 0) {
-    return new Array(baseLen).fill(null);
-  }
+  if (aIdx < 0) return forecast;
 
-  const aPctRaw = actual[aIdx];
-  if (aPctRaw == null || isNaN(aPctRaw)) {
-    return new Array(baseLen).fill(null);
-  }
-  const aPct = Number(aPctRaw);
+  const aPct = clampPct(actual[aIdx]);
 
-  const hasPlanned = planned && planned.some(v => v != null);
+  // If we have no planned values at all, just hold flat from the last actual
+  const hasPlanned = planned.some(v => v != null && !isNaN(v));
   if (!hasPlanned) {
-    const forecast = new Array(baseLen).fill(null);
-    for (let i = aIdx; i < baseLen; i++) {
+    for (let i = aIdx; i < n; i++) {
       forecast[i] = aPct;
     }
-    return forecast;
+    return forecast.map(v => (v == null ? null : clampPct(v)));
   }
 
-  const lastPlanIdx = planned.length - 1;
+  const lastPlanIdx = lastNonNullIndex(planned);
+  if (lastPlanIdx < 0) {
+    for (let i = aIdx; i < n; i++) {
+      forecast[i] = aPct;
+    }
+    return forecast.map(v => (v == null ? null : clampPct(v)));
+  }
 
-  // Locate the plan position that reaches (or first exceeds) the actual %
+  // Find pStar: fractional index along the plan where planned% == aPct
   let j = -1;
-  for (let i = 0; i < planned.length; i++) {
+  for (let i = 0; i <= lastPlanIdx; i++) {
     const v = planned[i];
-    if (v != null && v >= aPct) {
+    if (v != null && !isNaN(v) && v >= aPct) {
       j = i;
       break;
     }
   }
 
-  let pStar; // fractional index along the plan curve
+  const validPlanVals = planned
+    .slice(0, lastPlanIdx + 1)
+    .filter(v => v != null && !isNaN(v));
+
+  const maxPlan = validPlanVals.length
+    ? Math.max(...validPlanVals)
+    : -Infinity;
+
+  // If even the max plan value is below the actual %, just hold flat
+  if (!(maxPlan === -Infinity) && maxPlan < aPct) {
+    for (let i = aIdx; i < n; i++) {
+      forecast[i] = aPct;
+    }
+    return forecast.map(v => (v == null ? null : clampPct(v)));
+  }
+
+  let pStar;
   if (j <= 0) {
-    // If below first value or we never found a crossing, clamp to an edge
-    const idx = (j < 0 ? lastPlanIdx : 0);
-    pStar = idx;
+    // Either at/before first plan point, or we didn't find a v >= aPct (but maxPlan >= aPct)
+    pStar = (j < 0) ? lastPlanIdx : 0;
   } else {
-    const p0 = planned[j - 1] ?? 0;
+    const p0 = planned[j - 1] ?? planned[j];
     const p1 = planned[j] ?? p0;
     let t = 0;
-    if (Math.abs(p1 - p0) > 1e-9) {
+    if (p1 != null && !isNaN(p1) && p0 != null && !isNaN(p0) && Math.abs(p1 - p0) > 1e-9) {
       t = (aPct - p0) / (p1 - p0);
       if (!isFinite(t)) t = 0;
       t = Math.max(0, Math.min(1, t));
@@ -280,104 +310,74 @@ function calcForecastSeriesByDay(days, planned, actual){
     pStar = (j - 1) + t;
   }
 
-  // If even the max plan value is below aPct, just hold flat from last actual
-  const maxPlan = Math.max(...planned.filter(v => v != null));
-  if (j < 0 && (maxPlan || 0) < aPct) {
-    const forecast = new Array(baseLen).fill(null);
-    for (let i = aIdx; i < baseLen; i++) {
-      forecast[i] = aPct;
-    }
-    return forecast;
-  }
+  // Helper: sample the plan at a fractional index using linear interpolation
+  function samplePlanAt(fIndex) {
+    if (!isFinite(fIndex)) return aPct;
+    let idx = fIndex;
+    if (idx < 0) idx = 0;
+    if (idx > lastPlanIdx) idx = lastPlanIdx;
 
-  const daysRel = pStar - aIdx; // >0 => plan point is to the RIGHT (later) of actual; <0 => plan is LEFT (earlier)
-  const startSrcIdx = Math.max(0, Math.min(lastPlanIdx, Math.floor(pStar)));
-
-  // CASE 1: Plan point is to the LEFT or same day (plan date <= actual date, meaning we are behind or on plan).
-  // We want to mirror the remaining plan curve but SHIFT it so it begins at the last actual date.
-  // If the project is, say, 14 days behind, we extend the forecast 14 days beyond the plan's end.
-  let behindDays = 0;
-  if (daysRel <= 0) {
-    behindDays = Math.max(0, Math.round(-daysRel));
-  }
-
-  // If we are behind (daysRel <= 0), extend the x-axis labels by behindDays
-  // so that the forecast can finish later than the plan.
-  const originalLen = baseLen;
-  if (behindDays > 0 && days.length === originalLen) {
-    const lastDateStr = days[days.length - 1];
-    const lastDate = parseDate(lastDateStr);
-    if (lastDate instanceof Date && !isNaN(lastDate)) {
-      for (let k = 1; k <= behindDays; k++) {
-        const d = new Date(lastDate);
-        d.setDate(d.getDate() + k);
-        days.push(fmtDate(d));
-      }
-    }
-  }
-
-  const n = days.length || 0;
-  const forecast = new Array(n).fill(null);
-
-  // Helper to sample the remaining plan curve (preserve shape) for CASE 2
-  function samplePlanSegment(tNorm) {
-    // tNorm in [0,1] over [startSrcIdx .. lastPlanIdx]
-    const len = lastPlanIdx - startSrcIdx + 1;
-    if (len <= 1) {
-      const v = planned[startSrcIdx];
-      return v == null ? aPct : v;
-    }
-    const pos = startSrcIdx + tNorm * (len - 1);
-    const i0 = Math.floor(pos);
+    const i0 = Math.floor(idx);
     const i1 = Math.min(lastPlanIdx, i0 + 1);
-    const frac = pos - i0;
+    const frac = idx - i0;
 
     const v0 = planned[i0];
     const v1 = planned[i1];
+
     if (v0 == null && v1 == null) return aPct;
-    if (v0 == null) return v1;
-    if (v1 == null) return v0;
-    return v0 + (v1 - v0) * frac;
+    if (v0 == null) return clampPct(v1);
+    if (v1 == null) return clampPct(v0);
+
+    const v = v0 + (v1 - v0) * frac;
+    return clampPct(v);
   }
+
+  const daysRel = pStar - aIdx; // >0 => plan point is to the RIGHT (ahead of plan); <=0 => LEFT/on plan
 
   if (daysRel <= 0) {
-    // CASE 1 – Plan point is to the LEFT or same day (plan date <= actual date):
-    // Copy the future of the plan curve starting from startSrcIdx and shift
-    // it so that it begins at the last actual date (index aIdx).
-    let dst = aIdx;
-    for (let src = startSrcIdx; src <= lastPlanIdx && dst < n; src++, dst++) {
-      let v = planned[src];
-      if (v == null) v = aPct;
-      forecast[dst] = v;
+    // CASE 1 — Behind or exactly on plan (plan date <= actual date)
+    // Copy the future of the plan curve from pStar to lastPlanIdx,
+    // shifted so that pStar maps to aIdx.
+    const totalSpan = Math.max(0, lastPlanIdx - pStar);
+    const steps = Math.round(totalSpan);
+
+    for (let k = 0; k <= steps; k++) {
+      const dstIdx = aIdx + k;
+      if (dstIdx >= n) break;
+
+      const srcF = pStar + (totalSpan === 0 ? 0 : (k / steps) * totalSpan);
+      const v = samplePlanAt(srcF);
+      forecast[dstIdx] = v;
     }
   } else {
-    // CASE 2 – Plan point is to the RIGHT (plan date > actual date, i.e., we're ahead of plan):
-    // Take the remaining plan segment from startSrcIdx to lastPlanIdx and
-    // stretch it to fit from the last actual date to the plan's last date,
-    // so the forecast never finishes earlier than the plan.
+    // CASE 2 — Ahead of plan (plan date > actual date)
+    // Stretch the remaining segment [pStar..lastPlanIdx] so it fits exactly
+    // into [aIdx..lastPlanIdx], ensuring the forecast never finishes earlier
+    // than the plan.
     const startForecastIdx = aIdx;
     const endForecastIdx = Math.min(lastPlanIdx, n - 1);
-    const forecastLen = endForecastIdx - startForecastIdx + 1;
+    const dstSpan = endForecastIdx - startForecastIdx;
 
-    if (forecastLen <= 0) {
+    if (dstSpan <= 0) {
       forecast[aIdx] = aPct;
-      return forecast;
+      return forecast.map(v => (v == null ? null : clampPct(v)));
     }
 
-    for (let k = 0; k < forecastLen; k++) {
-      const tNorm = (forecastLen === 1) ? 0 : (k / (forecastLen - 1));
-      const v = samplePlanSegment(tNorm);
-      forecast[startForecastIdx + k] = v;
+    const srcSpan = Math.max(1e-6, lastPlanIdx - pStar);
+
+    for (let dst = startForecastIdx; dst <= endForecastIdx; dst++) {
+      const t = (dst - startForecastIdx) / dstSpan; // 0..1 across the forecast window
+      const srcF = pStar + t * srcSpan;
+      const v = samplePlanAt(srcF);
+      forecast[dst] = v;
     }
   }
 
-  // Ensure the forecast starts exactly at the last actual percentage on that date
-  if (aIdx >= 0 && aIdx < forecast.length) {
-    forecast[aIdx] = aPct;
-  }
+  // Force the forecast’s first point on the last actual date to equal the actual %
+  forecast[aIdx] = aPct;
 
   // Clamp and clean
-  return forecast.map(v => v == null ? null : clamp(Number(v) || 0, 0, 100));
+  return forecast.map(v => (v == null ? null : clampPct(v)));
 }
 
 
@@ -397,6 +397,7 @@ let baselineVisible = true;
 let legendStats = {baselinePct:null, plannedPct:null, actualPct:null, daysRelText:''};
 let plannedVisible = true;
 let actualVisible = true;
+let forecastVisible = true;
 
 function updateBelowChartStats(days, baselineCum, plannedCum, actualCum){
   const el = document.getElementById('bpStats');
@@ -492,50 +493,88 @@ const rel = computeDaysRelativeToPlan(days, plannedCum, actualCum);
   sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
 }
 
+
 function renderLegend(chart){
   const cont = $('#customLegend');
   if(!cont) return;
   cont.innerHTML = '';
 
-  const mk = (id, text, cls, checked, onChange, subText, extraRightEl) => {
+  const mk = (id, text, cls, checked, onChange, subText) => {
     const wrap = document.createElement('div');
     wrap.className = 'legend-item ' + cls;
 
     const row = document.createElement('div');
     row.className = 'legend-row';
+
     const cb = document.createElement('input');
     cb.type = 'checkbox';
     cb.id = id;
     cb.checked = !!checked;
     cb.addEventListener('change', onChange);
-    const span = document.createElement('span');
-    span.textContent = text;
+
+    const lbl = document.createElement('label');
+    lbl.htmlFor = id;
+    lbl.textContent = text;
+
     row.appendChild(cb);
-    row.appendChild(span);
-    if(extraRightEl){ row.appendChild(extraRightEl); }
+    row.appendChild(lbl);
     wrap.appendChild(row);
 
     if(subText){
       const sub = document.createElement('div');
-      sub.className = 'legend-sub ' + (cls.includes('baseline')?'baseline': cls.includes('planned')?'planned':'actual');
+      let subCls = 'legend-sub ';
+      if(cls.indexOf('baseline') >= 0) subCls += 'baseline';
+      else if(cls.indexOf('planned') >= 0) subCls += 'planned';
+      else if(cls.indexOf('forecast') >= 0) subCls += 'forecast legend-daysrel';
+      else subCls += 'actual';
+      sub.className = subCls;
       sub.textContent = subText;
       wrap.appendChild(sub);
     }
+
     cont.appendChild(wrap);
   };
 
-  const daysRel = legendStats.daysRelText ? (function(){ const s=document.createElement('span'); s.className='legend-daysrel'; s.textContent = legendStats.daysRelText; return s; })() : null;
+  const baselinePctText = legendStats.baselinePct!=null ? (legendStats.baselinePct + '%') : null;
+  const plannedPctText  = legendStats.plannedPct!=null  ? (legendStats.plannedPct + '%')  : null;
+  const actualPctText   = legendStats.actualPct!=null   ? (legendStats.actualPct + '%')   : null;
+  const daysRelText     = legendStats.daysRelText || '';
 
   // Baseline
-  mk('legendBaselineCheckbox','Original Plan', 'legend-baseline', baselineVisible, (e)=>{    baselineVisible = e.target.checked; const meta = chart.getDatasetMeta(0); meta.hidden = !baselineVisible; computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));  }, legendStats.baselinePct!=null ? (legendStats.baselinePct + '%') : null, null);
+  mk('legendBaselineCheckbox', 'Original Plan', 'legend-baseline', baselineVisible, (e)=>{
+    baselineVisible = e.target.checked;
+    const meta = chart.getDatasetMeta(0);
+    meta.hidden = !baselineVisible;
+    computeAndRender();
+    if(window.sessionStorage) sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
+  }, baselinePctText);
 
   // Planned
-  mk('legendPlannedCheckbox', 'Current Plan', 'legend-planned', plannedVisible, (e)=>{    plannedVisible = e.target.checked; const meta = chart.getDatasetMeta(1); meta.hidden = !plannedVisible; computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));  }, legendStats.plannedPct!=null ? (legendStats.plannedPct + '%') : null, null);
+  mk('legendPlannedCheckbox', 'Current Plan', 'legend-planned', plannedVisible, (e)=>{
+    plannedVisible = e.target.checked;
+    const meta = chart.getDatasetMeta(1);
+    meta.hidden = !plannedVisible;
+    computeAndRender();
+    if(window.sessionStorage) sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
+  }, plannedPctText);
 
-  // Actual + daysRel to the right
+  // Actual
   mk('legendActualCheckbox', 'Actual Progress', 'legend-actual', actualVisible, (e)=>{
-    actualVisible = e.target.checked; const meta = chart.getDatasetMeta(2); meta.hidden = !actualVisible; computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
-  }, legendStats.actualPct!=null ? (legendStats.actualPct + '%') : null, daysRel);
+    actualVisible = e.target.checked;
+    const meta = chart.getDatasetMeta(2);
+    meta.hidden = !actualVisible;
+    computeAndRender();
+    if(window.sessionStorage) sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
+  }, actualPctText);
+
+  // Forecast
+  mk('legendForecastCheckbox', 'Forecast Plan', 'legend-forecast', forecastVisible, (e)=>{
+    forecastVisible = e.target.checked;
+    const meta = chart.getDatasetMeta(3);
+    meta.hidden = !forecastVisible;
+    computeAndRender();
+    if(window.sessionStorage) sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
+  }, daysRelText || null);
 }
 
 function refreshLegendNow(){
@@ -594,6 +633,9 @@ function drawChart(days, baseline, planned, actual){
   const dataBaseline = (baseline && baseline.length)? baseline : [0];
   const dataPlanned = (planned && planned.length)? planned : [0];
   const dataActual = (actual && actual.length)? actual : [0];
+  const dataForecast = (planned && planned.length && actual && actual.length)
+    ? calcForecastSeriesByDay(labels, dataPlanned, dataActual)
+    : (labels || []).map(() => null);
 
   const yAxisLabelAnnotation = { type:'label', xValue: labels[0], yValue: 50, content:['% Progress'], backgroundColor:'rgba(0,0,0,0)', color:'#0f172a', rotation:-90, xAdjust:-55, font:{weight:'bold', size:16} };
 
@@ -633,12 +675,30 @@ function drawChart(days, baseline, planned, actual){
   const weeks = Math.floor(labels.length/7);
   const xGridColor = (ctx)=>{ const i = ctx.index; const isWeekly = (i % 7) === 0; if(weeks > 16){ return isWeekly ? 'rgba(100,116,139,.45)' : 'rgba(0,0,0,0)'; } return 'rgba(100,116,139,.45)'; };
 
+
+  const lastNonNullIndex = (arr) => {
+    if (!Array.isArray(arr)) return -1;
+    for (let i = arr.length - 1; i >= 0; i--) {
+      const v = arr[i];
+      if (v != null && !isNaN(v)) return i;
+    }
+    return -1;
+  };
+
+  const lastPlanIdx = lastNonNullIndex(dataPlanned);
+  const lastForecastIdx = lastNonNullIndex(dataForecast);
+  let maxIdx = Math.max(lastPlanIdx, lastForecastIdx);
+  if (maxIdx < 0) maxIdx = labels.length - 1;
+  if (maxIdx >= labels.length) maxIdx = labels.length - 1;
+
   const cfg = {
     type:'line',
     data:{ labels, datasets:[
       {label:'Baseline', order:100, hidden:(!baselineVisible), data:dataBaseline, borderColor:'rgba(107,114,128,1)', backgroundColor:'rgba(107,114,128,.10)', tension:.15, borderWidth:2, pointRadius:0},
       {label:'Planned', order:0, hidden:(!plannedVisible), data:dataPlanned, borderColor:'rgba(37,99,235,1)', backgroundColor:'rgba(37,99,235,.12)', tension:.15, borderWidth:2, pointRadius:0},
       {label:'Actual', order:-100, hidden:(!actualVisible), data:dataActual, spanGaps:false, borderColor:'rgba(234,88,12,1)', backgroundColor:'rgba(234,88,12,.12)', tension:.15, borderWidth:2, pointRadius:0}
+    ,
+      {label:'Forecast Plan', order:-50, hidden:(!forecastVisible), data:dataForecast, borderColor:'rgba(22,163,74,0.8)', backgroundColor:'rgba(22,163,74,0.08)', borderDash:[6,4], tension:.15, borderWidth:2, pointRadius:0, spanGaps:false}
     ]},
     options:{
       responsive:true, maintainAspectRatio:false,
@@ -646,10 +706,12 @@ function drawChart(days, baseline, planned, actual){
           // Add orange end label annotation for latest Actual value
           const ann = Object.assign({ yLabelAt50: yAxisLabelAnnotation }, startupAnnotations);
           let lastIdx = -1; for(let i=dataActual.length-1;i>=0;i--){ if(dataActual[i]!=null){ lastIdx = i; break; } }
-          if(lastIdx>=0 && actualVisible){ ann.actualEndLabel = { type:'label', xValue: labels[lastIdx], yValue: dataActual[lastIdx], content:[(Number(dataActual[lastIdx]).toFixed(1)+'%')], backgroundColor:'rgba(0,0,0,0)', color:'rgba(234,88,12,1)', font:{weight:'bold', size:16}, xAdjust: 12, yAdjust: -8 } }
+          if(lastIdx>=0 && actualVisible){ ann.actualEndLabel = { type:'label', xValue: labels[lastIdx], yValue: dataActual[lastIdx], content:[(Number(dataActual[lastIdx]).toFixed(1)+'%')], backgroundColor:'rgba(0,0,0,0)', color:'rgba(234,88,12,1)', font:{weight:'bold', size:16}, xAdjust: 12, yAdjust: 10 } }
           return ann; })() } },
       scales: {
           x: {
+              min: labels[0],
+              max: labels[maxIdx],
               ticks: {
                   font: { size: 16 }
               }
