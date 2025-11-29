@@ -15,7 +15,7 @@
           <div class="issues-modal-header">
             <div class="issues-modal-heading">
               <div id="issuesTitle" class="issues-modal-title">Issues</div>
-              <div class="issues-modal-subtitle">Identified issues based on inconsistencies between actual and plan data.</div>
+              <div class="issues-modal-subtitle">Summary of issues based on differences between the current plan and actual progress.</div>
             </div>
             <button type="button" class="issues-close" aria-label="Close recommendations">&times;</button>
           </div>
