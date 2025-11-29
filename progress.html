@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 
-<!-- issues rev 4 -->
+<!-- forecast rev6 -->
 
 <html lang="en">
 <head>
@@ -119,7 +119,7 @@
 <div style="position:relative;"><button id="toolbarLoad">📂 Load Project ▾</button><div id="loadDropdown" style="display:none; position:absolute; background:white; border:1px solid #ccc; z-index:1000;"><div data-act="open" style="padding:8px; cursor:pointer;">Open File</div><div data-act="default" style="padding:8px; cursor:pointer;">Default</div><div data-act="pipeline" style="padding:8px; cursor:pointer;">Pipeline</div><div data-act="mech" style="padding:8px; cursor:pointer;">Mech Facility</div><div data-act="ie" style="padding:8px; cursor:pointer;">I&E Facility</div></div></div>
 <button id="toolbarClear">🔄 Clear</button>
 <button id="toolbarCopy">📷 Copy Image</button>
-<button id="issuesBtn" class="btn-issues"><span class="issues-icon" aria-hidden="true">⚠️</span><span>Issues</span></button>
+<button id="toolbarIssues">⚠️ Issues</button>
 </div>
 <div class="row head" style="margin-top:8px">
 <div>Scope</div>
@@ -238,9 +238,36 @@
     }
   };
 
+    window.requireAuthForIssues = function () {
+    const user = auth.currentUser;
+    if (!user) {
+      try {
+        sessionStorage.setItem("pendingSave", "issues");
+      } catch (e) {
+        console.error("Unable to set pendingSave in sessionStorage", e);
+      }
+      redirectToLogin();
+      return;
+    }
+    if (typeof window.openIssuesModal === "function") {
+      window.openIssuesModal();
+    }
+  };
+
   document.addEventListener("DOMContentLoaded", () => {
     const authButton = document.getElementById("authButton");
     const saveButton = document.getElementById("toolbarSave");
+    const issuesButton = document.getElementById("toolbarIssues");
+
+    if (issuesButton) {
+      issuesButton.addEventListener("click", () => {
+        if (typeof window.requireAuthForIssues === "function") {
+          window.requireAuthForIssues();
+        } else if (typeof window.openIssuesModal === "function") {
+          window.openIssuesModal();
+        }
+      });
+    }
 
   function updateUi(user) {
       if (!authButton || !saveButton) return;
@@ -282,6 +309,8 @@
                 window.saveAll();
               } else if (pending === "xml" && typeof window.saveXml === "function") {
                 window.saveXml();
+              } else if (pending === "issues" && typeof window.openIssuesModal === "function") {
+                window.openIssuesModal();
               }
             } finally {
               try {
@@ -297,21 +326,11 @@
   });
 </script>
 <script type="module" src="js/progress.js"></script>
+<script src="js/issues.js"></script>
 <script type="module" src="js/image.js"></script>
 
 
   <div id="toast"></div>
-
-<script>
-document.addEventListener("DOMContentLoaded", () => {
-    const btn = document.getElementById("issuesBtn");
-    if (btn) {
-        btn.addEventListener("click", () => {
-            if (window.openIssuesModal) window.openIssuesModal();
-        });
-    }
-});
-</script>
 
 </body>
 </html>
