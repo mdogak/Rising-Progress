@@ -16,6 +16,7 @@
             <div class="issues-modal-heading">
               <div id="issuesTitle" class="issues-modal-title">Issues</div>
               <div class="issues-modal-subtitle">Summary of issues based on differences between the current plan and actual progress.</div>
+              <div id="issuesLastHistory" class="issues-last-history"></div>
             </div>
             <button type="button" class="issues-close" aria-label="Close recommendations">&times;</button>
           </div>
@@ -204,6 +205,30 @@
     return bullets;
   }
 
+
+
+  function getLastHistoryDateFromModel(){
+    const model = getModel();
+    if (!model) return '';
+    let dateVal = '';
+
+    // Prefer a history array if present
+    if (Array.isArray(model.history) && model.history.length) {
+      const last = model.history[model.history.length - 1];
+      if (last) {
+        dateVal = last.date || last.historyDate || last.labelDate || last.snapshotDate || '';
+      }
+    }
+
+    // Fallback to a direct property if one exists
+    if (!dateVal && model.lastHistoryDate) {
+      dateVal = model.lastHistoryDate;
+    }
+
+    if (!dateVal) return '';
+    return friendlyDate(dateVal);
+  }
+
   function openIssuesModal(){
     const overlay = ensureOverlay();
 
@@ -211,6 +236,19 @@
     const titleEl = overlay.querySelector('#issuesTitle');
     if (titleEl) {
       titleEl.textContent = 'Issues';
+    }
+
+    // Update last history date line if available
+    const lastHistoryEl = overlay.querySelector('#issuesLastHistory');
+    if (lastHistoryEl) {
+      const lastDate = getLastHistoryDateFromModel();
+      if (lastDate) {
+        lastHistoryEl.textContent = 'Last history date: ' + lastDate;
+        lastHistoryEl.style.display = '';
+      } else {
+        lastHistoryEl.textContent = '';
+        lastHistoryEl.style.display = 'none';
+      }
     }
 
     const listEl = overlay.querySelector('#issuesList');
@@ -228,6 +266,7 @@
     document.body.dataset.issuesScrollLock = document.body.style.overflow || '';
     document.body.style.overflow = 'hidden';
   }
+
 
 function closeIssuesModal(){
     const overlay = document.getElementById('issuesOverlay');
