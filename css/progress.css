@@ -289,3 +289,91 @@
 .btn-issues.issues-has-flags .issues-icon{
   color:var(--danger);
 }
+
+
+/* Issues overlay + modal */
+.issues-overlay{
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.72);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 40px 16px;
+  z-index: 9999;
+}
+
+.issues-overlay.hidden{
+  display: none;
+}
+
+.issues-modal{
+  max-width: 640px;
+  width: 100%;
+  background: #0b1120;
+  color: #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 20px 45px rgba(0,0,0,0.65);
+  padding: 20px 24px;
+}
+
+.issues-modal-header{
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.issues-modal-heading{
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.issues-modal-title{
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.issues-modal-subtitle{
+  font-size: 0.875rem;
+  color: #9ca3af;
+}
+
+.issues-close{
+  border: none;
+  background: transparent;
+  color: #9ca3af;
+  font-size: 1.5rem;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.issues-list{
+  margin: 0 0 16px 1.25rem;
+  padding: 0;
+  font-size: 0.9rem;
+}
+
+.issues-list li{
+  margin-bottom: 6px;
+}
+
+.issues-copy-btn{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 12px;
+  border-radius: 9999px;
+  border: 1px solid #38bdf8;
+  background: #0f172a;
+  color: #e0f2fe;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.issues-copy-btn:hover{
+  background: #0369a1;
+  color: #e5f3ff;
+}
