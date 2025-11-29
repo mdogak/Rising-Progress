@@ -295,11 +295,13 @@
 .issues-overlay{
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.72);
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
-  padding: 40px 16px;
+  padding: 24px 16px;
   z-index: 9999;
 }
 
@@ -308,13 +310,13 @@
 }
 
 .issues-modal{
-  max-width: 640px;
+  max-width: 650px;
   width: 100%;
-  background: #0b1120;
-  color: #e2e8f0;
+  background: #ffffff;
+  color: #374151;
   border-radius: 12px;
-  box-shadow: 0 20px 45px rgba(0,0,0,0.65);
-  padding: 20px 24px;
+  box-shadow: 0 20px 45px rgba(0,0,0,0.15);
+  padding: 24px 28px;
 }
 
 .issues-modal-header{
@@ -332,13 +334,14 @@
 }
 
 .issues-modal-title{
-  font-size: 1.1rem;
-  font-weight: 600;
+  font-size: 20px;
+  font-weight: 700;
+  color: #2563eb; /* blue-600 */
 }
 
 .issues-modal-subtitle{
-  font-size: 0.875rem;
-  color: #9ca3af;
+  font-size: 15px;
+  color: #ea580c; /* orange-600 */
 }
 
 .issues-close{
@@ -350,30 +353,40 @@
   line-height: 1;
 }
 
+.issues-close:hover{
+  color: #4b5563;
+}
+
 .issues-list{
-  margin: 0 0 16px 1.25rem;
+  margin: 12px 0 20px 1.25rem;
   padding: 0;
-  font-size: 0.9rem;
+  font-size: 14px;
+  color: #374151;
 }
 
 .issues-list li{
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .issues-copy-btn{
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 6px 12px;
+  padding: 8px 16px;
   border-radius: 9999px;
-  border: 1px solid #38bdf8;
-  background: #0f172a;
-  color: #e0f2fe;
-  font-size: 0.85rem;
+  border: 1px solid #2563eb;
+  background: #ffffff;
+  color: #2563eb;
+  font-size: 0.9rem;
+  font-weight: 600;
   cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease,
+              box-shadow 0.15s ease, transform 0.05s ease;
 }
 
 .issues-copy-btn:hover{
-  background: #0369a1;
-  color: #e5f3ff;
+  background: #2563eb;
+  color: #ffffff;
+  box-shadow: 0 10px 25px rgba(37,99,235,0.35);
+  transform: translateY(-1px);
 }
