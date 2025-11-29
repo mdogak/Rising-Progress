@@ -344,6 +344,13 @@
   color: #ea580c; /* orange-600 */
 }
 
+.issues-last-history{
+  margin-top: 2px;
+  font-size: 13px;
+  color: #4b5563; /* dark grey */
+}
+
+
 .issues-close{
   border: none;
   background: transparent;
