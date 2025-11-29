@@ -223,8 +223,10 @@ function calcActualSeriesByDay(days){ if(!days || days.length===0){ const f=buil
 
 function calcForecastSeriesByDay(days, planned, actual){
   const n = days.length || 0;
-  if (!n || !Array.isArray(planned) || !Array.isArray(actual)) return [];
+  if (!n || !Array.isArray(planned) || !Array.isArray(actual)) return { forecast: [], extraDays: 0 };
   const forecast = new Array(n).fill(null);
+  let extraDays = 0;
+
 
   // Find last actual point (most recent non-null)
   let aIdx = -1;
@@ -234,10 +236,10 @@ function calcForecastSeriesByDay(days, planned, actual){
       break;
     }
   }
-  if (aIdx < 0) return forecast;
+  if (aIdx < 0) return { forecast, extraDays: 0 };
 
   const aPct = actual[aIdx];
-  if (aPct == null || isNaN(aPct)) return forecast;
+  if (aPct == null || isNaN(aPct)) return { forecast, extraDays: 0 };
 
   // If we have no planned values at all, just hold flat from the last actual
   const hasPlanned = planned.some(v => v != null);
@@ -245,7 +247,7 @@ function calcForecastSeriesByDay(days, planned, actual){
     for (let i = aIdx; i < n; i++) {
       forecast[i] = aPct;
     }
-    return forecast;
+    return { forecast, extraDays: 0 };
   }
 
   const lastPlanIdx = planned.length - 1;
@@ -283,7 +285,7 @@ function calcForecastSeriesByDay(days, planned, actual){
     for (let i = aIdx; i < n; i++) {
       forecast[i] = aPct;
     }
-    return forecast;
+    return { forecast, extraDays: 0 };
   }
 
   const daysRel = pStar - aIdx; // >0 => plan point is to the RIGHT (later) of actual; <0 => plan is LEFT (earlier)
@@ -316,7 +318,7 @@ function calcForecastSeriesByDay(days, planned, actual){
     // Copy the FUTURE of the plan curve 1:1 but SHIFT it so it starts at the last actual date.
     // This uses the plan from startSrcIdx onward, but aligned so that startSrcIdx maps to aIdx.
     let dst = aIdx;
-    for (let src = startSrcIdx; src <= lastPlanIdx && dst < n; src++, dst++) {
+    for (let src = startSrcIdx; src <= lastPlanIdx; src++, dst++) {
       let v = planned[src];
       if (v == null) v = aPct;
       forecast[dst] = v;
@@ -326,12 +328,12 @@ function calcForecastSeriesByDay(days, planned, actual){
     // Stretch the remaining plan curve [startSrcIdx..lastPlanIdx] to fit into
     // [aIdx..lastPlanIdx], so we NEVER forecast finishing earlier than the plan.
     const startForecastIdx = aIdx;
-    const endForecastIdx = Math.min(lastPlanIdx, n - 1);
+    const endForecastIdx = lastPlanIdx;
     const forecastLen = endForecastIdx - startForecastIdx + 1;
 
     if (forecastLen <= 0) {
       forecast[aIdx] = aPct;
-      return forecast;
+      return { forecast, extraDays: Math.max(0, forecast.length - n) };
     }
 
     for (let k = 0; k < forecastLen; k++) {
@@ -345,8 +347,11 @@ function calcForecastSeriesByDay(days, planned, actual){
   forecast[aIdx] = aPct;
 
   // Clamp and clean
-  return forecast.map(v => v == null ? null : clamp(Number(v) || 0, 0, 100));
+  const cleaned = forecast.map(v => v == null ? null : clamp(Number(v) || 0, 0, 100));
+  const extra = Math.max(0, cleaned.length - n);
+  return { forecast: cleaned, extraDays: extra };
 }
+
 
 function computeDaysRelativeToPlan(days, planned, actual){ if(!days.length) return null; let aIdx = -1; let aPct = 0; for(let i=actual.length-1;i>=0;i--){ if(actual[i]!=null){ aIdx=i; aPct=actual[i]; break; } } if(aIdx<0) return null; let j = planned.findIndex(v => v!=null && v >= aPct); if(j <= 0){ const pStar = j < 0 ? planned.length - 1 : 0; const daysRelEdge = pStar - aIdx; return { actualDate: days[aIdx], actualPct: aPct, plannedDateForActualPct: days[Math.max(0, Math.min(days.length-1, Math.round(pStar)))], daysRelative: daysRelEdge }; }
   const p0 = planned[j-1] ?? 0; const p1 = planned[j] ?? p0; let t = 0; if(Math.abs(p1 - p0) > 1e-9){ t = (aPct - p0) / (p1 - p0); } const pStar = (j-1) + t; const daysRel = pStar - aIdx; return { actualDate: days[aIdx], actualPct: aPct, plannedDateForActualPct: days[Math.max(0, Math.min(days.length-1, Math.round(pStar)))], daysRelative: daysRel }; }
@@ -596,15 +601,70 @@ function refreshLegendNow(){
 }
 
 function drawChart(days, baseline, planned, actual){
-  const labels = (days && days.length)? days.map(d=>d) : [fmtDate(today)];
-  const dataBaseline = (baseline && baseline.length)? baseline : [0];
-  const dataPlanned = (planned && planned.length)? planned : [0];
-  const dataActual = (actual && actual.length)? actual : [0];
-  const dataForecast = (planned && planned.length && actual && actual.length)
-    ? calcForecastSeriesByDay(labels, dataPlanned, dataActual)
-    : (labels || []).map(() => null);
+  let labels = (days && days.length) ? days.map(d => d) : [fmtDate(today)];
+  let dataBaseline = (baseline && baseline.length) ? baseline : [0];
+  let dataPlanned = (planned && planned.length) ? planned : [0];
+  let dataActual = (actual && actual.length) ? actual : [0];
+  let dataForecast = [];
+  let extraDays = 0;
 
-  const yAxisLabelAnnotation = { type:'label', xValue: labels[0], yValue: 50, content:['% Progress'], backgroundColor:'rgba(0,0,0,0)', color:'#0f172a', rotation:-90, xAdjust:-55, font:{weight:'bold', size:16} };
+  if (planned && planned.length && actual && actual.length) {
+    const forecastResult = calcForecastSeriesByDay(labels, dataPlanned, dataActual);
+    if (forecastResult && Array.isArray(forecastResult.forecast)) {
+      dataForecast = forecastResult.forecast;
+      extraDays = Number(forecastResult.extraDays) || 0;
+    } else {
+      dataForecast = (labels || []).map(() => null);
+      extraDays = 0;
+    }
+  } else {
+    dataForecast = (labels || []).map(() => null);
+    extraDays = 0;
+  }
+
+  // If the forecast extends beyond the original plan horizon,
+  // append additional future dates to the labels array.
+  if (extraDays > 0) {
+    const lastLabelStr = labels[labels.length - 1];
+    let lastDate = null;
+    if (typeof parseDate === 'function') {
+      lastDate = parseDate(lastLabelStr);
+    }
+    if (!(lastDate instanceof Date) || isNaN(lastDate.getTime())) {
+      lastDate = new Date(lastLabelStr);
+    }
+    if (lastDate instanceof Date && !isNaN(lastDate.getTime())) {
+      for (let i = 1; i <= extraDays; i++) {
+        const d = new Date(lastDate);
+        d.setDate(d.getDate() + i);
+        if (typeof fmtDate === 'function') {
+          labels.push(fmtDate(d));
+        } else {
+          labels.push(d.toISOString().slice(0, 10));
+        }
+      }
+    }
+  }
+
+  // Pad non-forecast datasets so they align with the extended label range.
+  if (labels.length > dataPlanned.length) {
+    while (dataPlanned.length < labels.length) dataPlanned.push(null);
+  }
+  if (labels.length > dataBaseline.length) {
+    while (dataBaseline.length < labels.length) dataBaseline.push(null);
+  }
+  if (labels.length > dataActual.length) {
+    while (dataActual.length < labels.length) dataActual.push(null);
+  }
+
+  // Ensure the forecast array also matches the label length.
+  if (dataForecast.length < labels.length) {
+    while (dataForecast.length < labels.length) dataForecast.push(null);
+  } else if (dataForecast.length > labels.length) {
+    dataForecast = dataForecast.slice(0, labels.length);
+  }
+
+const yAxisLabelAnnotation = { type:'label', xValue: labels[0], yValue: 50, content:['% Progress'], backgroundColor:'rgba(0,0,0,0)', color:'#0f172a', rotation:-90, xAdjust:-55, font:{weight:'bold', size:16} };
 
   let startupAnnotations = {};
   if(model.project.startup && document.getElementById('labelToggle').checked){
@@ -661,6 +721,8 @@ function drawChart(days, baseline, planned, actual){
           return ann; })() } },
       scales: {
           x: {
+              min: labels[0],
+              max: labels[labels.length - 1],
               ticks: {
                   font: { size: 16 }
               }
