@@ -192,7 +192,7 @@ function hasAnyScopeIssues(){
 }
 
 function updateIssuesButtonState(){
-  const btn = document.getElementById('issuesBtn');
+  const btn = document.getElementById('toolbarIssues');
   if (!btn) return;
   const hasFlags = hasAnyScopeIssues();
   if (hasFlags) {

@@ -14,8 +14,8 @@
         <div class="issues-modal" role="dialog" aria-modal="true" aria-labelledby="issuesTitle">
           <div class="issues-modal-header">
             <div class="issues-modal-heading">
-              <div id="issuesTitle" class="issues-modal-title"></div>
-              <div class="issues-modal-subtitle">Recommendations based on observed trends</div>
+              <div id="issuesTitle" class="issues-modal-title">Issues</div>
+              <div class="issues-modal-subtitle">Identified issues based on inconsistencies between actual and plan data.</div>
             </div>
             <button type="button" class="issues-close" aria-label="Close recommendations">&times;</button>
           </div>
@@ -90,17 +90,44 @@
     return null;
   }
 
+  
   function buildIssues(){
     const model = getModel();
     const bullets = [];
+
+    // If there is no model or scopes at all, fall back immediately.
     if(!model || !Array.isArray(model.scopes)){
       bullets.push('No issues identified based on current plan.');
+      try {
+        if (window.sessionStorage) {
+          sessionStorage.setItem('issues_bullets', JSON.stringify(bullets));
+        }
+      } catch(e) { /* ignore */ }
       lastIssuesText = bullets.join('\n');
       return bullets;
     }
 
     const rowsContainer = document.getElementById('scopeRows');
     const rows = rowsContainer ? rowsContainer.querySelectorAll('.row') : [];
+
+    // When running inside issues.html there are no scope rows. Try to hydrate from stored bullets.
+    if (!rows || rows.length === 0) {
+      try {
+        if (window.sessionStorage) {
+          const raw = sessionStorage.getItem('issues_bullets');
+          if (raw) {
+            const stored = JSON.parse(raw);
+            if (Array.isArray(stored) && stored.length) {
+              lastIssuesText = stored.join('\n');
+              return stored;
+            }
+          }
+        }
+      } catch(e) { /* ignore */ }
+      bullets.push('No issues identified based on current plan.');
+      lastIssuesText = bullets.join('\n');
+      return bullets;
+    }
 
     let anyFlagged = false;
 
@@ -116,19 +143,19 @@
       const endInput   = row.querySelector('[data-k="end"]');
       const plannedCell = row.querySelector('[data-k="planned"]');
 
-      const startFlag = !!(startInput && startInput.classList.contains('red-border'));
-      const endFlag   = !!(endInput && endInput.classList.contains('red-border'));
-      const plannedFlag = !!(plannedCell && plannedCell.classList.contains('danger'));
+      const startFlag = !!(startInput && startInput.classList.contains('flag-start'));
+      const endFlag   = !!(endInput && endInput.classList.contains('flag-end'));
+      const plannedFlag = !!(plannedCell && plannedCell.classList.contains('flag-planned'));
 
       if(startFlag){
         anyFlagged = true;
-        const txt = scope.start || startInput?.value || '';
+        const txt = scope.start || (startInput && startInput.value) || '';
         bullets.push(scopeName + ' was planned to start on ' + friendlyDate(txt) + ' but has not started.');
       }
 
       if(endFlag){
         anyFlagged = true;
-        const txt = scope.end || endInput?.value || '';
+        const txt = scope.end || (endInput && endInput.value) || '';
         bullets.push(scopeName + ' was planned to end on ' + friendlyDate(txt) + ' but has not yet finished.');
       }
 
@@ -166,27 +193,31 @@
       bullets.push('No issues identified based on current plan.');
     }
 
+    // Persist the latest issues so issues.html can display them standalone.
+    try {
+      if (window.sessionStorage) {
+        sessionStorage.setItem('issues_bullets', JSON.stringify(bullets));
+      }
+    } catch(e) { /* ignore */ }
+
     lastIssuesText = bullets.join('\n');
     return bullets;
   }
 
   function openIssuesModal(){
     const overlay = ensureOverlay();
-    const model = getModel();
 
+    // Always use a simple, consistent title.
     const titleEl = overlay.querySelector('#issuesTitle');
-    if(titleEl){
-      const name = model && model.project && model.project.name
-        ? String(model.project.name).trim()
-        : 'Project';
-      titleEl.textContent = name + ' Recommendations';
+    if (titleEl) {
+      titleEl.textContent = 'Issues';
     }
 
     const listEl = overlay.querySelector('#issuesList');
-    if(listEl){
+    if (listEl) {
       listEl.innerHTML = '';
       const bullets = buildIssues();
-      bullets.forEach(function(text){
+      bullets.forEach(function (text) {
         const li = document.createElement('li');
         li.textContent = text;
         listEl.appendChild(li);
@@ -198,7 +229,7 @@
     document.body.style.overflow = 'hidden';
   }
 
-  function closeIssuesModal(){
+function closeIssuesModal(){
     const overlay = document.getElementById('issuesOverlay');
     if(overlay){
       overlay.classList.add('hidden');
@@ -209,11 +240,38 @@
     }
   }
 
+  
   function copyIssuesToClipboard(){
-    const text = lastIssuesText || buildIssues().join('\n');
-    if(!text) return;
+    const overlay = document.getElementById('issuesOverlay') || ensureOverlay();
 
-    if(navigator.clipboard && navigator.clipboard.writeText){
+    const titleEl = overlay.querySelector('#issuesTitle');
+    const subtitleEl = overlay.querySelector('.issues-modal-subtitle');
+
+    let bullets = [];
+    const listEl = overlay.querySelector('#issuesList');
+    if (listEl && listEl.children.length) {
+      bullets = Array.from(listEl.children)
+        .map(li => li.textContent.trim())
+        .filter(Boolean);
+    } else {
+      bullets = buildIssues();
+    }
+
+    if (!bullets || bullets.length === 0) return;
+
+    const parts = [];
+    if (titleEl && titleEl.textContent) {
+      parts.push(titleEl.textContent.trim());
+    }
+    if (subtitleEl && subtitleEl.textContent) {
+      parts.push(subtitleEl.textContent.trim());
+    }
+    parts.push('');
+    parts.push(bullets.map(b => '• ' + b).join('\n'));
+
+    const text = parts.join('\n');
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).catch(function(){
         fallbackCopy(text);
       });
@@ -222,7 +280,7 @@
     }
   }
 
-  function fallbackCopy(text){
+function fallbackCopy(text){
     const ta = document.createElement('textarea');
     ta.value = text;
     ta.style.position = 'fixed';
