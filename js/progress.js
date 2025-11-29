@@ -547,6 +547,31 @@ function renderLegend(chart){
     computeAndRender();
     if(window.sessionStorage) sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
   }, daysRelText || null);
+
+  // Issues link (opens recommendations modal)
+  (function(){
+    try{
+      const issuesWrap = document.createElement('div');
+      issuesWrap.className = 'legend-item legend-issues';
+
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.id = 'issuesLink';
+      btn.className = 'issues-link';
+      btn.textContent = 'Issues';
+
+      btn.addEventListener('click', function(){
+        if (typeof window.openIssuesModal === 'function') {
+          window.openIssuesModal();
+        }
+      });
+
+      issuesWrap.appendChild(btn);
+      cont.appendChild(issuesWrap);
+    }catch(e){
+      // no-op
+    }
+  })();
 }
 
 function refreshLegendNow(){
