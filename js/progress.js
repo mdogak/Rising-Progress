@@ -222,87 +222,55 @@ function calcActualSeriesByDay(days){ if(!days || days.length===0){ const f=buil
   return actual.map(v=> v==null? v : clamp(Number(v)||0,0,100)); }
 
 function calcForecastSeriesByDay(days, planned, actual){
-  const n = Array.isArray(days) ? days.length : 0;
+  const n = days.length || 0;
   if (!n || !Array.isArray(planned) || !Array.isArray(actual)) return [];
-
   const forecast = new Array(n).fill(null);
-
-  // Helper: last non-null numeric index
-  const lastNonNullIndex = (arr) => {
-    if (!Array.isArray(arr)) return -1;
-    for (let i = arr.length - 1; i >= 0; i--) {
-      const v = arr[i];
-      if (v != null && !isNaN(v)) return i;
-    }
-    return -1;
-  };
-
-  const clampPct = (v) => clamp(Number(v) || 0, 0, 100);
 
   // Find last actual point (most recent non-null)
   let aIdx = -1;
   for (let i = actual.length - 1; i >= 0; i--) {
-    if (actual[i] != null && !isNaN(actual[i])) {
+    if (actual[i] != null) {
       aIdx = i;
       break;
     }
   }
   if (aIdx < 0) return forecast;
 
-  const aPct = clampPct(actual[aIdx]);
+  const aPct = actual[aIdx];
+  if (aPct == null || isNaN(aPct)) return forecast;
 
   // If we have no planned values at all, just hold flat from the last actual
-  const hasPlanned = planned.some(v => v != null && !isNaN(v));
+  const hasPlanned = planned.some(v => v != null);
   if (!hasPlanned) {
     for (let i = aIdx; i < n; i++) {
       forecast[i] = aPct;
     }
-    return forecast.map(v => (v == null ? null : clampPct(v)));
+    return forecast;
   }
 
-  const lastPlanIdx = lastNonNullIndex(planned);
-  if (lastPlanIdx < 0) {
-    for (let i = aIdx; i < n; i++) {
-      forecast[i] = aPct;
-    }
-    return forecast.map(v => (v == null ? null : clampPct(v)));
-  }
+  const lastPlanIdx = planned.length - 1;
 
-  // Find pStar: fractional index along the plan where planned% == aPct
+  // Find the segment on the plan where aPct would land and compute a fractional index pStar
   let j = -1;
-  for (let i = 0; i <= lastPlanIdx; i++) {
+  for (let i = 0; i < planned.length; i++) {
     const v = planned[i];
-    if (v != null && !isNaN(v) && v >= aPct) {
+    if (v != null && v >= aPct) {
       j = i;
       break;
     }
   }
 
-  const validPlanVals = planned
-    .slice(0, lastPlanIdx + 1)
-    .filter(v => v != null && !isNaN(v));
-
-  const maxPlan = validPlanVals.length
-    ? Math.max(...validPlanVals)
-    : -Infinity;
-
-  // If even the max plan value is below the actual %, just hold flat
-  if (!(maxPlan === -Infinity) && maxPlan < aPct) {
-    for (let i = aIdx; i < n; i++) {
-      forecast[i] = aPct;
-    }
-    return forecast.map(v => (v == null ? null : clampPct(v)));
-  }
-
   let pStar;
   if (j <= 0) {
-    // Either at/before first plan point, or we didn't find a v >= aPct (but maxPlan >= aPct)
-    pStar = (j < 0) ? lastPlanIdx : 0;
+    // aPct is at/below the first defined plan point, or we never found a v>=aPct but have plan values
+    // If j < 0, treat it as being at the last defined point (actual beyond plan end).
+    const idx = (j < 0 ? lastPlanIdx : 0);
+    pStar = idx;
   } else {
-    const p0 = planned[j - 1] ?? planned[j];
+    const p0 = planned[j - 1] ?? 0;
     const p1 = planned[j] ?? p0;
     let t = 0;
-    if (p1 != null && !isNaN(p1) && p0 != null && !isNaN(p0) && Math.abs(p1 - p0) > 1e-9) {
+    if (Math.abs(p1 - p0) > 1e-9) {
       t = (aPct - p0) / (p1 - p0);
       if (!isFinite(t)) t = 0;
       t = Math.max(0, Math.min(1, t));
@@ -310,76 +278,75 @@ function calcForecastSeriesByDay(days, planned, actual){
     pStar = (j - 1) + t;
   }
 
-  // Helper: sample the plan at a fractional index using linear interpolation
-  function samplePlanAt(fIndex) {
-    if (!isFinite(fIndex)) return aPct;
-    let idx = fIndex;
-    if (idx < 0) idx = 0;
-    if (idx > lastPlanIdx) idx = lastPlanIdx;
+  // If even the max plan value is below aPct, just hold flat from last actual
+  if (j < 0 && (Math.max(...planned.filter(v => v != null)) || 0) < aPct) {
+    for (let i = aIdx; i < n; i++) {
+      forecast[i] = aPct;
+    }
+    return forecast;
+  }
 
-    const i0 = Math.floor(idx);
+  const daysRel = pStar - aIdx; // >0 => plan point is to the RIGHT (later) of actual; <0 => plan is LEFT (earlier)
+  const startSrcIdx = Math.max(0, Math.min(lastPlanIdx, Math.floor(pStar)));
+
+  // Helper to sample the remaining plan curve (preserve shape)
+  function samplePlanSegment(tNorm) {
+    // tNorm in [0,1] over [startSrcIdx .. lastPlanIdx]
+    const len = lastPlanIdx - startSrcIdx + 1;
+    if (len <= 1) {
+      const v = planned[startSrcIdx];
+      return v == null ? aPct : v;
+    }
+    const pos = startSrcIdx + tNorm * (len - 1);
+    const i0 = Math.floor(pos);
     const i1 = Math.min(lastPlanIdx, i0 + 1);
-    const frac = idx - i0;
+    const frac = pos - i0;
 
     const v0 = planned[i0];
     const v1 = planned[i1];
 
     if (v0 == null && v1 == null) return aPct;
-    if (v0 == null) return clampPct(v1);
-    if (v1 == null) return clampPct(v0);
-
-    const v = v0 + (v1 - v0) * frac;
-    return clampPct(v);
+    if (v0 == null) return v1;
+    if (v1 == null) return v0;
+    return v0 + (v1 - v0) * frac;
   }
-
-  const daysRel = pStar - aIdx; // >0 => plan point is to the RIGHT (ahead of plan); <=0 => LEFT/on plan
 
   if (daysRel <= 0) {
-    // CASE 1 — Behind or exactly on plan (plan date <= actual date)
-    // Copy the future of the plan curve from pStar to lastPlanIdx,
-    // shifted so that pStar maps to aIdx.
-    const totalSpan = Math.max(0, lastPlanIdx - pStar);
-    const steps = Math.round(totalSpan);
-
-    for (let k = 0; k <= steps; k++) {
-      const dstIdx = aIdx + k;
-      if (dstIdx >= n) break;
-
-      const srcF = pStar + (totalSpan === 0 ? 0 : (k / steps) * totalSpan);
-      const v = samplePlanAt(srcF);
-      forecast[dstIdx] = v;
+    // CASE 1: Plan point is to the LEFT or same day (plan date <= actual date):
+    // Copy the FUTURE of the plan curve 1:1 but SHIFT it so it starts at the last actual date.
+    // This uses the plan from startSrcIdx onward, but aligned so that startSrcIdx maps to aIdx.
+    let dst = aIdx;
+    for (let src = startSrcIdx; src <= lastPlanIdx && dst < n; src++, dst++) {
+      let v = planned[src];
+      if (v == null) v = aPct;
+      forecast[dst] = v;
     }
   } else {
-    // CASE 2 — Ahead of plan (plan date > actual date)
-    // Stretch the remaining segment [pStar..lastPlanIdx] so it fits exactly
-    // into [aIdx..lastPlanIdx], ensuring the forecast never finishes earlier
-    // than the plan.
+    // CASE 2: Plan point is to the RIGHT (plan date > actual date, so we're ahead of plan):
+    // Stretch the remaining plan curve [startSrcIdx..lastPlanIdx] to fit into
+    // [aIdx..lastPlanIdx], so we NEVER forecast finishing earlier than the plan.
     const startForecastIdx = aIdx;
     const endForecastIdx = Math.min(lastPlanIdx, n - 1);
-    const dstSpan = endForecastIdx - startForecastIdx;
+    const forecastLen = endForecastIdx - startForecastIdx + 1;
 
-    if (dstSpan <= 0) {
+    if (forecastLen <= 0) {
       forecast[aIdx] = aPct;
-      return forecast.map(v => (v == null ? null : clampPct(v)));
+      return forecast;
     }
 
-    const srcSpan = Math.max(1e-6, lastPlanIdx - pStar);
-
-    for (let dst = startForecastIdx; dst <= endForecastIdx; dst++) {
-      const t = (dst - startForecastIdx) / dstSpan; // 0..1 across the forecast window
-      const srcF = pStar + t * srcSpan;
-      const v = samplePlanAt(srcF);
-      forecast[dst] = v;
+    for (let k = 0; k < forecastLen; k++) {
+      const tNorm = (forecastLen === 1) ? 0 : (k / (forecastLen - 1));
+      const v = samplePlanSegment(tNorm);
+      forecast[startForecastIdx + k] = v;
     }
   }
 
-  // Force the forecast’s first point on the last actual date to equal the actual %
+  // Ensure the forecast starts exactly at the last actual percentage on that date
   forecast[aIdx] = aPct;
 
   // Clamp and clean
-  return forecast.map(v => (v == null ? null : clampPct(v)));
+  return forecast.map(v => v == null ? null : clamp(Number(v) || 0, 0, 100));
 }
-
 
 function computeDaysRelativeToPlan(days, planned, actual){ if(!days.length) return null; let aIdx = -1; let aPct = 0; for(let i=actual.length-1;i>=0;i--){ if(actual[i]!=null){ aIdx=i; aPct=actual[i]; break; } } if(aIdx<0) return null; let j = planned.findIndex(v => v!=null && v >= aPct); if(j <= 0){ const pStar = j < 0 ? planned.length - 1 : 0; const daysRelEdge = pStar - aIdx; return { actualDate: days[aIdx], actualPct: aPct, plannedDateForActualPct: days[Math.max(0, Math.min(days.length-1, Math.round(pStar)))], daysRelative: daysRelEdge }; }
   const p0 = planned[j-1] ?? 0; const p1 = planned[j] ?? p0; let t = 0; if(Math.abs(p1 - p0) > 1e-9){ t = (aPct - p0) / (p1 - p0); } const pStar = (j-1) + t; const daysRel = pStar - aIdx; return { actualDate: days[aIdx], actualPct: aPct, plannedDateForActualPct: days[Math.max(0, Math.min(days.length-1, Math.round(pStar)))], daysRelative: daysRel }; }
@@ -637,6 +604,50 @@ function drawChart(days, baseline, planned, actual){
     ? calcForecastSeriesByDay(labels, dataPlanned, dataActual)
     : (labels || []).map(() => null);
 
+  // Determine effective X-axis range based on plan and forecast,
+  // and extend the labels array if the forecast goes beyond the plan.
+  const lastNonNullIndex = (arr) => {
+    if (!Array.isArray(arr)) return -1;
+    for (let i = arr.length - 1; i >= 0; i--) {
+      const v = arr[i];
+      if (v != null && !isNaN(v)) return i;
+    }
+    return -1;
+  };
+
+  const lastPlanIdx = lastNonNullIndex(dataPlanned);
+  const lastForecastIdx = lastNonNullIndex(dataForecast);
+  let maxIdx = Math.max(lastPlanIdx, lastForecastIdx);
+
+  // If the forecast or plan extends beyond the current label range,
+  // extend the labels array by continuing the same daily date interval.
+  if (maxIdx >= labels.length) {
+    const lastLabelStr = labels[labels.length - 1];
+    let lastDate = null;
+    if (typeof parseDate === 'function') {
+      lastDate = parseDate(lastLabelStr);
+    }
+    if (!(lastDate instanceof Date) || isNaN(lastDate.getTime())) {
+      // Fallback: try direct Date construction if parseDate is unavailable or fails
+      lastDate = new Date(lastLabelStr);
+    }
+    if (lastDate instanceof Date && !isNaN(lastDate.getTime())) {
+      const extraDays = maxIdx - (labels.length - 1);
+      for (let i = 1; i <= extraDays; i++) {
+        const d = new Date(lastDate);
+        d.setDate(d.getDate() + i);
+        if (typeof fmtDate === 'function') {
+          labels.push(fmtDate(d));
+        } else {
+          labels.push(d.toISOString().slice(0, 10));
+        }
+      }
+    }
+  }
+
+  if (maxIdx < 0) maxIdx = labels.length - 1;
+  if (maxIdx >= labels.length) maxIdx = labels.length - 1;
+
   const yAxisLabelAnnotation = { type:'label', xValue: labels[0], yValue: 50, content:['% Progress'], backgroundColor:'rgba(0,0,0,0)', color:'#0f172a', rotation:-90, xAdjust:-55, font:{weight:'bold', size:16} };
 
   let startupAnnotations = {};
@@ -674,22 +685,6 @@ function drawChart(days, baseline, planned, actual){
   const titleText = (model.project.name ? (model.project.name + ' Progress') : 'Progress');
   const weeks = Math.floor(labels.length/7);
   const xGridColor = (ctx)=>{ const i = ctx.index; const isWeekly = (i % 7) === 0; if(weeks > 16){ return isWeekly ? 'rgba(100,116,139,.45)' : 'rgba(0,0,0,0)'; } return 'rgba(100,116,139,.45)'; };
-
-
-  const lastNonNullIndex = (arr) => {
-    if (!Array.isArray(arr)) return -1;
-    for (let i = arr.length - 1; i >= 0; i--) {
-      const v = arr[i];
-      if (v != null && !isNaN(v)) return i;
-    }
-    return -1;
-  };
-
-  const lastPlanIdx = lastNonNullIndex(dataPlanned);
-  const lastForecastIdx = lastNonNullIndex(dataForecast);
-  let maxIdx = Math.max(lastPlanIdx, lastForecastIdx);
-  if (maxIdx < 0) maxIdx = labels.length - 1;
-  if (maxIdx >= labels.length) maxIdx = labels.length - 1;
 
   const cfg = {
     type:'line',
