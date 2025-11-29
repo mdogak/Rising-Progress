@@ -282,7 +282,7 @@
   color:var(--danger);
 }
 .btn-issues.issues-has-flags{
-  background:#fee2e2; /* red-100 */
+  background:transparent; /* transparent */
   border-color:var(--danger);
   color:var(--danger);
 }
