@@ -181,7 +181,7 @@
 .legend-sub.baseline{ color: rgba(107,114,128,1); }
 .legend-sub.planned{  color: rgba(37,99,235,1); }
 .legend-sub.actual{   color: rgba(234,88,12,1); }
-.legend-daysrel{ font-size:0.8rem; color: rgba(22,163,74,1); margin-top:2px; }
+.legend-daysrel{ font-size:0.95em; color: rgba(22,163,74,1); margin-top:2px; }
 
 
 /* Stabilize legend layout so subtext remains under its header and daysRel stays to the right */
