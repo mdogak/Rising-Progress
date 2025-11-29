@@ -116,9 +116,9 @@
       const endInput   = row.querySelector('[data-k="end"]');
       const plannedCell = row.querySelector('[data-k="planned"]');
 
-      const startFlag = !!(startInput && startInput.classList.contains('flag-start'));
-      const endFlag   = !!(endInput && endInput.classList.contains('flag-end'));
-      const plannedFlag = !!(plannedCell && plannedCell.classList.contains('flag-planned'));
+      const startFlag = !!(startInput && startInput.classList.contains('red-border'));
+      const endFlag   = !!(endInput && endInput.classList.contains('red-border'));
+      const plannedFlag = !!(plannedCell && plannedCell.classList.contains('danger'));
 
       if(startFlag){
         anyFlagged = true;
@@ -176,8 +176,10 @@
 
     const titleEl = overlay.querySelector('#issuesTitle');
     if(titleEl){
-      const name = model && model.project && model.project.name ? String(model.project.name).trim() : '';
-        titleEl.textContent = 'Issues';
+      const name = model && model.project && model.project.name
+        ? String(model.project.name).trim()
+        : 'Project';
+      titleEl.textContent = name + ' Recommendations';
     }
 
     const listEl = overlay.querySelector('#issuesList');
@@ -208,19 +210,10 @@
   }
 
   function copyIssuesToClipboard(){
-    const title = 'Issues';
-    const desc  = 'Identified issues based on inconsistencies between actual and plan data.';
-    const bullets = buildIssues();
-    if (!bullets || !bullets.length) return;
+    const text = lastIssuesText || buildIssues().join('\n');
+    if(!text) return;
 
-    const lines = [title, desc, ''];
-    bullets.forEach(b => {
-      lines.push('\u2022 ' + b);
-    });
-    const text = lines.join('\n');
-    lastIssuesText = text;
-
-    if (navigator.clipboard && navigator.clipboard.writeText) {
+    if(navigator.clipboard && navigator.clipboard.writeText){
       navigator.clipboard.writeText(text).catch(function(){
         fallbackCopy(text);
       });
