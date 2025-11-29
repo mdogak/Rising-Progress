@@ -134,9 +134,74 @@ function calcScopePlannedPctToDate(s){
   const pct = (num / den) * 100;
   return clamp(pct, 0, 100);
 }
-function updatePlannedCell(row, s){ const plannedPct = calcScopePlannedPctToDate(s); const cell = row.querySelector('[data-k="planned"]'); if(s.totalUnits!=='' && Number(s.totalUnits)>0){ const plannedUnits = (plannedPct/100) * Number(s.totalUnits); cell.textContent = plannedUnits.toFixed(1); } else { cell.textContent = plannedPct.toFixed(1)+'%'; }
-  const startEl = row.querySelector('[data-k="start"]'); const endEl = row.querySelector('[data-k="end"]'); startEl.classList.remove('red-border'); endEl.classList.remove('red-border'); cell.classList.remove('danger'); const actualPctForCompare = s.actualPct || 0; if(actualPctForCompare < plannedPct) cell.classList.add('danger'); if(s.start){ if(parseDate(s.start) < parseDate(fmtDate(today)) && (actualPctForCompare===0)) startEl.classList.add('red-border'); } if(s.end){ if(parseDate(s.end) < parseDate(fmtDate(today)) && (Math.round(actualPctForCompare) < 100)) endEl.classList.add('red-border'); } }
+function updatePlannedCell(row, s){
+  const plannedPct = calcScopePlannedPctToDate(s);
+  const cell = row.querySelector('[data-k="planned"]');
+  if (s.totalUnits !== '' && Number(s.totalUnits) > 0) {
+    const plannedUnits = (plannedPct / 100) * Number(s.totalUnits);
+    cell.textContent = plannedUnits.toFixed(1);
+  } else {
+    cell.textContent = plannedPct.toFixed(1) + '%';
+  }
+
+  const startEl = row.querySelector('[data-k="start"]');
+  const endEl   = row.querySelector('[data-k="end"]');
+
+  // Clear previous flags
+  if (startEl) startEl.classList.remove('flag-start');
+  if (endEl)   endEl.classList.remove('flag-end');
+  if (cell)    cell.classList.remove('flag-planned');
+
+  const actualPctForCompare = s.actualPct || 0;
+
+  // Flag planned shortfall
+  if (actualPctForCompare < plannedPct && cell) {
+    cell.classList.add('flag-planned');
+  }
+
+  // Flag late start (past start date, still 0%)
+  if (s.start && startEl) {
+    if (parseDate(s.start) < parseDate(fmtDate(today)) && (actualPctForCompare === 0)) {
+      startEl.classList.add('flag-start');
+    }
+  }
+
+  // Flag late finish (past end date, still <100%)
+  if (s.end && endEl) {
+    if (parseDate(s.end) < parseDate(fmtDate(today)) && (Math.round(actualPctForCompare) < 100)) {
+      endEl.classList.add('flag-end');
+    }
+  }
+
+  if (typeof updateIssuesButtonState === 'function') {
+    updateIssuesButtonState();
+  }
+}
 function calcScopeWeightings(){ const total = model.scopes.reduce((a,b)=>a+(b.cost||0),0) || 0; return model.scopes.map(s=> total>0 ? (s.cost/total) : 0); }
+
+function hasAnyScopeIssues(){
+  const rows = $$('#scopeRows .row');
+  return rows.some(row => {
+    const startEl = row.querySelector('[data-k="start"]');
+    const endEl   = row.querySelector('[data-k="end"]');
+    const planned = row.querySelector('[data-k="planned"]');
+    return (startEl && startEl.classList.contains('flag-start')) ||
+           (endEl && endEl.classList.contains('flag-end')) ||
+           (planned && planned.classList.contains('flag-planned'));
+  });
+}
+
+function updateIssuesButtonState(){
+  const btn = document.getElementById('issuesBtn');
+  if (!btn) return;
+  const hasFlags = hasAnyScopeIssues();
+  if (hasFlags) {
+    btn.classList.add('issues-has-flags');
+  } else {
+    btn.classList.remove('issues-has-flags');
+  }
+}
+
 function calcPlannedDailyOverall(){
   const weightings = calcScopeWeightings();
   return model.scopes.map((s, i) => {
@@ -547,31 +612,6 @@ function renderLegend(chart){
     computeAndRender();
     if(window.sessionStorage) sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
   }, daysRelText || null);
-
-  // Issues link (opens recommendations modal)
-  (function(){
-    try{
-      const issuesWrap = document.createElement('div');
-      issuesWrap.className = 'legend-item legend-issues';
-
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.id = 'issuesLink';
-      btn.className = 'issues-link';
-      btn.textContent = 'Issues';
-
-      btn.addEventListener('click', function(){
-        if (typeof window.openIssuesModal === 'function') {
-          window.openIssuesModal();
-        }
-      });
-
-      issuesWrap.appendChild(btn);
-      cont.appendChild(issuesWrap);
-    }catch(e){
-      // no-op
-    }
-  })();
 }
 
 function refreshLegendNow(){
