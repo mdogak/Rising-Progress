@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 
-<!-- issues rev2 -->
+<!-- forecast rev6 -->
 
 <html lang="en">
 <head>
@@ -301,6 +301,17 @@
 
 
   <div id="toast"></div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const btn = document.getElementById("issuesBtn");
+    if (btn) {
+        btn.addEventListener("click", () => {
+            if (window.openIssuesModal) window.openIssuesModal();
+        });
+    }
+});
+</script>
 
 </body>
 </html>
