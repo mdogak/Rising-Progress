@@ -174,48 +174,64 @@
       if(plannedFlag){
         anyFlagged = true;
 
-        // Try to get actual progress primarily from the DOM
-        let actualProgress = '';
-        const actualCell = row.querySelector('[data-k="actual"]') ||
-                           row.querySelector('[data-k="actualPct"]') ||
-                           row.querySelector('[data-k="actualUnits"]');
-        if (actualCell) {
-          actualProgress = (actualCell.textContent || actualCell.value || '').trim();
+        // Actual progress from DOM: <input data-k="progress">
+        let actualRaw = 0;
+        const progressInput = row.querySelector('[data-k="progress"]');
+        if (progressInput) {
+          const v = (progressInput.value || progressInput.textContent || '').trim();
+          const num = parseFloat(v);
+          actualRaw = isNaN(num) ? 0 : num;
         }
 
-        // Fallback to model fields if DOM is empty but scope has data
-        if (!actualProgress && scope) {
-          if (scope.actualToDate != null) actualProgress = String(scope.actualToDate);
-          else if (scope.actualUnits != null) actualProgress = String(scope.actualUnits);
-          else if (scope.actualPctToDate != null) actualProgress = String(scope.actualPctToDate);
-        }
-
-        let plannedPct = 0;
-        try{
-          if (typeof window.calcScopePlannedPctToDate === 'function' && scope) {
-            plannedPct = window.calcScopePlannedPctToDate(scope) || 0;
+        // Planned progress from DOM: <span data-k="planned">
+        let plannedRaw = 0;
+        const plannedCellDom = row.querySelector('[data-k="planned"]');
+        let plannedIsPercent = false;
+        if (plannedCellDom) {
+          const t = (plannedCellDom.textContent || plannedCellDom.value || '').trim();
+          if (t.includes('%')) {
+            plannedIsPercent = true;
+            const num = parseFloat(t.replace('%',''));
+            plannedRaw = isNaN(num) ? 0 : num;
+          } else {
+            const num = parseFloat(t);
+            plannedRaw = isNaN(num) ? 0 : num;
           }
-        }catch(e){
-          plannedPct = 0;
         }
 
-        let plannedValueText = '';
+        // Decide if this scope is units-based or percent-based:
+        // If totalUnits > 0, treat as units; otherwise treat as percent.
+        const totalUnitsNum = (scope && scope.totalUnits !== '' && scope.totalUnits != null)
+          ? Number(scope.totalUnits)
+          : 0;
+        const isUnitsBased = scope && Number.isFinite(totalUnitsNum) && totalUnitsNum > 0;
+
         let unitsText = '';
+        let actualText = '';
+        let plannedValueText = '';
 
-        const totalUnitsNum = (scope && scope.totalUnits !== '' && scope.totalUnits != null) ? Number(scope.totalUnits) : 0;
-        if (scope && Number.isFinite(totalUnitsNum) && totalUnitsNum > 0) {
-          const plannedUnits = (plannedPct/100) * totalUnitsNum;
-          plannedValueText = plannedUnits.toFixed(1);
-          unitsText = scope.unitsLabel ? String(scope.unitsLabel) : '';
+        if (isUnitsBased) {
+          // Units (e.g., Feet): 0 decimal places for both values
+          unitsText = scope && scope.unitsLabel ? String(scope.unitsLabel) : '';
+          const actualUnitsVal = Math.round(isNaN(actualRaw) ? 0 : actualRaw);
+          const plannedUnitsVal = Math.round(isNaN(plannedRaw) ? 0 : plannedRaw);
+          actualText = String(actualUnitsVal);
+          plannedValueText = String(plannedUnitsVal);
         } else {
-          plannedValueText = plannedPct.toFixed(1);
-          unitsText = scope && scope.unitsLabel ? String(scope.unitsLabel) : '%';
+          // Percent: 1 decimal place for both values
+          unitsText = (scope && scope.unitsLabel) ? String(scope.unitsLabel) : '%';
+          const actualPctVal = isNaN(actualRaw) ? 0 : actualRaw;
+          const plannedPctVal = isNaN(plannedRaw) ? 0 : plannedRaw;
+          actualText = actualPctVal.toFixed(1);
+          plannedValueText = plannedPctVal.toFixed(1);
+          if (!unitsText) unitsText = '%';
         }
 
-        const actualText = actualProgress || '0';
+        const unitsSuffix = unitsText ? (' ' + unitsText) : '';
+
         scopeIssues.push(
-          'In progress at ' + actualText + ' ' + unitsText +
-          ' and planned to date to be at ' + plannedValueText + ' ' + unitsText
+          'In progress at ' + actualText + unitsSuffix +
+          ' and planned to date to be at ' + plannedValueText + unitsSuffix
         );
       }
     });
