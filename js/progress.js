@@ -192,8 +192,8 @@ function hasAnyScopeIssues(){
 }
 
 function updateIssuesButtonState(){
-  if (typeof window !== 'undefined' && typeof window.syncActualFromDOM === 'function') {
-    window.syncActualFromDOM();
+  if (typeof syncActualFromDOM === 'function') {
+    syncActualFromDOM();
   }
   const btn = document.getElementById('toolbarIssues');
   if (!btn) return;
@@ -1548,3 +1548,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 });
+
+
+// Expose syncActualFromDOM so issues.js can call it before building issues.
+if (typeof window !== 'undefined') {
+  window.syncActualFromDOM = syncActualFromDOM;
+}
