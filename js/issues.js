@@ -52,7 +52,7 @@
       const parts = String(iso).split('-');
       if(parts.length===3){
         const y=Number(parts[0]); const m=Number(parts[1])-1; const d=Number(parts[2]);
-        return fmtUS(new Date(y,m,d));
+        return fmtUS(new Date(m,d,y));
       }
       return fmtUS(new Date(iso));
     }catch(e){ return String(iso); }
