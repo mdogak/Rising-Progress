@@ -172,48 +172,86 @@
       if(plannedFlag){
         anyFlagged = true;
 
-        // Try to get actual progress primarily from the DOM
-        let actualProgress = '';
-        const actualCell = row.querySelector('[data-k="actual"]') ||
-                           row.querySelector('[data-k="actualPct"]') ||
-                           row.querySelector('[data-k="actualUnits"]');
-        if (actualCell) {
-          actualProgress = (actualCell.textContent || actualCell.value || '').trim();
+        // --- Planned vs Actual text for this scope ---
+        // 1) Pull raw values from the DOM first
+        let actualRaw = '';
+        const progressInput = row.querySelector('[data-k="progress"]');
+        if (progressInput) {
+          actualRaw = (progressInput.value || progressInput.textContent || '').trim();
         }
 
-        // Fallback to model fields if DOM is empty but scope has data
-        if (!actualProgress && scope) {
-          if (scope.actualToDate != null) actualProgress = String(scope.actualToDate);
-          else if (scope.actualUnits != null) actualProgress = String(scope.actualUnits);
-          else if (scope.actualPctToDate != null) actualProgress = String(scope.actualPctToDate);
-        }
-
-        let plannedPct = 0;
-        try{
-          if (typeof window.calcScopePlannedPctToDate === 'function' && scope) {
-            plannedPct = window.calcScopePlannedPctToDate(scope) || 0;
+        let plannedRaw = '';
+        const plannedCellDom = row.querySelector('[data-k="planned"]');
+        if (plannedCellDom) {
+          plannedRaw = (plannedCellDom.textContent || plannedCellDom.innerText || '').trim();
+          // Strip any % sign that may be appended in the cell
+          if (plannedRaw.endsWith('%')) {
+            plannedRaw = plannedRaw.slice(0, -1).trim();
           }
-        }catch(e){
-          plannedPct = 0;
         }
 
-        let plannedValueText = '';
+        // 2) Fallback to model values only if DOM is empty
+        if ((!actualRaw || actualRaw === '') && scope) {
+          const hasUnits = scope.totalUnits !== '' && scope.totalUnits != null && !isNaN(Number(scope.totalUnits));
+          if (hasUnits && scope.unitsToDate != null) {
+            actualRaw = String(scope.unitsToDate);
+          } else if (!hasUnits && scope.actualPct != null) {
+            actualRaw = String(scope.actualPct);
+          }
+        }
+
+        if ((!plannedRaw || plannedRaw === '') && scope) {
+          let plannedPct = 0;
+          try {
+            if (typeof window.calcScopePlannedPctToDate === 'function') {
+              plannedPct = window.calcScopePlannedPctToDate(scope) || 0;
+            }
+          } catch(e) {
+            plannedPct = 0;
+          }
+
+          const totalUnitsNum = (scope && scope.totalUnits !== '' && scope.totalUnits != null)
+            ? Number(scope.totalUnits)
+            : 0;
+
+          if (scope && Number.isFinite(totalUnitsNum) && totalUnitsNum > 0) {
+            const plannedUnits = (plannedPct / 100) * totalUnitsNum;
+            plannedRaw = String(plannedUnits);
+          } else {
+            plannedRaw = String(plannedPct);
+          }
+        }
+
+        // 3) Determine units text (DOM first, then scope fallback)
         let unitsText = '';
-
-        const totalUnitsNum = (scope && scope.totalUnits !== '' && scope.totalUnits != null) ? Number(scope.totalUnits) : 0;
-        if (scope && Number.isFinite(totalUnitsNum) && totalUnitsNum > 0) {
-          const plannedUnits = (plannedPct/100) * totalUnitsNum;
-          plannedValueText = plannedUnits.toFixed(1);
-          unitsText = scope.unitsLabel ? String(scope.unitsLabel) : '';
-        } else {
-          plannedValueText = plannedPct.toFixed(1);
-          unitsText = scope && scope.unitsLabel ? String(scope.unitsLabel) : '%';
+        const unitsEl = row.querySelector('[data-k="unitsLabel"]');
+        if (unitsEl && 'value' in unitsEl) {
+          unitsText = (unitsEl.value || '').trim();
+        } else if (scope && scope.unitsLabel) {
+          unitsText = String(scope.unitsLabel).trim();
         }
 
-        const actualText = actualProgress || '0';
+        // 4) Apply decimal rules based on units
+        const actualNum = Number(actualRaw || '0');
+        const plannedNum = Number(plannedRaw || '0');
+
+        let formattedActual;
+        let formattedPlanned;
+
+        if (unitsText === '%' || unitsText === 'Percent' || unitsText === '') {
+          // Treat as percent – always show 1 decimal place
+          formattedActual  = Number.isFinite(actualNum) ? actualNum.toFixed(1) : '0.0';
+          formattedPlanned = Number.isFinite(plannedNum) ? plannedNum.toFixed(1) : '0.0';
+        } else {
+          // Non-percent units (Feet, Miles, Units, etc.) – round to whole numbers
+          formattedActual  = Number.isFinite(actualNum) ? String(Math.round(actualNum)) : '0';
+          formattedPlanned = Number.isFinite(plannedNum) ? String(Math.round(plannedNum)) : '0';
+        }
+
+        // 5) Final text line
         scopeIssues.push(
-          'In progress at ' + actualText + ' ' + unitsText +
-          ' and planned to date to be at ' + plannedValueText + ' ' + unitsText
+          'In progress at ' + formattedActual + ' ' + unitsText +
+          ' and planned to date to be at ' + formattedPlanned + ' ' + unitsText
         );
       }
     });
