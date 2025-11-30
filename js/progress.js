@@ -601,8 +601,7 @@ const rel = computeDaysRelativeToPlan(days, plannedCum, actualCum);
     if(rel.daysRelative===0){ $('#planDelta').innerHTML = `<div>Current Progress: <strong>${rel.actualPct.toFixed(1)}%</strong></div>${plannedLine}${baselineLine}<div>Actual Relative to Plan: on plan</div>`; }
     else { const words = rel.daysRelative>0 ? 'days ahead of plan' : 'days behind plan'; $('#planDelta').innerHTML = `<div>Current Progress: <strong>${rel.actualPct.toFixed(1)}%</strong></div>${plannedLine}${baselineLine}<div>Actual Relative to Plan: <strong>${absDaysStr}</strong> ${words}</div>`; }
   } else { model.daysRelativeToPlan = null; $('#planDelta').textContent = ''; }
-  sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
-}
+  sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));}
 
 
 function renderLegend(chart){
