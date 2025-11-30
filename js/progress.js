@@ -17,13 +17,6 @@ function getLocalToday() { const now = new Date(); return new Date(now.getFullYe
 const today = getLocalToday();
 function parseDate(val){ return val ? new Date(val + 'T00:00:00') : null }
 function fmtDate(d){ return d ? d.toISOString().slice(0,10) : '' }
-function fmtLocalYMD(d){
-  if(!d) return '';
-  const y = d.getFullYear();
-  const m = String(d.getMonth()+1).padStart(2,'0');
-  const day = String(d.getDate()).padStart(2,'0');
-  return y + '-' + m + '-' + day;
-}
 function fmtLongDateStr(dStr){ const d=parseDate(dStr); return d? d.toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'}) : dStr }
 function fmtLongToday(){ return new Date().toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'}) }
 function daysBetween(a,b){ const ms = (parseDate(fmtDate(b)) - parseDate(fmtDate(a))); return Math.floor(ms/86400000)+1; }
@@ -493,25 +486,33 @@ function syncActualFromDOM(){
   }
 }
 
+let lastTotalActualForHistory = null;
 function updateHistoryDate(totalActual){
   const hd = document.getElementById('historyDate');
   if(!hd) return;
 
-  // Respect manual override for this browser session
+  // Manual override for this session wins
   if(hd.dataset.manual === 'true'){
-    if(typeof window !== 'undefined' && typeof totalActual === 'number'){
-      window._lastTotalActual = totalActual;
+    if(typeof totalActual === 'number'){
+      lastTotalActualForHistory = totalActual;
     }
     return;
   }
 
-  const modelRef = (typeof window !== 'undefined' && window.model) ? window.model : {};
-  const historyArr = Array.isArray(modelRef.history) ? modelRef.history : [];
+  const modelRef = (typeof window !== 'undefined' && window.model) ? window.model : (window.model || {});
+  const hist = Array.isArray(modelRef.history) ? modelRef.history : [];
 
-  const prev = (typeof window !== 'undefined' && typeof window._lastTotalActual === 'number')
-    ? window._lastTotalActual
-    : null;
+  // Find latest history date (lexicographically max YYYY-MM-DD)
+  let lastDate = null;
+  for(const h of hist){
+    if(h && h.date){
+      if(!lastDate || h.date > lastDate){
+        lastDate = h.date;
+      }
+    }
+  }
 
+  const prev = (typeof lastTotalActualForHistory === 'number') ? lastTotalActualForHistory : null;
   const curr = (typeof totalActual === 'number') ? totalActual : prev;
 
   let changed = false;
@@ -519,28 +520,23 @@ function updateHistoryDate(totalActual){
     changed = Math.abs(curr - prev) > 1e-6;
   }
 
+  // If total actual changed (scope edits) -> default to "today" (local)
   if(changed){
-    const now = new Date();
-    const todayStr = typeof fmtLocalYMD === 'function' ? fmtLocalYMD(now) : fmtDate(now);
-    hd.value = todayStr;
-  } else if(!hd.value){
-    // No manual date yet and total actual has not changed:
-    // default to the last saved history date if one exists.
-    let lastDate = null;
-    for(const h of historyArr){
-      if(h && h.date){
-        if(!lastDate || h.date > lastDate){
-          lastDate = h.date;
-        }
+    try{
+      // today is a local-midnight Date defined earlier via getLocalToday()
+      if(typeof fmtDate === 'function' && typeof today !== 'undefined'){
+        hd.value = fmtDate(today);
       }
+    }catch(e){
+      // fall back silently
     }
-    if(lastDate){
-      hd.value = lastDate;
-    }
+  } else if(!hd.value && lastDate){
+    // First load with no manual value -> last saved actual date
+    hd.value = lastDate;
   }
 
-  if(typeof window !== 'undefined' && typeof curr === 'number'){
-    window._lastTotalActual = curr;
+  if(curr !== null && typeof curr === 'number'){
+    lastTotalActualForHistory = curr;
   }
 }
 
@@ -1313,14 +1309,15 @@ $('#baselineBtn').addEventListener('click', ()=>{
 // Initialize history-related behavior (snapshot button, history table inputs)
 document.addEventListener('DOMContentLoaded', () => {
   try {
-    const hd = document.getElementById('historyDate');
-    if (hd) {
-      const markManual = () => { hd.dataset.manual = 'true'; };
-      hd.addEventListener('input', markManual);
-      hd.addEventListener('change', markManual);
-    }
-
     
+const hd = document.getElementById('historyDate');
+if (hd) {
+  const markManual = () => { hd.dataset.manual = 'true'; };
+  hd.addEventListener('input', markManual);
+  hd.addEventListener('change', markManual);
+}
+
+
     initHistory({ calcTotalActualProgress, fmtDate, today, computeAndRender });
   } catch (e) {
     console.error('Failed to initialize history module', e);
@@ -1619,18 +1616,3 @@ document.addEventListener('DOMContentLoaded', () => {
 if (typeof window !== 'undefined') {
   window.syncActualFromDOM = syncActualFromDOM;
 }
-
-document.addEventListener('DOMContentLoaded', () => {
-  const hd = document.getElementById('historyDate');
-  if(!hd) return;
-  const historyDateManualHandler = () => {
-    if(hd.value){
-      hd.dataset.manual = 'true';
-    } else {
-      delete hd.dataset.manual;
-    }
-  };
-  hd.addEventListener('input', historyDateManualHandler);
-  hd.addEventListener('change', historyDateManualHandler);
-});
-
