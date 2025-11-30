@@ -212,7 +212,7 @@
 
         const actualText = actualProgress || '0';
         scopeIssues.push(
-          'in progress at ' + actualText + ' ' + unitsText +
+          'In progress at ' + actualText + ' ' + unitsText +
           ' and planned to date to be at ' + plannedValueText + ' ' + unitsText
         );
       }
