@@ -83,12 +83,16 @@
   }
 
   
+
   function buildIssues(){
     const model = getModel();
     const bullets = [];
 
-    // If there is no model or scopes at all, fall back immediately.
-    if(!model || !Array.isArray(model.scopes)){
+    const rowsContainer = document.getElementById('scopeRows');
+    const rows = rowsContainer ? rowsContainer.querySelectorAll('.row') : [];
+
+    // If there is no model and no rows at all, fall back immediately.
+    if ((!model || !Array.isArray(model.scopes)) && (!rows || rows.length === 0)) {
       bullets.push('No issues identified based on current plan.');
       try {
         if (window.sessionStorage) {
@@ -98,9 +102,6 @@
       lastIssuesText = bullets.join('\n');
       return bullets;
     }
-
-    const rowsContainer = document.getElementById('scopeRows');
-    const rows = rowsContainer ? rowsContainer.querySelectorAll('.row') : [];
 
     // When running inside issues.html there are no scope rows. Try to hydrate from stored bullets.
     if (!rows || rows.length === 0) {
@@ -122,14 +123,29 @@
     }
 
     let anyFlagged = false;
+    const byScope = new Map();
 
     rows.forEach(function(row){
       const idx = Number(row.dataset.index);
-      if(!Number.isFinite(idx)) return;
-      const scope = model.scopes[idx];
-      if(!scope) return;
+      const scopes = model && Array.isArray(model.scopes) ? model.scopes : null;
+      const scope = (scopes && Number.isFinite(idx)) ? scopes[idx] : null;
 
-      const scopeName = (scope.label && String(scope.label).trim()) || ('Scope ' + (idx+1));
+      // Determine scope name as best we can from model or DOM
+      let scopeName = (scope && scope.label && String(scope.label).trim()) || '';
+      if (!scopeName) {
+        const labelInput = row.querySelector('[data-k="label"]');
+        if (labelInput) {
+          scopeName = (labelInput.value || labelInput.textContent || '').trim();
+        }
+      }
+      if (!scopeName) {
+        scopeName = Number.isFinite(idx) ? ('Scope ' + (idx+1)) : 'Scope';
+      }
+
+      if (!byScope.has(scopeName)) {
+        byScope.set(scopeName, []);
+      }
+      const scopeIssues = byScope.get(scopeName);
 
       const startInput = row.querySelector('[data-k="start"]');
       const endInput   = row.querySelector('[data-k="end"]');
@@ -141,26 +157,40 @@
 
       if(startFlag){
         anyFlagged = true;
-        const txt = scope.start || (startInput && startInput.value) || '';
-        bullets.push(scopeName + ' was planned to start on ' + friendlyDate(txt) + ' but has not started.');
+        const rawVal = (scope && scope.start) || (startInput && startInput.value) || '';
+        const pretty = friendlyDate(rawVal);
+        scopeIssues.push('was planned to start on ' + pretty + ' but has not started.');
       }
 
       if(endFlag){
         anyFlagged = true;
-        const txt = scope.end || (endInput && endInput.value) || '';
-        bullets.push(scopeName + ' was planned to end on ' + friendlyDate(txt) + ' but has not yet finished.');
+        const rawVal = (scope && scope.end) || (endInput && endInput.value) || '';
+        const pretty = friendlyDate(rawVal);
+        scopeIssues.push('was planned to end on ' + pretty + ' but has not yet finished.');
       }
 
       if(plannedFlag){
-        let actualProgress='';
-        const actualCell = row.querySelector('[data-k="actual"]') || row.querySelector('[data-k="actualPct"]') || row.querySelector('[data-k="actualUnits"]');
-        if(actualCell){ actualProgress = actualCell.textContent.trim() || actualCell.value || ''; }
-
         anyFlagged = true;
+
+        // Try to get actual progress primarily from the DOM
+        let actualProgress = '';
+        const actualCell = row.querySelector('[data-k="actual"]') ||
+                           row.querySelector('[data-k="actualPct"]') ||
+                           row.querySelector('[data-k="actualUnits"]');
+        if (actualCell) {
+          actualProgress = (actualCell.textContent || actualCell.value || '').trim();
+        }
+
+        // Fallback to model fields if DOM is empty but scope has data
+        if (!actualProgress && scope) {
+          if (scope.actualToDate != null) actualProgress = String(scope.actualToDate);
+          else if (scope.actualUnits != null) actualProgress = String(scope.actualUnits);
+          else if (scope.actualPctToDate != null) actualProgress = String(scope.actualPctToDate);
+        }
 
         let plannedPct = 0;
         try{
-          if (typeof window.calcScopePlannedPctToDate === 'function') {
+          if (typeof window.calcScopePlannedPctToDate === 'function' && scope) {
             plannedPct = window.calcScopePlannedPctToDate(scope) || 0;
           }
         }catch(e){
@@ -170,37 +200,43 @@
         let plannedValueText = '';
         let unitsText = '';
 
-        const totalUnitsNum = (scope.totalUnits !== '' && scope.totalUnits != null) ? Number(scope.totalUnits) : 0;
-        if (Number.isFinite(totalUnitsNum) && totalUnitsNum > 0) {
+        const totalUnitsNum = (scope && scope.totalUnits !== '' && scope.totalUnits != null) ? Number(scope.totalUnits) : 0;
+        if (scope && Number.isFinite(totalUnitsNum) && totalUnitsNum > 0) {
           const plannedUnits = (plannedPct/100) * totalUnitsNum;
           plannedValueText = plannedUnits.toFixed(1);
           unitsText = scope.unitsLabel ? String(scope.unitsLabel) : '';
         } else {
           plannedValueText = plannedPct.toFixed(1);
-          unitsText = scope.unitsLabel ? String(scope.unitsLabel) : '%';
+          unitsText = scope && scope.unitsLabel ? String(scope.unitsLabel) : '%';
         }
 
-        bullets.push(scopeName + ' is in progress at ' + (actualProgress||'0') + ' ' + unitsText + ' and should be at ' + plannedValueText + ' ' + unitsText + ' to date.');
+        scopeIssues.push(
+          'is in progress at ' + (actualProgress || '0') + ' ' + unitsText +
+          ' and should be at ' + plannedValueText + ' ' + unitsText + ' to date.'
+        );
       }
     });
 
-    if(!anyFlagged){
-      bullets.length = 0;
-      bullets.push('No issues identified based on current plan.');
+    let finalBullets = [];
+    if(anyFlagged){
+      byScope.forEach(function(issues, scopeName){
+        if (issues && issues.length) {
+          finalBullets.push(scopeName + ': ' + issues.join(' '));
+        }
+      });
+    } else {
+      finalBullets.push('No issues identified based on current plan.');
     }
 
-    // Persist the latest issues so issues.html can display them standalone.
     try {
       if (window.sessionStorage) {
-        sessionStorage.setItem('issues_bullets', JSON.stringify(bullets));
+        sessionStorage.setItem('issues_bullets', JSON.stringify(finalBullets));
       }
     } catch(e) { /* ignore */ }
 
-    lastIssuesText = bullets.join('\n');
-    return bullets;
+    lastIssuesText = finalBullets.join('\n');
+    return finalBullets;
   }
-
-
 
   function getLastHistoryDateFromModel(){
     const model = getModel();
