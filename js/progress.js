@@ -1313,6 +1313,14 @@ $('#baselineBtn').addEventListener('click', ()=>{
 // Initialize history-related behavior (snapshot button, history table inputs)
 document.addEventListener('DOMContentLoaded', () => {
   try {
+    const hd = document.getElementById('historyDate');
+    if (hd) {
+      const markManual = () => { hd.dataset.manual = 'true'; };
+      hd.addEventListener('input', markManual);
+      hd.addEventListener('change', markManual);
+    }
+
+    
     initHistory({ calcTotalActualProgress, fmtDate, today, computeAndRender });
   } catch (e) {
     console.error('Failed to initialize history module', e);
