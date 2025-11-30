@@ -15,61 +15,8 @@ const $ = sel => document.querySelector(sel);
 const $$ = sel => Array.from(document.querySelectorAll(sel));
 function getLocalToday() { const now = new Date(); return new Date(now.getFullYear(), now.getMonth(), now.getDate()); }
 const today = getLocalToday();
-
-// Track history date behaviour within this session
-let historyDateManuallyEdited = false;
-let lastTotalActualSnapshot = null;
-
-// Return the last history snapshot date from the model (as a Date in local time)
-function getLastHistoryDateFromModel(){
-  if(!model || !Array.isArray(model.history) || model.history.length === 0) return null;
-  let last = null;
-  for(const h of model.history){
-    if(!h || !h.date) continue;
-    const d = parseDate(h.date);
-    if(!d || isNaN(d.getTime())) continue;
-    if(!last || d > last) last = d;
-  }
-  return last;
-}
-
-/**
- * Ensure the #historyDate input has a sensible default:
- *  - If the user has manually edited it, never touch it again this session.
- *  - On first load, default to the last history date if present; otherwise today (local).
- *  - When triggered by a totalActual change, default to today (local).
- */
-function ensureHistoryDateDefault(opts = {}){
-  const { fromTotalActualChange = false } = opts;
-  const hdEl = document.getElementById('historyDate');
-  if(!hdEl) return;
-
-  // Respect manual user override for the duration of this browser session
-  if(historyDateManuallyEdited) return;
-
-  if(fromTotalActualChange){
-    hdEl.value = fmtDate(getLocalToday());
-    return;
-  }
-
-  // Initial/default behaviour: prefer last history snapshot date
-  const lastHist = getLastHistoryDateFromModel();
-  if(lastHist){
-    hdEl.value = fmtDate(lastHist);
-  } else if(!hdEl.value){
-    hdEl.value = fmtDate(getLocalToday());
-  }
-}
-
-
 function parseDate(val){ return val ? new Date(val + 'T00:00:00') : null }
-function fmtDate(d){
-  if(!d) return '';
-  const y = d.getFullYear();
-  const m = String(d.getMonth()+1).padStart(2,'0');
-  const day = String(d.getDate()).padStart(2,'0');
-  return `${y}-${m}-${day}`;
-}
+function fmtDate(d){ return d ? d.toISOString().slice(0,10) : '' }
 function fmtLongDateStr(dStr){ const d=parseDate(dStr); return d? d.toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'}) : dStr }
 function fmtLongToday(){ return new Date().toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'}) }
 function daysBetween(a,b){ const ms = (parseDate(fmtDate(b)) - parseDate(fmtDate(a))); return Math.floor(ms/86400000)+1; }
@@ -245,6 +192,9 @@ function hasAnyScopeIssues(){
 }
 
 function updateIssuesButtonState(){
+  if (typeof window !== 'undefined' && typeof window.syncActualFromDOM === 'function') {
+    window.syncActualFromDOM();
+  }
   const btn = document.getElementById('toolbarIssues');
   if (!btn) return;
   const hasFlags = hasAnyScopeIssues();
@@ -504,21 +454,46 @@ function updateBelowChartStats(days, baselineCum, plannedCum, actualCum){
   // Moved baseline/planned percentages into the legend; leave this area empty.
   el.innerHTML = ``;
 }
+
+function syncActualFromDOM(){
+  const rows = document.querySelectorAll('#scopeRows .row');
+  rows.forEach(row=>{
+    const idx = Number(row.dataset.index);
+    const scope = model.scopes[idx];
+    if(!scope) return;
+
+    const progressEl = row.querySelector('[data-k="progress"]');
+    const totalUnitsEl = row.querySelector('[data-k="totalUnits"]');
+    const unitsLabelEl = row.querySelector('[data-k="unitsLabel"]');
+
+    let progressVal = parseFloat(progressEl?.value || '0') || 0;
+    let totalUnits = parseFloat(totalUnitsEl?.value || '0') || 0;
+    let unitsLabel = unitsLabelEl?.value || '%';
+
+    if(totalUnits > 0){
+      scope.unitsToDate = progressVal;
+      scope.actualPct = (progressVal / totalUnits) * 100;
+      scope.unitsLabel = unitsLabel;
+    } else {
+      scope.actualPct = progressVal;
+      scope.unitsToDate = 0;
+      scope.unitsLabel = unitsLabel;
+    }
+  });
+
+  if (typeof window !== 'undefined') {
+    window.syncActualFromDOM = syncActualFromDOM;
+  }
+}
+
 function computeAndRender(){
   // Moved baseline/planned percentages into the legend; leave this area empty.
   model.project.name = $('#projectName').value.trim();
   model.project.startup = $('#projectStartup').value;
   model.project.markerLabel = ($('#startupLabelInput').value || 'Baseline Complete').trim();
-  ensureHistoryDateDefault();
+  const hdEl=document.getElementById('historyDate'); if(hdEl && !hdEl.value){ hdEl.value = fmtDate(new Date()); }
   $$('#scopeRows .row').forEach((row)=>{ const i = Number(row.dataset.index); updatePlannedCell(row, model.scopes[i]); });
-  const totalActual = calcTotalActualProgress();
-  $('#totalActual').textContent = totalActual.toFixed(1)+'%';
-  if(lastTotalActualSnapshot === null){
-    lastTotalActualSnapshot = totalActual;
-  } else if(totalActual !== lastTotalActualSnapshot){
-    lastTotalActualSnapshot = totalActual;
-    ensureHistoryDateDefault({ fromTotalActualChange: true });
-  }
+  const totalActual = calcTotalActualProgress(); $('#totalActual').textContent = totalActual.toFixed(1)+'%'; const hd = document.getElementById('historyDate'); if(hd && !hd.value){ hd.value = fmtDate(new Date()); }
   const plan = calcPlannedSeriesByDay(); const days = plan.days || []; const plannedCum = plan.plannedCum || plan.planned || []; const actualCum = calcActualSeriesByDay(days); const baselineCum = getBaselineSeries(days, plannedCum);
   renderDailyTable(days, baselineCum, plannedCum, actualCum, { computeAndRender });
   drawChart(days, baselineCum, plannedCum, actualCum);
@@ -1280,22 +1255,13 @@ $('#baselineBtn').addEventListener('click', ()=>{
 
 // Initialize history-related behavior (snapshot button, history table inputs)
 document.addEventListener('DOMContentLoaded', () => {
-  // Track manual edits to the history date so we don't overwrite them this session
-  const hdEl = document.getElementById('historyDate');
-  if (hdEl) {
-    hdEl.addEventListener('input', () => {
-      historyDateManuallyEdited = true;
-    });
-    // Set the initial default (last history snapshot date or today)
-    ensureHistoryDateDefault();
-  }
-
   try {
     initHistory({ calcTotalActualProgress, fmtDate, today, computeAndRender });
   } catch (e) {
     console.error('Failed to initialize history module', e);
   }
 });
+
 (function runSelfTests(){
   try{
 

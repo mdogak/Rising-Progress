@@ -159,14 +159,14 @@
         anyFlagged = true;
         const rawVal = (scope && scope.start) || (startInput && startInput.value) || '';
         const pretty = friendlyDate(rawVal);
-        scopeIssues.push('was planned to start on ' + pretty + ' but has not started.');
+        scopeIssues.push('Planned to start on ' + pretty + ' but has not started');
       }
 
       if(endFlag){
         anyFlagged = true;
         const rawVal = (scope && scope.end) || (endInput && endInput.value) || '';
         const pretty = friendlyDate(rawVal);
-        scopeIssues.push('was planned to end on ' + pretty + ' but has not yet finished.');
+        scopeIssues.push('Planned to end on ' + pretty + ' but has not yet finished');
       }
 
       if(plannedFlag){
@@ -210,9 +210,10 @@
           unitsText = scope && scope.unitsLabel ? String(scope.unitsLabel) : '%';
         }
 
+        const actualText = actualProgress || '0';
         scopeIssues.push(
-          'is in progress at ' + (actualProgress || '0') + ' ' + unitsText +
-          ' and should be at ' + plannedValueText + ' ' + unitsText + ' to date.'
+          'in progress at ' + actualText + ' ' + unitsText +
+          ' and planned to date to be at ' + plannedValueText + ' ' + unitsText
         );
       }
     });
@@ -221,7 +222,10 @@
     if(anyFlagged){
       byScope.forEach(function(issues, scopeName){
         if (issues && issues.length) {
-          finalBullets.push(scopeName + ': ' + issues.join(' '));
+          finalBullets.push(scopeName + ':');
+          issues.forEach(function(i){
+            finalBullets.push('     -' + i);
+          });
         }
       });
     } else {
@@ -263,6 +267,10 @@
   function openIssuesModal(){
     const overlay = ensureOverlay();
 
+    if (typeof window !== 'undefined' && typeof window.syncActualFromDOM === 'function') {
+      window.syncActualFromDOM();
+    }
+
     // Always use a simple, consistent title.
     const titleEl = overlay.querySelector('#issuesTitle');
     if (titleEl) {
@@ -273,9 +281,11 @@
     // Update last history date line if available
     const lastHistoryEl = overlay.querySelector('#issuesLastHistory');
     if (lastHistoryEl) {
-      const lastDate = getLastHistoryDateFromModel();
+      const historyDateField = document.getElementById('historyDate');
+      const fieldDate = historyDateField && historyDateField.value ? historyDateField.value : '';
+      const lastDate = fieldDate || getLastHistoryDateFromModel();
       if (lastDate) {
-        lastHistoryEl.textContent = 'Last history date: ' + lastDate;
+        lastHistoryEl.textContent = 'Progress last updated: ' + lastDate;
         lastHistoryEl.style.display = '';
       } else {
         lastHistoryEl.textContent = '';
@@ -289,6 +299,11 @@
       const bullets = buildIssues();
       bullets.forEach(function (text) {
         const li = document.createElement('li');
+        if (text.endsWith(':')) {
+          li.classList.add('issues-scope-title');
+        } else {
+          li.classList.add('issues-scope-item');
+        }
         li.textContent = text;
         listEl.appendChild(li);
       });
