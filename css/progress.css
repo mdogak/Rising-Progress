@@ -397,3 +397,15 @@
   box-shadow: 0 10px 25px rgba(37,99,235,0.35);
   transform: translateY(-1px);
 }
+
+.issues-scope-title {
+  font-weight: bold;
+  margin-top: 10px;
+  color: #111827;
+}
+
+.issues-scope-item {
+  margin-left: 25px;
+  color: #374151;
+  white-space: pre-wrap;
+}
