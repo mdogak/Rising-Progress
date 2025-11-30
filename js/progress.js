@@ -16,7 +16,13 @@ const $$ = sel => Array.from(document.querySelectorAll(sel));
 function getLocalToday() { const now = new Date(); return new Date(now.getFullYear(), now.getMonth(), now.getDate()); }
 const today = getLocalToday();
 function parseDate(val){ return val ? new Date(val + 'T00:00:00') : null }
-function fmtDate(d){ return d ? d.toISOString().slice(0,10) : '' }
+function fmtDate(d){
+  if (!d) return '';
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return year + '-' + month + '-' + day;
+}
 function fmtLongDateStr(dStr){ const d=parseDate(dStr); return d? d.toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'}) : dStr }
 function fmtLongToday(){ return new Date().toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'}) }
 function daysBetween(a,b){ const ms = (parseDate(fmtDate(b)) - parseDate(fmtDate(a))); return Math.floor(ms/86400000)+1; }
@@ -36,6 +42,27 @@ let model = {
   daysRelativeToPlan: null
 };
 window.model = model;
+let historyDateWasManuallySet = false;
+let lastTotalActualValue = null;
+
+function getLastHistoryDateString(){
+  if (!Array.isArray(model.history) || model.history.length === 0) return '';
+  const last = model.history[model.history.length - 1];
+  if (!last) return '';
+  return last.date ? String(last.date) : '';
+}
+
+function setDefaultHistoryDate(){
+  const hdEl = document.getElementById('historyDate');
+  if (!hdEl || hdEl.value) return;
+  const lastHistory = getLastHistoryDateString();
+  if (lastHistory) {
+    hdEl.value = lastHistory;
+  } else {
+    hdEl.value = fmtDate(getLocalToday());
+  }
+}
+
 
 function defaultScope(i){
   if(i===0){ const startDate = new Date(today); startDate.setDate(startDate.getDate()-1); const endDate = new Date(startDate); endDate.setDate(endDate.getDate()+7); const start = fmtDate(startDate); const end = fmtDate(endDate); return { label:`Scope #${i+1}`, start, end, cost:100, actualPct:0, unitsToDate:0, totalUnits:'', unitsLabel:'%' }; }
@@ -192,8 +219,8 @@ function hasAnyScopeIssues(){
 }
 
 function updateIssuesButtonState(){
-  if (typeof window !== 'undefined' && typeof window.syncActualFromDOM === 'function') {
-    window.syncActualFromDOM();
+  if (typeof syncActualFromDOM === 'function') {
+    syncActualFromDOM();
   }
   const btn = document.getElementById('toolbarIssues');
   if (!btn) return;
@@ -491,9 +518,21 @@ function computeAndRender(){
   model.project.name = $('#projectName').value.trim();
   model.project.startup = $('#projectStartup').value;
   model.project.markerLabel = ($('#startupLabelInput').value || 'Baseline Complete').trim();
-  const hdEl=document.getElementById('historyDate'); if(hdEl && !hdEl.value){ hdEl.value = fmtDate(new Date()); }
+  
   $$('#scopeRows .row').forEach((row)=>{ const i = Number(row.dataset.index); updatePlannedCell(row, model.scopes[i]); });
-  const totalActual = calcTotalActualProgress(); $('#totalActual').textContent = totalActual.toFixed(1)+'%'; const hd = document.getElementById('historyDate'); if(hd && !hd.value){ hd.value = fmtDate(new Date()); }
+  const totalActual = calcTotalActualProgress(); $('#totalActual').textContent = totalActual.toFixed(1)+'%'; const hd = document.getElementById('historyDate');
+  if (hd) {
+    // If total actual has changed and the user has not manually set a date this session,
+    // update the history date to today in the local timezone.
+    if (lastTotalActualValue !== null && totalActual !== lastTotalActualValue && !historyDateWasManuallySet) {
+      hd.value = fmtDate(getLocalToday());
+    }
+    // If there is still no value, fall back to the default-from-history behavior.
+    if (!hd.value) {
+      setDefaultHistoryDate();
+    }
+  }
+  lastTotalActualValue = totalActual;
   const plan = calcPlannedSeriesByDay(); const days = plan.days || []; const plannedCum = plan.plannedCum || plan.planned || []; const actualCum = calcActualSeriesByDay(days); const baselineCum = getBaselineSeries(days, plannedCum);
   renderDailyTable(days, baselineCum, plannedCum, actualCum, { computeAndRender });
   drawChart(days, baselineCum, plannedCum, actualCum);
@@ -1260,10 +1299,17 @@ document.addEventListener('DOMContentLoaded', () => {
   } catch (e) {
     console.error('Failed to initialize history module', e);
   }
-});
 
-(function runSelfTests(){
-  try{
+  // Track when the user manually overrides the history date so we don't auto-change it.
+  const hdEl = document.getElementById('historyDate');
+  if (hdEl) {
+    hdEl.addEventListener('change', () => {
+      if (hdEl.value) {
+        historyDateWasManuallySet = true;
+      }
+    });
+  }
+});
 
     const plan = calcPlannedSeriesByDay();
     console.assert(Array.isArray(plan.days), 'plan.days should be an array');
@@ -1548,3 +1594,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 });
+
+
+// Expose syncActualFromDOM so issues.js can call it before building issues.
+if (typeof window !== 'undefined') {
+  window.syncActualFromDOM = syncActualFromDOM;
+}
