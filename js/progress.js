@@ -17,6 +17,13 @@ function getLocalToday() { const now = new Date(); return new Date(now.getFullYe
 const today = getLocalToday();
 function parseDate(val){ return val ? new Date(val + 'T00:00:00') : null }
 function fmtDate(d){ return d ? d.toISOString().slice(0,10) : '' }
+function fmtLocalYMD(d){
+  if(!d) return '';
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  return y + '-' + m + '-' + day;
+}
 function fmtLongDateStr(dStr){ const d=parseDate(dStr); return d? d.toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'}) : dStr }
 function fmtLongToday(){ return new Date().toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'}) }
 function daysBetween(a,b){ const ms = (parseDate(fmtDate(b)) - parseDate(fmtDate(a))); return Math.floor(ms/86400000)+1; }
@@ -486,14 +493,64 @@ function syncActualFromDOM(){
   }
 }
 
+function updateHistoryDate(totalActual){
+  const hd = document.getElementById('historyDate');
+  if(!hd) return;
+
+  // Respect manual override for this browser session
+  if(hd.dataset.manual === 'true'){
+    if(typeof window !== 'undefined' && typeof totalActual === 'number'){
+      window._lastTotalActual = totalActual;
+    }
+    return;
+  }
+
+  const modelRef = (typeof window !== 'undefined' && window.model) ? window.model : {};
+  const historyArr = Array.isArray(modelRef.history) ? modelRef.history : [];
+
+  const prev = (typeof window !== 'undefined' && typeof window._lastTotalActual === 'number')
+    ? window._lastTotalActual
+    : null;
+
+  const curr = (typeof totalActual === 'number') ? totalActual : prev;
+
+  let changed = false;
+  if(prev !== null && curr !== null && typeof curr === 'number'){
+    changed = Math.abs(curr - prev) > 1e-6;
+  }
+
+  if(changed){
+    const now = new Date();
+    const todayStr = typeof fmtLocalYMD === 'function' ? fmtLocalYMD(now) : fmtDate(now);
+    hd.value = todayStr;
+  } else if(!hd.value){
+    // No manual date yet and total actual has not changed:
+    // default to the last saved history date if one exists.
+    let lastDate = null;
+    for(const h of historyArr){
+      if(h && h.date){
+        if(!lastDate || h.date > lastDate){
+          lastDate = h.date;
+        }
+      }
+    }
+    if(lastDate){
+      hd.value = lastDate;
+    }
+  }
+
+  if(typeof window !== 'undefined' && typeof curr === 'number'){
+    window._lastTotalActual = curr;
+  }
+}
+
 function computeAndRender(){
   // Moved baseline/planned percentages into the legend; leave this area empty.
   model.project.name = $('#projectName').value.trim();
   model.project.startup = $('#projectStartup').value;
   model.project.markerLabel = ($('#startupLabelInput').value || 'Baseline Complete').trim();
-  const hdEl=document.getElementById('historyDate'); if(hdEl && !hdEl.value){ hdEl.value = fmtDate(new Date()); }
   $$('#scopeRows .row').forEach((row)=>{ const i = Number(row.dataset.index); updatePlannedCell(row, model.scopes[i]); });
-  const totalActual = calcTotalActualProgress(); $('#totalActual').textContent = totalActual.toFixed(1)+'%'; const hd = document.getElementById('historyDate'); if(hd && !hd.value){ hd.value = fmtDate(new Date()); }
+  const totalActual = calcTotalActualProgress(); $('#totalActual').textContent = totalActual.toFixed(1)+'%'; updateHistoryDate(totalActual);
   const plan = calcPlannedSeriesByDay(); const days = plan.days || []; const plannedCum = plan.plannedCum || plan.planned || []; const actualCum = calcActualSeriesByDay(days); const baselineCum = getBaselineSeries(days, plannedCum);
   renderDailyTable(days, baselineCum, plannedCum, actualCum, { computeAndRender });
   drawChart(days, baselineCum, plannedCum, actualCum);
@@ -1554,3 +1611,18 @@ document.addEventListener('DOMContentLoaded', () => {
 if (typeof window !== 'undefined') {
   window.syncActualFromDOM = syncActualFromDOM;
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+  const hd = document.getElementById('historyDate');
+  if(!hd) return;
+  const historyDateManualHandler = () => {
+    if(hd.value){
+      hd.dataset.manual = 'true';
+    } else {
+      delete hd.dataset.manual;
+    }
+  };
+  hd.addEventListener('input', historyDateManualHandler);
+  hd.addEventListener('change', historyDateManualHandler);
+});
+
