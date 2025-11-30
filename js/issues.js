@@ -45,26 +45,17 @@
     return overlay;
   }
 
+  
   function friendlyDate(iso){
     if(!iso) return '';
     try{
-      const d = new Date(iso);
-      if(Number.isNaN(d.getTime())){
-        // try treat as yyyy-mm-dd without time
-        const parts = String(iso).split('-');
-        if(parts.length === 3){
-          const y = Number(parts[0]);
-          const m = Number(parts[1]) - 1;
-          const day = Number(parts[2]);
-          const d2 = new Date(y, m, day);
-          if(!Number.isNaN(d2.getTime())) return fmtUS(d2);
-        }
-        return String(iso);
+      const parts = String(iso).split('-');
+      if(parts.length===3){
+        const y=Number(parts[0]); const m=Number(parts[1])-1; const d=Number(parts[2]);
+        return fmtUS(new Date(y,m,d));
       }
-      return fmtUS(d);
-    }catch(e){
-      return String(iso);
-    }
+      return fmtUS(new Date(iso));
+    }catch(e){ return String(iso); }
   }
 
   function fmtUS(d){
@@ -161,6 +152,10 @@
       }
 
       if(plannedFlag){
+        let actualProgress='';
+        const actualCell = row.querySelector('[data-k="actual"]') || row.querySelector('[data-k="actualPct"]') || row.querySelector('[data-k="actualUnits"]');
+        if(actualCell){ actualProgress = actualCell.textContent.trim() || actualCell.value || ''; }
+
         anyFlagged = true;
 
         let plannedPct = 0;
@@ -185,7 +180,7 @@
           unitsText = scope.unitsLabel ? String(scope.unitsLabel) : '%';
         }
 
-        bullets.push(scopeName + ' is in progress and should be at ' + plannedValueText + ' ' + unitsText + ' to date.');
+        bullets.push(scopeName + ' is in progress at ' + (actualProgress||'0') + ' ' + unitsText + ' and should be at ' + plannedValueText + ' ' + unitsText + ' to date.');
       }
     });
 
@@ -235,7 +230,8 @@
     // Always use a simple, consistent title.
     const titleEl = overlay.querySelector('#issuesTitle');
     if (titleEl) {
-      titleEl.textContent = 'Issues';
+      const proj=document.getElementById('projectName')?.value||'Current Project';
+      titleEl.textContent = 'Issues for ' + proj;
     }
 
     // Update last history date line if available
