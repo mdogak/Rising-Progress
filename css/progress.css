@@ -14,6 +14,7 @@
     }
     html,body{height:100%}
 
+/* Thin Section Divider Line */
 .section-divider {
   border: 0;
   border-top: 1px solid var(--border);
