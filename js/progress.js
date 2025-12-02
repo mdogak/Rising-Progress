@@ -15,6 +15,16 @@ const $ = sel => document.querySelector(sel);
 const $$ = sel => Array.from(document.querySelectorAll(sel));
 function getLocalToday() { const now = new Date(); return new Date(now.getFullYear(), now.getMonth(), now.getDate()); }
 const today = getLocalToday();
+
+function getEffectiveToday(){
+  const hd = document.getElementById('historyDate');
+  if (hd && hd.value) {
+    const d = parseDate(hd.value);
+    if (d && !isNaN(d.getTime())) return d;
+  }
+  return today;
+}
+
 function parseDate(val){ return val ? new Date(val + 'T00:00:00') : null }
 function fmtDate(d){ return d ? d.toISOString().slice(0,10) : '' }
 function fmtLongDateStr(dStr){ const d=parseDate(dStr); return d? d.toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'}) : dStr }
@@ -123,7 +133,7 @@ function calcScopePlannedPctToDate(s){
   const dStart = parseDate(s.start);
   const dEnd   = parseDate(s.end);
   if (!dStart || !dEnd || isNaN(dStart.getTime()) || isNaN(dEnd.getTime())) return 0;
-  const t = parseDate(fmtDate(today));
+  const t = getEffectiveToday();
   if (!t || isNaN(t.getTime())) return 0;
   if (t < dStart) return 0;
   if (t > dEnd) return 100;
@@ -134,9 +144,77 @@ function calcScopePlannedPctToDate(s){
   const pct = (num / den) * 100;
   return clamp(pct, 0, 100);
 }
-function updatePlannedCell(row, s){ const plannedPct = calcScopePlannedPctToDate(s); const cell = row.querySelector('[data-k="planned"]'); if(s.totalUnits!=='' && Number(s.totalUnits)>0){ const plannedUnits = (plannedPct/100) * Number(s.totalUnits); cell.textContent = plannedUnits.toFixed(1); } else { cell.textContent = plannedPct.toFixed(1)+'%'; }
-  const startEl = row.querySelector('[data-k="start"]'); const endEl = row.querySelector('[data-k="end"]'); startEl.classList.remove('red-border'); endEl.classList.remove('red-border'); cell.classList.remove('danger'); const actualPctForCompare = s.actualPct || 0; if(actualPctForCompare < plannedPct) cell.classList.add('danger'); if(s.start){ if(parseDate(s.start) < parseDate(fmtDate(today)) && (actualPctForCompare===0)) startEl.classList.add('red-border'); } if(s.end){ if(parseDate(s.end) < parseDate(fmtDate(today)) && (Math.round(actualPctForCompare) < 100)) endEl.classList.add('red-border'); } }
+function updatePlannedCell(row, s){
+  const plannedPct = calcScopePlannedPctToDate(s);
+  const cell = row.querySelector('[data-k="planned"]');
+  if (s.totalUnits !== '' && Number(s.totalUnits) > 0) {
+    const plannedUnits = (plannedPct / 100) * Number(s.totalUnits);
+    cell.textContent = plannedUnits.toFixed(1);
+  } else {
+    cell.textContent = plannedPct.toFixed(1) + '%';
+  }
+
+  const startEl = row.querySelector('[data-k="start"]');
+  const endEl   = row.querySelector('[data-k="end"]');
+
+  // Clear previous flags
+  if (startEl) startEl.classList.remove('flag-start');
+  if (endEl)   endEl.classList.remove('flag-end');
+  if (cell)    cell.classList.remove('flag-planned');
+
+  const actualPctForCompare = s.actualPct || 0;
+
+  // Flag planned shortfall
+  if (actualPctForCompare < plannedPct && cell) {
+    cell.classList.add('flag-planned');
+  }
+
+  // Flag late start (past start date, still 0%)
+  if (s.start && startEl) {
+    if (parseDate(s.start) < getEffectiveToday() && (actualPctForCompare === 0)) {
+      startEl.classList.add('flag-start');
+    }
+  }
+
+  // Flag late finish (past end date, still <100%)
+  if (s.end && endEl) {
+    if (parseDate(s.end) < getEffectiveToday() && (Math.round(actualPctForCompare) < 100)) {
+      endEl.classList.add('flag-end');
+    }
+  }
+
+  if (typeof updateIssuesButtonState === 'function') {
+    updateIssuesButtonState();
+  }
+}
 function calcScopeWeightings(){ const total = model.scopes.reduce((a,b)=>a+(b.cost||0),0) || 0; return model.scopes.map(s=> total>0 ? (s.cost/total) : 0); }
+
+function hasAnyScopeIssues(){
+  const rows = $$('#scopeRows .row');
+  return rows.some(row => {
+    const startEl = row.querySelector('[data-k="start"]');
+    const endEl   = row.querySelector('[data-k="end"]');
+    const planned = row.querySelector('[data-k="planned"]');
+    return (startEl && startEl.classList.contains('flag-start')) ||
+           (endEl && endEl.classList.contains('flag-end')) ||
+           (planned && planned.classList.contains('flag-planned'));
+  });
+}
+
+function updateIssuesButtonState(){
+  if (typeof syncActualFromDOM === 'function') {
+    syncActualFromDOM();
+  }
+  const btn = document.getElementById('toolbarIssues');
+  if (!btn) return;
+  const hasFlags = hasAnyScopeIssues();
+  if (hasFlags) {
+    btn.classList.add('issues-has-flags');
+  } else {
+    btn.classList.remove('issues-has-flags');
+  }
+}
+
 function calcPlannedDailyOverall(){
   const weightings = calcScopeWeightings();
   return model.scopes.map((s, i) => {
@@ -386,14 +464,99 @@ function updateBelowChartStats(days, baselineCum, plannedCum, actualCum){
   // Moved baseline/planned percentages into the legend; leave this area empty.
   el.innerHTML = ``;
 }
+
+function syncActualFromDOM(){
+  const rows = document.querySelectorAll('#scopeRows .row');
+  rows.forEach(row=>{
+    const idx = Number(row.dataset.index);
+    const scope = model.scopes[idx];
+    if(!scope) return;
+
+    const progressEl = row.querySelector('[data-k="progress"]');
+    const totalUnitsEl = row.querySelector('[data-k="totalUnits"]');
+    const unitsLabelEl = row.querySelector('[data-k="unitsLabel"]');
+
+    let progressVal = parseFloat(progressEl?.value || '0') || 0;
+    let totalUnits = parseFloat(totalUnitsEl?.value || '0') || 0;
+    let unitsLabel = unitsLabelEl?.value || '%';
+
+    if(totalUnits > 0){
+      scope.unitsToDate = progressVal;
+      scope.actualPct = (progressVal / totalUnits) * 100;
+      scope.unitsLabel = unitsLabel;
+    } else {
+      scope.actualPct = progressVal;
+      scope.unitsToDate = 0;
+      scope.unitsLabel = unitsLabel;
+    }
+  });
+
+  if (typeof window !== 'undefined') {
+    window.syncActualFromDOM = syncActualFromDOM;
+  }
+}
+
+let lastTotalActualForHistory = null;
+function updateHistoryDate(totalActual){
+  const hd = document.getElementById('historyDate');
+  if(!hd) return;
+
+  // Manual override for this session wins
+  if(hd.dataset.manual === 'true'){
+    if(typeof totalActual === 'number'){
+      lastTotalActualForHistory = totalActual;
+    }
+    return;
+  }
+
+  const modelRef = (typeof window !== 'undefined' && window.model) ? window.model : (window.model || {});
+  const hist = Array.isArray(modelRef.history) ? modelRef.history : [];
+
+  // Find latest history date (lexicographically max YYYY-MM-DD)
+  let lastDate = null;
+  for(const h of hist){
+    if(h && h.date){
+      if(!lastDate || h.date > lastDate){
+        lastDate = h.date;
+      }
+    }
+  }
+
+  const prev = (typeof lastTotalActualForHistory === 'number') ? lastTotalActualForHistory : null;
+  const curr = (typeof totalActual === 'number') ? totalActual : prev;
+
+  let changed = false;
+  if(prev !== null && curr !== null && typeof curr === 'number'){
+    changed = Math.abs(curr - prev) > 1e-6;
+  }
+
+  // If total actual changed (scope edits) -> default to "today" (local)
+  if(changed){
+    try{
+      // today is a local-midnight Date defined earlier via getLocalToday()
+      if(typeof fmtDate === 'function' && typeof today !== 'undefined'){
+        hd.value = fmtDate(today);
+      }
+    }catch(e){
+      // fall back silently
+    }
+  } else if(!hd.value && lastDate){
+    // First load with no manual value -> last saved actual date
+    hd.value = lastDate;
+  }
+
+  if(curr !== null && typeof curr === 'number'){
+    lastTotalActualForHistory = curr;
+  }
+}
+
 function computeAndRender(){
   // Moved baseline/planned percentages into the legend; leave this area empty.
   model.project.name = $('#projectName').value.trim();
   model.project.startup = $('#projectStartup').value;
   model.project.markerLabel = ($('#startupLabelInput').value || 'Baseline Complete').trim();
-  const hdEl=document.getElementById('historyDate'); if(hdEl && !hdEl.value){ hdEl.value = fmtDate(new Date()); }
   $$('#scopeRows .row').forEach((row)=>{ const i = Number(row.dataset.index); updatePlannedCell(row, model.scopes[i]); });
-  const totalActual = calcTotalActualProgress(); $('#totalActual').textContent = totalActual.toFixed(1)+'%'; const hd = document.getElementById('historyDate'); if(hd && !hd.value){ hd.value = fmtDate(new Date()); }
+  const totalActual = calcTotalActualProgress(); $('#totalActual').textContent = totalActual.toFixed(1)+'%'; updateHistoryDate(totalActual);
   const plan = calcPlannedSeriesByDay(); const days = plan.days || []; const plannedCum = plan.plannedCum || plan.planned || []; const actualCum = calcActualSeriesByDay(days); const baselineCum = getBaselineSeries(days, plannedCum);
   renderDailyTable(days, baselineCum, plannedCum, actualCum, { computeAndRender });
   drawChart(days, baselineCum, plannedCum, actualCum);
@@ -1156,6 +1319,16 @@ $('#baselineBtn').addEventListener('click', ()=>{
 // Initialize history-related behavior (snapshot button, history table inputs)
 document.addEventListener('DOMContentLoaded', () => {
   try {
+    
+const hd = document.getElementById('historyDate');
+if (hd) {
+  const markManual = () => { hd.dataset.manual = 'true';   if (typeof computeAndRender === 'function') computeAndRender();
+};
+  hd.addEventListener('input', markManual);
+  hd.addEventListener('change', markManual);
+}
+
+
     initHistory({ calcTotalActualProgress, fmtDate, today, computeAndRender });
   } catch (e) {
     console.error('Failed to initialize history module', e);
@@ -1448,3 +1621,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 });
+
+
+// Expose syncActualFromDOM so issues.js can call it before building issues.
+if (typeof window !== 'undefined') {
+  window.syncActualFromDOM = syncActualFromDOM;
+}
