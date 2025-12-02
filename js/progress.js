@@ -1322,7 +1322,8 @@ document.addEventListener('DOMContentLoaded', () => {
     
 const hd = document.getElementById('historyDate');
 if (hd) {
-  const markManual = () => { hd.dataset.manual = 'true'; };
+  const markManual = () => { hd.dataset.manual = 'true';   if (typeof computeAndRender === 'function') computeAndRender();
+};
   hd.addEventListener('input', markManual);
   hd.addEventListener('change', markManual);
 }
