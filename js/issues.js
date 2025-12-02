@@ -305,7 +305,7 @@
       const lastDateRaw = fieldDate || getLastHistoryDateFromModel();
       if (lastDateRaw) {
         const pretty = friendlyDate(lastDateRaw);
-        lastHistoryEl.textContent = 'Progress last updated: ' + pretty;
+        lastHistoryEl.textContent = 'Progress or Plan Updated: ' + pretty;
         lastHistoryEl.style.display = '';
       } else {
         lastHistoryEl.textContent = '';
