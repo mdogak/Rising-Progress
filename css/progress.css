@@ -411,21 +411,18 @@
 }
 
 
-.section-divider {
-  border: none;
-  border-top: 1px solid var(--border);
-  margin: 18px 0;
-}
-.history-group {
-  display: inline-flex;
-  gap: 8px;
-  align-items: center;
-  padding: 6px 10px;
-  border: 2px solid var(--accent);
-  border-radius: 14px;
-  background: #ffffff;
-}
-.pill {
-  border: 2px solid var(--accent) !important;
-  padding: 6px 12px !important;
+/* Beta badge */
+#betaBadge {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  background: #ea580c;
+  color: white;
+  padding: 8px 14px;
+  font-size: 14px;
+  font-weight: 700;
+  border-radius: 8px;
+  z-index: 99999;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+  opacity: 0.94;
 }
