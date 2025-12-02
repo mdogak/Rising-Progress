@@ -15,6 +15,16 @@ const $ = sel => document.querySelector(sel);
 const $$ = sel => Array.from(document.querySelectorAll(sel));
 function getLocalToday() { const now = new Date(); return new Date(now.getFullYear(), now.getMonth(), now.getDate()); }
 const today = getLocalToday();
+
+function getEffectiveToday(){
+  const hd = document.getElementById('historyDate');
+  if (hd && hd.value) {
+    const d = parseDate(hd.value);
+    if (d && !isNaN(d.getTime())) return d;
+  }
+  return today;
+}
+
 function parseDate(val){ return val ? new Date(val + 'T00:00:00') : null }
 function fmtDate(d){ return d ? d.toISOString().slice(0,10) : '' }
 function fmtLongDateStr(dStr){ const d=parseDate(dStr); return d? d.toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'}) : dStr }
@@ -31,7 +41,6 @@ let model = {
   project:{ name:'', startup:'', markerLabel:'Baseline Complete' },
   scopes:[], // {label,start,end,cost,actualPct,unitsToDate,totalUnits,unitsLabel}
   history:[], // [{date, actualPct}]
-  manualHistoryDate: null,
   dailyActuals:{}, // { 'YYYY-MM-DD': number }
   baseline:null,   // { days:[], planned:[] } snapshot
   daysRelativeToPlan: null
@@ -75,15 +84,7 @@ function renderScopeRow(i){
 
 function onScopeChange(e){
   const realRow = e.currentTarget.classList.contains('row') ? e.currentTarget : e.currentTarget.closest('.row');
-  if(!realRow) return;
-
-  const i = Number(realRow.dataset.index);
-  const s = model.scopes[i];
-  if(!s) return;
-
-  const prevStart = s.start || '';
-  const prevEnd = s.end || '';
-
+  if(!realRow) return; const i = Number(realRow.dataset.index); const s = model.scopes[i];
   const inputs = {
     label: realRow.querySelector('[data-k="label"]').value.trim(),
     start: realRow.querySelector('[data-k="start"]').value,
@@ -93,45 +94,14 @@ function onScopeChange(e){
     totalUnitsRaw: realRow.querySelector('[data-k="totalUnits"]').value,
     unitsLabel: realRow.querySelector('[data-k="unitsLabel"]').value.trim()
   };
-
   s.label = inputs.label || `Scope #${i+1}`;
-  s.start = inputs.start;
-  s.end = inputs.end;
-  s.cost = isFinite(inputs.cost) ? inputs.cost : 0;
-
+  s.start = inputs.start; s.end = inputs.end; s.cost = isFinite(inputs.cost)?inputs.cost:0;
   const tu = inputs.totalUnitsRaw === '' ? '' : clamp(parseFloat(inputs.totalUnitsRaw)||0,0,1e12);
   s.totalUnits = tu;
-
-  if(tu !== '' && tu > 0){
-    s.unitsLabel = (inputs.unitsLabel || 'Feet');
-  } else {
-    s.unitsLabel = (inputs.unitsLabel || '%');
-  }
-
-  if(tu !== '' && tu > 0){
-    s.unitsToDate = clamp(inputs.progressVal,0,1e12);
-    s.actualPct = tu > 0 ? (s.unitsToDate/tu*100) : 0;
-  } else {
-    s.unitsToDate = 0;
-    s.actualPct = clamp(inputs.progressVal,0,100);
-  }
-
-  updatePlannedCell(realRow, s);
-  computeAndRender();
-
-  try{
-    sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
-  }catch(err){
-    console.error('Failed to persist model after scope change', err);
-  }
-
-  const scopeDatesChanged =
-    (inputs.start || '') !== prevStart ||
-    (inputs.end || '') !== prevEnd;
-
-  if(scopeDatesChanged){
-    setHistoryDateToTodayIfAuto();
-  }
+  if(tu!=='' && tu>0){ s.unitsLabel = (inputs.unitsLabel || 'Feet'); } else { s.unitsLabel = (inputs.unitsLabel || '%'); }
+  if(tu!=='' && tu>0){ s.unitsToDate = clamp(inputs.progressVal,0,1e12); s.actualPct = tu>0 ? (s.unitsToDate/tu*100) : 0 }
+  else { s.unitsToDate = 0; s.actualPct = clamp(inputs.progressVal,0,100); }
+  updatePlannedCell(realRow, s); computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
 }
 
 /*****************
@@ -163,7 +133,7 @@ function calcScopePlannedPctToDate(s){
   const dStart = parseDate(s.start);
   const dEnd   = parseDate(s.end);
   if (!dStart || !dEnd || isNaN(dStart.getTime()) || isNaN(dEnd.getTime())) return 0;
-  const t = parseDate(fmtDate(today));
+  const t = getEffectiveToday();
   if (!t || isNaN(t.getTime())) return 0;
   if (t < dStart) return 0;
   if (t > dEnd) return 100;
@@ -201,14 +171,14 @@ function updatePlannedCell(row, s){
 
   // Flag late start (past start date, still 0%)
   if (s.start && startEl) {
-    if (parseDate(s.start) < parseDate(fmtDate(today)) && (actualPctForCompare === 0)) {
+    if (parseDate(s.start) < getEffectiveToday() && (actualPctForCompare === 0)) {
       startEl.classList.add('flag-start');
     }
   }
 
   // Flag late finish (past end date, still <100%)
   if (s.end && endEl) {
-    if (parseDate(s.end) < parseDate(fmtDate(today)) && (Math.round(actualPctForCompare) < 100)) {
+    if (parseDate(s.end) < getEffectiveToday() && (Math.round(actualPctForCompare) < 100)) {
       endEl.classList.add('flag-end');
     }
   }
@@ -531,16 +501,7 @@ function updateHistoryDate(totalActual){
   const hd = document.getElementById('historyDate');
   if(!hd) return;
 
-  // Look at current model
-  const modelRef = (typeof window !== 'undefined' && window.model) ? window.model : (window.model || {});
-
-  // If we have a persisted manual override, apply it to the input once
-  if(modelRef.manualHistoryDate && !hd.dataset.manual){
-    hd.value = modelRef.manualHistoryDate;
-    hd.dataset.manual = 'true';
-  }
-
-  // Manual override always wins; never auto-adjust this field
+  // Manual override for this session wins
   if(hd.dataset.manual === 'true'){
     if(typeof totalActual === 'number'){
       lastTotalActualForHistory = totalActual;
@@ -548,6 +509,7 @@ function updateHistoryDate(totalActual){
     return;
   }
 
+  const modelRef = (typeof window !== 'undefined' && window.model) ? window.model : (window.model || {});
   const hist = Array.isArray(modelRef.history) ? modelRef.history : [];
 
   // Find latest history date (lexicographically max YYYY-MM-DD)
@@ -568,9 +530,10 @@ function updateHistoryDate(totalActual){
     changed = Math.abs(curr - prev) > 1e-6;
   }
 
-  // If total actual changed (e.g., scope edits) -> default to "today" (local) when auto mode is active
+  // If total actual changed (scope edits) -> default to "today" (local)
   if(changed){
     try{
+      // today is a local-midnight Date defined earlier via getLocalToday()
       if(typeof fmtDate === 'function' && typeof today !== 'undefined'){
         hd.value = fmtDate(today);
       }
@@ -580,33 +543,10 @@ function updateHistoryDate(totalActual){
   } else if(!hd.value && lastDate){
     // First load with no manual value -> last saved actual date
     hd.value = lastDate;
-  } else if(!hd.value){
-    // No history and no value yet -> default to today
-    try{
-      if(typeof fmtDate === 'function' && typeof today !== 'undefined'){
-        hd.value = fmtDate(today);
-      }
-    }catch(e){
-      // fall back silently
-    }
   }
 
   if(curr !== null && typeof curr === 'number'){
     lastTotalActualForHistory = curr;
-  }
-}
-
-function setHistoryDateToTodayIfAuto(){
-  const hd = document.getElementById('historyDate');
-  if(!hd) return;
-  if(hd.dataset.manual === 'true') return;
-
-  try{
-    if(typeof fmtDate === 'function' && typeof today !== 'undefined'){
-      hd.value = fmtDate(today);
-    }
-  }catch(e){
-    // fall back silently
   }
 }
 
@@ -1335,7 +1275,6 @@ function defaultAll(){
     project:{name:'', startup:'', markerLabel:'Baseline Complete'},
     scopes:[],
     history:[],
-    manualHistoryDate:null,
     dailyActuals:{},
     baseline:null,
     daysRelativeToPlan:null
@@ -1380,38 +1319,20 @@ $('#baselineBtn').addEventListener('click', ()=>{
 // Initialize history-related behavior (snapshot button, history table inputs)
 document.addEventListener('DOMContentLoaded', () => {
   try {
-
+    
 const hd = document.getElementById('historyDate');
 if (hd) {
-  const markManual = () => {
-    const val = hd.value;
-    const m = (typeof window !== 'undefined' && window.model) ? window.model : model;
-    if(val){
-      m.manualHistoryDate = val;
-      window.model = m;
-      hd.dataset.manual = 'true';
-    } else {
-      if(m.manualHistoryDate){
-        delete m.manualHistoryDate;
-      }
-      delete hd.dataset.manual;
-    }
-    try{
-      sessionStorage.setItem(COOKIE_KEY, JSON.stringify(m));
-    }catch(e){
-      console.error('Failed to persist manual history date', e);
-    }
-  };
+  const markManual = () => { hd.dataset.manual = 'true'; };
   hd.addEventListener('input', markManual);
   hd.addEventListener('change', markManual);
 }
+
 
     initHistory({ calcTotalActualProgress, fmtDate, today, computeAndRender });
   } catch (e) {
     console.error('Failed to initialize history module', e);
   }
 });
-
 
 (function runSelfTests(){
   try{
