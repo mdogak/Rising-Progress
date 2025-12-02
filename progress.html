@@ -335,6 +335,22 @@
 
   <div id="toast"></div>
 
+
+<!-- BETA BADGE -->
+<script>
+// Toggle
+const SHOW_BETA_BADGE = true;
+
+document.addEventListener("DOMContentLoaded", () => {
+  if (!SHOW_BETA_BADGE) return;
+  const badge = document.createElement("div");
+  badge.id = "betaBadge";
+  badge.textContent = "BETA USER TESTING MODE";
+  badge.title = "This tool is currently in beta for user testing.";
+  document.body.appendChild(badge);
+});
+</script>
+
 </body>
 </html>
 
