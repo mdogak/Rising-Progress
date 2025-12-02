@@ -13,6 +13,13 @@
       --baseline:#6b7280;/* gray-500 */
     }
     html,body{height:100%}
+
+.section-divider {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 20px 0;
+}
+
     body{margin:0;background:var(--bg);color:var(--text);font:17.5px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial}
     h1,h2,h3{margin:0 0 .5rem}
     .wrap{max-width:1280px;margin:0 auto;padding:24px}
