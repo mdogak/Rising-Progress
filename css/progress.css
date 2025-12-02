@@ -409,3 +409,23 @@
   color: #374151;
   white-space: pre-wrap;
 }
+
+
+.section-divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 18px 0;
+}
+.history-group {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 10px;
+  border: 2px solid var(--accent);
+  border-radius: 14px;
+  background: #ffffff;
+}
+.pill {
+  border: 2px solid var(--accent) !important;
+  padding: 6px 12px !important;
+}
