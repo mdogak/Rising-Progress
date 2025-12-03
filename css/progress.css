@@ -460,3 +460,27 @@
 .section-divider {
     border-top: 2px solid #94a3b8 !important; /* slightly darker grey */
 }
+
+
+/* History table expand/collapse controls */
+.history-toggle-row td {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.history-toggle-btn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.history-toggle-btn:hover {
+  text-decoration: underline;
+}
