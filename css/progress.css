@@ -106,7 +106,7 @@
     80px    /* Units */
     100px   /* Planned */
     80px    /* Actions */;grid-auto-rows:auto} }
-    #projectStartup{width:150px}
+    #projectStartup{width:180px}
   
 /* ++ Enlarged UI text (125%) ++ */
 .chart-header .input-inline label,
@@ -195,7 +195,7 @@
 /* Stabilize legend layout so subtext remains under its header and daysRel stays to the right */
 .custom-legend{ align-items:flex-start; }
 .custom-legend .legend-row{ display:flex; align-items:center; gap:8px; flex-wrap:nowrap; }
-.legend-daysrel{ font-size:0.8rem; color: rgba(22,163,74,1); margin-top:2px; }
+.legend-daysrel{ font-size:0.95rem; color: rgba(22,163,74,1); margin-top:2px; }
 .custom-legend .legend-item{ align-items:flex-start; }
 
 
@@ -434,3 +434,6 @@
   box-shadow: 0 3px 8px rgba(0,0,0,0.2);
   opacity: 0.94;
 }
+
+#historyDate{width:180px}
+.input-inline input{width:180px}
