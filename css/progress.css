@@ -486,17 +486,11 @@
 }
 
 /* Completed scope row highlighting */
-
-
-
-/* Completed scope row – Stronger Grey Background */
 .scope-complete {
-  background: #e2e8f0 !important;   /* slate-300 */
-  opacity: 1 !important;
-  border-left: 4px solid #94a3b8 !important; /* slate-400 */
-  transition: background 0.2s ease, border-color 0.2s ease;
+  background: #f1f5f9 !important;
+  opacity: 0.55;
+  transition: opacity 0.2s ease, background 0.2s ease;
 }
-
 .scope-complete:hover {
-  background: #cbd5e1 !important;   /* darker slate-300 */
+  opacity: 0.75;
 }
