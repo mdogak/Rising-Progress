@@ -435,41 +435,15 @@
   opacity: 0.94;
 }
 
-/* === FORCED OVERRIDES FOR SIZE CONSISTENCY === */
-
-/* 1) legend-daysrel = same as legend-sub.actual */
-.legend-daysrel {
-    font-size: 1em !important;
-}
-
-/* 2 & 4) Startup label + Project Name = same font size as Current Progress */
-#startupControls label,
-#startupControls input,
-#projectName,
-#projectNameLabel {
-    font-size: 1.25em !important;
-}
-
-/* 3) Startup date input font size matches history date */
-#projectStartup,
-#historyDate {
-    font-size: 1.15em !important;
-}
-
-/* 5) Darker divider line */
-.section-divider {
-    border-top: 2px solid #94a3b8 !important; /* slightly darker grey */
-}
-
-/* Completed scope row – stronger green styling */
+/* Completed scope row – Option 1 stronger green tint */
 .scope-complete {
-  background: rgba(22, 163, 74, 0.20) !important; /* green-600 @ 20% */
-  border-left: 4px solid rgba(22, 163, 74, 0.45);
+  background: rgba(22, 163, 74, 0.40) !important; /* 40% tint */
+  border-left: 4px solid rgba(22, 163, 74, 0.60);
   opacity: 1;
   transition: background 0.2s ease, border-color 0.2s ease;
 }
 
 .scope-complete:hover {
-  background: rgba(22, 163, 74, 0.28) !important;
-  border-left-color: rgba(22, 163, 74, 0.65);
+  background: rgba(22, 163, 74, 0.48) !important;
+  border-left-color: rgba(22, 163, 74, 0.75);
 }
