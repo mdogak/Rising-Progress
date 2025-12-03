@@ -485,10 +485,9 @@
   text-decoration: underline;
 }
 
-
 /* Completed scope row highlighting */
 .scope-complete {
-  background: #f1f5f9 !important; /* slate-100 */
+  background: #f1f5f9 !important;
   opacity: 0.55;
   transition: opacity 0.2s ease, background 0.2s ease;
 }
