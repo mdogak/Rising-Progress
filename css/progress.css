@@ -435,15 +435,62 @@
   opacity: 0.94;
 }
 
-/* Completed scope row – Option 1 stronger green tint */
-.scope-complete {
-  background: rgba(22, 163, 74, 0.40) !important; /* 40% tint */
-  border-left: 4px solid rgba(22, 163, 74, 0.60);
-  opacity: 1;
-  transition: background 0.2s ease, border-color 0.2s ease;
+/* === FORCED OVERRIDES FOR SIZE CONSISTENCY === */
+
+/* 1) legend-daysrel = same as legend-sub.actual */
+.legend-daysrel {
+    font-size: 1em !important;
 }
 
+/* 2 & 4) Startup label + Project Name = same font size as Current Progress */
+#startupControls label,
+#startupControls input,
+#projectName,
+#projectNameLabel {
+    font-size: 1.25em !important;
+}
+
+/* 3) Startup date input font size matches history date */
+#projectStartup,
+#historyDate {
+    font-size: 1.15em !important;
+}
+
+/* 5) Darker divider line */
+.section-divider {
+    border-top: 2px solid #94a3b8 !important; /* slightly darker grey */
+}
+
+
+/* History table expand/collapse controls */
+.history-toggle-row td {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.history-toggle-btn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.history-toggle-btn:hover {
+  text-decoration: underline;
+}
+
+/* Completed scope row highlighting */
+.scope-complete {
+  background: #f1f5f9 !important;
+  opacity: 0.55;
+  transition: opacity 0.2s ease, background 0.2s ease;
+}
 .scope-complete:hover {
-  background: rgba(22, 163, 74, 0.48) !important;
-  border-left-color: rgba(22, 163, 74, 0.75);
+  opacity: 0.75;
 }
