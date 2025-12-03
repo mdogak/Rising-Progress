@@ -106,7 +106,7 @@
     80px    /* Units */
     100px   /* Planned */
     80px    /* Actions */;grid-auto-rows:auto} }
-    #projectStartup{width:180px}
+    #projectStartup{width:150px}
   
 /* ++ Enlarged UI text (125%) ++ */
 .chart-header .input-inline label,
@@ -195,7 +195,7 @@
 /* Stabilize legend layout so subtext remains under its header and daysRel stays to the right */
 .custom-legend{ align-items:flex-start; }
 .custom-legend .legend-row{ display:flex; align-items:center; gap:8px; flex-wrap:nowrap; }
-.legend-daysrel{ font-size:0.95rem; color: rgba(22,163,74,1); margin-top:2px; }
+.legend-daysrel{ font-size:0.8rem; color: rgba(22,163,74,1); margin-top:2px; }
 .custom-legend .legend-item{ align-items:flex-start; }
 
 
@@ -435,5 +435,28 @@
   opacity: 0.94;
 }
 
-#historyDate{width:180px}
-.input-inline input{width:180px}
+/* === FORCED OVERRIDES FOR SIZE CONSISTENCY === */
+
+/* 1) legend-daysrel = same as legend-sub.actual */
+.legend-daysrel {
+    font-size: 1em !important;
+}
+
+/* 2 & 4) Startup label + Project Name = same font size as Current Progress */
+#startupControls label,
+#startupControls input,
+#projectName,
+#projectNameLabel {
+    font-size: 1.25em !important;
+}
+
+/* 3) Startup date input font size matches history date */
+#projectStartup,
+#historyDate {
+    font-size: 1.15em !important;
+}
+
+/* 5) Darker divider line */
+.section-divider {
+    border-top: 2px solid #94a3b8 !important; /* slightly darker grey */
+}
