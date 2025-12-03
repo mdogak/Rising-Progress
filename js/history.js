@@ -56,30 +56,145 @@ export function renderDailyTable(days, baseline, planned, actual, opts = {}) {
 
   tb.innerHTML = "";
 
-  days.forEach((d, idx) => {
-    const tr = document.createElement("tr");
-    const b = baseline[idx];
-    const p = planned[idx];
-    const a = actual[idx];
+  // If no days, nothing to render
+  if (!Array.isArray(days) || days.length === 0) {
+    return;
+  }
 
-    tr.innerHTML = `
-      <td>${d}</td>
-      <td class="right">${b == null ? "" : (Number(b) || 0).toFixed(1)}%</td>
-      <td class="right">${p == null ? "" : (Number(p) || 0).toFixed(1)}%</td>
-      <td class="right">
-        <input
-          class="right-input"
-          type="number"
-          min="0"
-          max="100"
-          data-day="${d}"
-          value="${a == null ? "" : Number(a).toFixed(1)}"
-          style="width:50px"
-        />
-      </td>
-    `;
-    tb.appendChild(tr);
+  // Build a data model for the rows first so we can determine the
+  // "latest actual" index and then band rows around it.
+  const rowsData = days.map((d, idx) => {
+    return {
+      day: d,
+      baseline: Array.isArray(baseline) ? baseline[idx] : null,
+      planned: Array.isArray(planned) ? planned[idx] : null,
+      actual: Array.isArray(actual) ? actual[idx] : null
+    };
   });
+
+  // Find the latest index that has an actual value (non-null, non-NaN).
+  let latestActualIndex = -1;
+  rowsData.forEach((row, idx) => {
+    if (row.actual != null && !Number.isNaN(Number(row.actual))) {
+      latestActualIndex = idx;
+    }
+  });
+
+  // If nothing has an actual yet, just render a flat table like before.
+  if (latestActualIndex === -1) {
+    rowsData.forEach((row) => {
+      const tr = document.createElement("tr");
+      const b = row.baseline;
+      const p = row.planned;
+      const a = row.actual;
+      tr.classList.add("history-row", "history-row-visible");
+      tr.innerHTML = `
+        <td>${row.day}</td>
+        <td class="right">${b == null ? "" : (Number(b) || 0).toFixed(1)}%</td>
+        <td class="right">${p == null ? "" : (Number(p) || 0).toFixed(1)}%</td>
+        <td class="right">
+          <input
+            class="right-input"
+            type="number"
+            min="0"
+            max="100"
+            data-day="${row.day}"
+            value="${a == null ? "" : Number(a).toFixed(1)}"
+            style="width:50px"
+          />
+        </td>
+      `;
+      tb.appendChild(tr);
+    });
+  } else {
+    // Oldest rows are at index 0, newest at the end.
+    // We create a "window" of rows centered around the latest actual,
+    // showing 6 rows above and 6 rows below (clamped to bounds).
+    const WINDOW_SIZE = 6;
+    const total = rowsData.length;
+
+    const startWindow = Math.max(0, latestActualIndex - WINDOW_SIZE);
+    const endWindow = Math.min(total - 1, latestActualIndex + WINDOW_SIZE);
+
+    const hasUpperHidden = startWindow > 0;
+    const hasLowerHidden = endWindow < total - 1;
+
+    const createRow = (row, group) => {
+      const tr = document.createElement("tr");
+      const b = row.baseline;
+      const p = row.planned;
+      const a = row.actual;
+
+      tr.classList.add("history-row");
+      if (group === "upper") tr.classList.add("history-row-upper");
+      if (group === "middle") tr.classList.add("history-row-visible");
+      if (group === "lower") tr.classList.add("history-row-lower");
+
+      if (group === "upper" || group === "lower") {
+        // collapsed by default
+        tr.style.display = "none";
+      }
+
+      tr.innerHTML = `
+        <td>${row.day}</td>
+        <td class="right">${b == null ? "" : (Number(b) || 0).toFixed(1)}%</td>
+        <td class="right">${p == null ? "" : (Number(p) || 0).toFixed(1)}%</td>
+        <td class="right">
+          <input
+            class="right-input"
+            type="number"
+            min="0"
+            max="100"
+            data-day="${row.day}"
+            value="${a == null ? "" : Number(a).toFixed(1)}"
+            style="width:50px"
+          />
+        </td>
+      `;
+      tb.appendChild(tr);
+    };
+
+    // Upper hidden band (older dates above the visible window)
+    if (hasUpperHidden) {
+      const upperToggleRow = document.createElement("tr");
+      upperToggleRow.classList.add("history-toggle-row", "history-toggle-row-upper");
+      upperToggleRow.innerHTML = `
+        <td colspan="4">
+          <button type="button" class="history-toggle-btn" data-target="upper" data-expanded="false">
+            + Show older history entries
+          </button>
+        </td>
+      `;
+      tb.appendChild(upperToggleRow);
+
+      for (let i = 0; i < startWindow; i++) {
+        createRow(rowsData[i], "upper");
+      }
+    }
+
+    // Middle visible band (centered around latest actual)
+    for (let i = startWindow; i <= endWindow; i++) {
+      createRow(rowsData[i], "middle");
+    }
+
+    // Lower hidden band (dates below the visible window)
+    if (hasLowerHidden) {
+      for (let i = endWindow + 1; i < total; i++) {
+        createRow(rowsData[i], "lower");
+      }
+
+      const lowerToggleRow = document.createElement("tr");
+      lowerToggleRow.classList.add("history-toggle-row", "history-toggle-row-lower");
+      lowerToggleRow.innerHTML = `
+        <td colspan="4">
+          <button type="button" class="history-toggle-btn" data-target="lower" data-expanded="false">
+            + Show more future history entries
+          </button>
+        </td>
+      `;
+      tb.appendChild(lowerToggleRow);
+    }
+  }
 
   const computeAndRender = opts.computeAndRender;
   const clamp = (val, min, max) => Math.min(Math.max(val, min), max);
@@ -113,8 +228,38 @@ export function renderDailyTable(days, baseline, planned, actual, opts = {}) {
       inp.addEventListener("change", handler);
       inp.addEventListener("blur", handler);
     });
-}
 
+  // Wire up toggle buttons for collapsing/expanding upper/lower bands.
+  const toggleButtons = tb.querySelectorAll(".history-toggle-btn");
+  toggleButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const target = btn.getAttribute("data-target");
+      const expanded = btn.getAttribute("data-expanded") === "true";
+
+      const rowsSelector =
+        target === "upper"
+          ? ".history-row-upper"
+          : ".history-row-lower";
+
+      const rows = tb.querySelectorAll(rowsSelector);
+      rows.forEach((row) => {
+        row.style.display = expanded ? "none" : "";
+      });
+
+      btn.setAttribute("data-expanded", expanded ? "false" : "true");
+
+      if (target === "upper") {
+        btn.textContent = expanded
+          ? "+ Show older history entries"
+          : "– Hide older history entries";
+      } else {
+        btn.textContent = expanded
+          ? "+ Show more future history entries"
+          : "– Hide future history entries";
+      }
+    });
+  });
+}
 /**
  * Wire up the "Add to History" snapshot button so it captures the current
  * total actual progress into the model history + dailyActuals and triggers a re-render.
