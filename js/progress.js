@@ -556,6 +556,13 @@ function computeAndRender(){
   model.project.startup = $('#projectStartup').value;
   model.project.markerLabel = ($('#startupLabelInput').value || 'Baseline Complete').trim();
   $$('#scopeRows .row').forEach((row)=>{ const i = Number(row.dataset.index); updatePlannedCell(row, model.scopes[i]); });
+  // Completed scope highlighting
+  if (model.scopes[i].actualPct >= 100) {
+      row.classList.add('scope-complete');
+  } else {
+      row.classList.remove('scope-complete');
+  }
+
   const totalActual = calcTotalActualProgress(); $('#totalActual').textContent = totalActual.toFixed(1)+'%'; updateHistoryDate(totalActual);
   const plan = calcPlannedSeriesByDay(); const days = plan.days || []; const plannedCum = plan.plannedCum || plan.planned || []; const actualCum = calcActualSeriesByDay(days); const baselineCum = getBaselineSeries(days, plannedCum);
   renderDailyTable(days, baselineCum, plannedCum, actualCum, { computeAndRender });
