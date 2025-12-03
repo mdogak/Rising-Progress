@@ -188,7 +188,7 @@ export function renderDailyTable(days, baseline, planned, actual, opts = {}) {
       lowerToggleRow.innerHTML = `
         <td colspan="4">
           <button type="button" class="history-toggle-btn" data-target="lower" data-expanded="false">
-            + Show more recent history entries
+            + Show more future history entries
           </button>
         </td>
       `;
@@ -254,8 +254,8 @@ export function renderDailyTable(days, baseline, planned, actual, opts = {}) {
           : "– Hide older history entries";
       } else {
         btn.textContent = expanded
-          ? "+ Show more recent history entries"
-          : "– Hide more recent history entries";
+          ? "+ Show more future history entries"
+          : "– Hide future history entries";
       }
     });
   });
