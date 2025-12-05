@@ -603,25 +603,9 @@ function initOrRestoreHistoryDate(){
   const hd = document.getElementById('historyDate');
   if (!hd) return;
   const m = (typeof window !== 'undefined' && window.model) ? window.model : model;
-  let dateStr = '';
-
-  // 1) If a manual selection exists in the model, prefer that
-  if (m && typeof m.historyDateSelected === 'string' && m.historyDateSelected) {
-    dateStr = m.historyDateSelected;
-  }
-
-  // 2) Otherwise, default to the latest valid history date (if any)
-  if (!dateStr) {
-    dateStr = getLatestHistoryDateFromModel(m);
-  }
-
-  // 3) If still nothing (no history or corrupt dates), leave blank
-  hd.value = dateStr || '';
+  const latest = getLatestHistoryDateFromModel(m);
+  hd.value = latest || '';
 }
-
-
-
-
 function renderLegend(chart){
   const cont = $('#customLegend');
   if(!cont) return;
@@ -1247,9 +1231,6 @@ function hydrateFromSession(){
 
     model = stored;
     window.model = model;
-  model.historyDateSelected = '';
-  const hd = document.getElementById('historyDate');
-  if (hd) hd.value = '';
 
     const nameEl = document.getElementById('projectName');
     const startupEl = document.getElementById('projectStartup');
@@ -1321,18 +1302,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const hd = document.getElementById('historyDate');
     if (hd) {
       const handleChange = () => {
-        const m = (typeof window !== 'undefined' && window.model) ? window.model : model;
-        m.historyDateSelected = hd.value || '';
-        if (typeof window !== 'undefined') {
-          window.model = m;
-        }
-        if (typeof window.sessionStorage !== 'undefined' && window.COOKIE_KEY) {
-          try {
-            sessionStorage.setItem(COOKIE_KEY, JSON.stringify(m));
-          } catch (err) {
-            console.error('Failed to persist historyDate selection', err);
-          }
-        }
         if (typeof computeAndRender === 'function') {
           computeAndRender();
         }
