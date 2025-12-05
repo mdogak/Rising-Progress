@@ -97,7 +97,7 @@ function onScopeChange(e){
 
   // Only warn when the user edits the Cost ($)/weighting field in the main Scopes table.
   const isCostChange = e && e.target && e.target.matches && e.target.matches('[data-k="cost"]');
-  if (isCostChange && !window._costWeightingWarningAcknowledged) {
+  if (isCostChange && !window._costWeightingWarningAcknowledged && hasHistoryActualsAboveThreshold()) {
     const proceed = window.confirm(
       "Caution: Changing the weighting during a project changes how the actuals and plan are calculated. This is not advised. Are you sure you want to proceed?"
     );
@@ -1690,4 +1690,14 @@ document.addEventListener('DOMContentLoaded', () => {
 // Expose syncActualFromDOM so issues.js can call it before building issues.
 if (typeof window !== 'undefined') {
   window.syncActualFromDOM = syncActualFromDOM;
+}
+
+
+// Returns true only if history contains actualPct > 0.5
+function hasHistoryActualsAboveThreshold() {
+  if (!Array.isArray(model.history)) return false;
+  return model.history.some(h => {
+    const v = Number(h?.actualPct);
+    return isFinite(v) && v > 0.5;
+  });
 }
