@@ -101,7 +101,9 @@ function onScopeChange(e){
   if(tu!=='' && tu>0){ s.unitsLabel = (inputs.unitsLabel || 'Feet'); } else { s.unitsLabel = (inputs.unitsLabel || '%'); }
   if(tu!=='' && tu>0){ s.unitsToDate = clamp(inputs.progressVal,0,1e12); s.actualPct = tu>0 ? (s.unitsToDate/tu*100) : 0 }
   else { s.unitsToDate = 0; s.actualPct = clamp(inputs.progressVal,0,100); }
-  updatePlannedCell(realRow, s); computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
+  updatePlannedCell(realRow, s); computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
+  // SECOND PASS ensure post-load compute
+  try { syncScopeRowsToModel(); computeAndRender(); } catch(e) { console.warn(e);}  sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
 }
 
 /*****************
@@ -496,6 +498,72 @@ function syncActualFromDOM(){
   }
 }
 
+let lastTotalActualForHistory = null;
+function updateHistoryDate(totalActual){
+  const hd = document.getElementById('historyDate');
+  if (!hd) return;
+
+  // Manual override for this session wins completely
+  if (hd.dataset.manual === 'true') {
+    if (typeof totalActual === 'number') {
+      lastTotalActualForHistory = totalActual;
+    }
+    return;
+  }
+
+  // Prefer the latest history date whenever history exists
+  const modelRef = (typeof window !== 'undefined' && window.model) ? window.model : model;
+  const hist = Array.isArray(modelRef && modelRef.history) ? modelRef.history : [];
+
+  let lastDate = null;
+  for (const h of hist) {
+    if (h && h.date) {
+      if (!lastDate || h.date > lastDate) {
+        lastDate = h.date;
+      }
+    }
+  }
+
+  if (lastDate) {
+    // Always let history drive the default when available
+    if (hd.value !== lastDate) {
+      hd.value = lastDate;
+    }
+    if (typeof totalActual === 'number') {
+      lastTotalActualForHistory = totalActual;
+    }
+    return;
+  }
+
+  // No history yet: fall back to "today" behavior based on changes in totalActual
+  const prev = (typeof lastTotalActualForHistory === 'number') ? lastTotalActualForHistory : null;
+  const curr = (typeof totalActual === 'number') ? totalActual : prev;
+
+  let changed = false;
+  if (prev !== null && curr !== null && typeof curr === 'number') {
+    changed = Math.abs(curr - prev) > 1e-6;
+  }
+
+  if (!hd.value && changed) {
+    // Brand new project with no history and first actual entry
+    try {
+      if (typeof fmtDate === 'function' && typeof today !== 'undefined') {
+        hd.value = fmtDate(today);
+      }
+    } catch (e) { /* noop */ }
+  } else if (hd.value && changed) {
+    // Existing date (from a prior no-history session) and totalActual changed
+    try {
+      if (typeof fmtDate === 'function' && typeof today !== 'undefined') {
+        hd.value = fmtDate(today);
+      }
+    } catch (e) { /* noop */ }
+  }
+
+  if (curr !== null && typeof curr === 'number') {
+    lastTotalActualForHistory = curr;
+  }
+}
 
 function computeAndRender(){
   // Moved baseline/planned percentages into the legend; leave this area empty.
@@ -510,7 +578,7 @@ function computeAndRender(){
         row.classList.remove('scope-complete');
     }
  });
-  const totalActual = calcTotalActualProgress(); $('#totalActual').textContent = totalActual.toFixed(1)+'%';
+  const totalActual = calcTotalActualProgress(); $('#totalActual').textContent = totalActual.toFixed(1)+'%'; updateHistoryDate(totalActual);
   const plan = calcPlannedSeriesByDay(); const days = plan.days || []; const plannedCum = plan.plannedCum || plan.planned || []; const actualCum = calcActualSeriesByDay(days); const baselineCum = getBaselineSeries(days, plannedCum);
   renderDailyTable(days, baselineCum, plannedCum, actualCum, { computeAndRender });
   drawChart(days, baselineCum, plannedCum, actualCum);
@@ -581,45 +649,6 @@ const rel = computeDaysRelativeToPlan(days, plannedCum, actualCum);
   } else { model.daysRelativeToPlan = null; $('#planDelta').textContent = ''; }
   sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
 }
-
-function getLatestHistoryDateFromModel(m){
-  const src = m || model;
-  if (!src || !Array.isArray(src.history) || src.history.length === 0) return '';
-  let last = '';
-  for (const h of src.history) {
-    if (!h || !h.date) continue;
-    const d = h.date;
-    if (typeof d !== 'string') continue;
-    // Require YYYY-MM-DD format
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) continue;
-    const parsed = parseDate(d);
-    if (!parsed || isNaN(parsed.getTime())) continue;
-    if (!last || d > last) last = d;
-  }
-  return last;
-}
-
-function initOrRestoreHistoryDate(){
-  const hd = document.getElementById('historyDate');
-  if (!hd) return;
-  const m = (typeof window !== 'undefined' && window.model) ? window.model : model;
-  let dateStr = '';
-
-  // 1) If a manual selection exists in the model, prefer that
-  if (m && typeof m.historyDateSelected === 'string' && m.historyDateSelected) {
-    dateStr = m.historyDateSelected;
-  }
-
-  // 2) Otherwise, default to the latest valid history date (if any)
-  if (!dateStr) {
-    dateStr = getLatestHistoryDateFromModel(m);
-  }
-
-  // 3) If still nothing (no history or corrupt dates), leave blank
-  hd.value = dateStr || '';
-}
-
-
 
 
 function renderLegend(chart){
@@ -1133,9 +1162,8 @@ function uploadCSVAndLoad(){
             return;
           }
         }
-        if(/^Date,Planned_Cumulative,Actual_Cumulative/m.test(text)){ const lines = text.trim().split(/\r?\n/); lines.shift(); model.dailyActuals = {}; for(const line of lines){ const parts = line.split(','); const d = parts[0]; const a = parts[2]; if(d && a!=='' && !isNaN(parseFloat(a))) model.dailyActuals[d] = clamp(parseFloat(a),0,100); } computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));  return; }
+        if(/^Date,Planned_Cumulative,Actual_Cumulative/m.test(text)){ const lines = text.trim().split(/\r?\n/); lines.shift(); model.dailyActuals = {}; for(const line of lines){ const parts = line.split(','); const d = parts[0]; const a = parts[2]; if(d && a!=='' && !isNaN(parseFloat(a))) model.dailyActuals[d] = clamp(parseFloat(a),0,100); } computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));  return; }
         const rows = parseCSV(text); let section = ''; model = { project:{name:'',startup:'', markerLabel:'Baseline Complete'}, scopes:[], history:[], dailyActuals:{}, baseline:null, daysRelativeToPlan:null }; window.model = model; window.model = model;
-try{ computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); }catch(e){}
         let scopeHeaders = []; let baselineRows = [];
         for(let r of rows){ if(r.length===1 && r[0].startsWith('#SECTION:')){ section = r[0].slice('#SECTION:'.length).trim(); continue; } if(r.length===0 || (r.length===1 && r[0]==='')) continue;
           if(section==='PROJECT'){ if(r[0]==='key') { continue; } if(r[0]==='name') model.project.name = r[1]||''; if(r[0]==='startup') model.project.startup = r[1]||''; if(r[0]==='markerLabel') model.project.markerLabel = r[1]||'Baseline Complete'; }
@@ -1146,9 +1174,7 @@ try{ computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model
         }
         if(baselineRows.length){ model.baseline = { days: baselineRows.map(r=>r.date), planned: baselineRows.map(r=> (r.val==null? null : clamp(r.val,0,100))) }; }
         $('#projectName').value = model.project.name||''; $('#projectStartup').value = model.project.startup||''; $('#startupLabelInput').value = model.project.markerLabel || 'Baseline Complete';
-        syncScopeRowsToModel();
-        initOrRestoreHistoryDate();
-        computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); 
+        syncScopeRowsToModel(); computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); 
 // alert('Full CSV loaded.');
       }catch(err){ alert('Failed to parse CSV: '+err.message); } };
     reader.readAsText(file);
@@ -1226,10 +1252,7 @@ function loadFromXml(xmlText){
   document.getElementById('projectName').value = model.project.name || '';
   document.getElementById('projectStartup').value = model.project.startup || '';
   document.getElementById('startupLabelInput').value = model.project.markerLabel || 'Baseline Complete';
-  syncScopeRowsToModel();
-        initOrRestoreHistoryDate();
-        computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
-  sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
+  syncScopeRowsToModel(); computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
 }
 
 /*****************
@@ -1248,9 +1271,6 @@ function hydrateFromSession(){
 
     model = stored;
     window.model = model;
-  model.historyDateSelected = '';
-  const hd = document.getElementById('historyDate');
-  if (hd) hd.value = '';
 
     const nameEl = document.getElementById('projectName');
     const startupEl = document.getElementById('projectStartup');
@@ -1259,7 +1279,6 @@ function hydrateFromSession(){
     if(nameEl) nameEl.value = (model.project && model.project.name) || '';
     if(startupEl) startupEl.value = (model.project && model.project.startup) || '';
     if(labelEl) labelEl.value = (model.project && model.project.markerLabel) || 'Baseline Complete';
-    initOrRestoreHistoryDate();
 
     syncScopeRowsToModel();
     computeAndRender();
@@ -1297,7 +1316,7 @@ $('#startupLabelInput').addEventListener('input', computeAndRender);
 $('#labelToggle').addEventListener('change', computeAndRender);
 
 // Toolbar Save/Load/Clear with confirmations
-$('#toolbarClear').addEventListener('click', ()=>{ if(!confirm('Clear scope fields and history?')) return; const ps = calcEarliestStart(); model.scopes = model.scopes.map(s=> ({...s, start:'', end:'', cost:0, unitsToDate:0, totalUnits:'', actualPct:0 })); if(ps){ const psStr = fmtDate(ps); Object.keys(model.dailyActuals).forEach(k=>{ if(k>=psStr) delete model.dailyActuals[k]; }); model.history = model.history.filter(h=> h.date < psStr); } syncScopeRowsToModel(); computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); });
+$('#toolbarClear').addEventListener('click', ()=>{ if(!confirm('Clear scope fields and history?')) return; const ps = calcEarliestStart(); model.scopes = model.scopes.map(s=> ({...s, start:'', end:'', cost:0, unitsToDate:0, totalUnits:'', actualPct:0 })); if(ps){ const psStr = fmtDate(ps); Object.keys(model.dailyActuals).forEach(k=>{ if(k>=psStr) delete model.dailyActuals[k]; }); model.history = model.history.filter(h=> h.date < psStr); } syncScopeRowsToModel(); computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); });
 
 
 // Baseline button behavior
@@ -1319,28 +1338,15 @@ $('#baselineBtn').addEventListener('click', ()=>{
 // Initialize history-related behavior (snapshot button, history table inputs)
 document.addEventListener('DOMContentLoaded', () => {
   try {
-    const hd = document.getElementById('historyDate');
-    if (hd) {
-      const handleChange = () => {
-        const m = (typeof window !== 'undefined' && window.model) ? window.model : model;
-        m.historyDateSelected = hd.value || '';
-        if (typeof window !== 'undefined') {
-          window.model = m;
-        }
-        if (typeof window.sessionStorage !== 'undefined' && window.COOKIE_KEY) {
-          try {
-            sessionStorage.setItem(COOKIE_KEY, JSON.stringify(m));
-          } catch (err) {
-            console.error('Failed to persist historyDate selection', err);
-          }
-        }
-        if (typeof computeAndRender === 'function') {
-          computeAndRender();
-        }
-      };
-      hd.addEventListener('input', handleChange);
-      hd.addEventListener('change', handleChange);
-    }
+    
+const hd = document.getElementById('historyDate');
+if (hd) {
+  const markManual = () => { hd.dataset.manual = 'true';   if (typeof computeAndRender === 'function') computeAndRender();
+};
+  hd.addEventListener('input', markManual);
+  hd.addEventListener('change', markManual);
+}
+
 
     initHistory({ calcTotalActualProgress, fmtDate, today, computeAndRender });
   } catch (e) {
@@ -1432,13 +1438,11 @@ function loadFromPresetCsv(text){
 
   // Commit into global model + UI
   model = localModel;
+  window.model = model;
   document.getElementById('projectName').value = model.project.name||'';
   document.getElementById('projectStartup').value = model.project.startup||'';
   document.getElementById('startupLabelInput').value = model.project.markerLabel || 'Baseline Complete';
-  syncScopeRowsToModel();
-        initOrRestoreHistoryDate();
-        computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
-  sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
+  syncScopeRowsToModel(); computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
 }
 
 document.addEventListener('DOMContentLoaded', function () {
