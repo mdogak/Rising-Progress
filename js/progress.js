@@ -11,6 +11,12 @@ document.querySelectorAll('input[type="file"]').forEach(el=>{
 /*****************
  * Utilities
  *****************/
+
+// Session-only flag: once the user confirms the cost weighting warning,
+// we stop showing the dialog until the page is reloaded.
+window._costWeightingWarningAcknowledged = false;
+
+
 const $ = sel => document.querySelector(sel);
 const $$ = sel => Array.from(document.querySelectorAll(sel));
 function getLocalToday() { const now = new Date(); return new Date(now.getFullYear(), now.getMonth(), now.getDate()); }
@@ -82,9 +88,31 @@ function renderScopeRow(i){
   return row;
 }
 
+
 function onScopeChange(e){
   const realRow = e.currentTarget.classList.contains('row') ? e.currentTarget : e.currentTarget.closest('.row');
-  if(!realRow) return; const i = Number(realRow.dataset.index); const s = model.scopes[i];
+  if(!realRow) return;
+  const i = Number(realRow.dataset.index);
+  const s = model.scopes[i];
+
+  // Only warn when the user edits the Cost ($)/weighting field in the main Scopes table.
+  const isCostChange = e && e.target && e.target.matches && e.target.matches('[data-k="cost"]');
+  if (isCostChange && !window._costWeightingWarningAcknowledged && hasHistoryActualsAboveThreshold()) {
+    const proceed = window.confirm(
+      "Caution: Changing the weighting during a project changes how the actuals and plan are calculated. This is not advised. Are you sure you want to proceed?"
+    );
+    if (!proceed) {
+      // Revert the cost input back to the previous value stored in the model.
+      const costInput = realRow.querySelector('[data-k="cost"]');
+      if (costInput) {
+        const prevCost = (s && typeof s.cost === 'number' && isFinite(s.cost)) ? s.cost : 0;
+        costInput.value = prevCost || '';
+      }
+      return;
+    }
+    window._costWeightingWarningAcknowledged = true;
+  }
+
   const inputs = {
     label: realRow.querySelector('[data-k="label"]').value.trim(),
     start: realRow.querySelector('[data-k="start"]').value,
@@ -95,15 +123,33 @@ function onScopeChange(e){
     unitsLabel: realRow.querySelector('[data-k="unitsLabel"]').value.trim()
   };
   s.label = inputs.label || `Scope #${i+1}`;
-  s.start = inputs.start; s.end = inputs.end; s.cost = isFinite(inputs.cost)?inputs.cost:0;
+  s.start = inputs.start;
+  s.end = inputs.end;
+  s.cost = isFinite(inputs.cost) ? inputs.cost : 0;
   const tu = inputs.totalUnitsRaw === '' ? '' : clamp(parseFloat(inputs.totalUnitsRaw)||0,0,1e12);
   s.totalUnits = tu;
-  if(tu!=='' && tu>0){ s.unitsLabel = (inputs.unitsLabel || 'Feet'); } else { s.unitsLabel = (inputs.unitsLabel || '%'); }
-  if(tu!=='' && tu>0){ s.unitsToDate = clamp(inputs.progressVal,0,1e12); s.actualPct = tu>0 ? (s.unitsToDate/tu*100) : 0 }
-  else { s.unitsToDate = 0; s.actualPct = clamp(inputs.progressVal,0,100); }
-  updatePlannedCell(realRow, s); computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
+  if(tu!=='' && tu>0){
+    s.unitsLabel = (inputs.unitsLabel || 'Feet');
+  } else {
+    s.unitsLabel = (inputs.unitsLabel || '%');
+  }
+  if(tu!=='' && tu>0){
+    s.unitsToDate = clamp(inputs.progressVal,0,1e12);
+    s.actualPct = tu>0 ? (s.unitsToDate/tu*100) : 0;
+  } else {
+    s.unitsToDate = 0;
+    s.actualPct = clamp(inputs.progressVal,0,100);
+  }
+  updatePlannedCell(realRow, s);
+  computeAndRender();
+  sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
   // SECOND PASS ensure post-load compute
-  try { syncScopeRowsToModel(); computeAndRender(); } catch(e) { console.warn(e);}  sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
+  try {
+    syncScopeRowsToModel();
+    computeAndRender();
+  } catch(e) {
+    try { console.error(e); } catch(_) {}
+  }
 }
 
 /*****************
@@ -1644,4 +1690,14 @@ document.addEventListener('DOMContentLoaded', () => {
 // Expose syncActualFromDOM so issues.js can call it before building issues.
 if (typeof window !== 'undefined') {
   window.syncActualFromDOM = syncActualFromDOM;
+}
+
+
+// Returns true only if history contains actualPct > 0.5
+function hasHistoryActualsAboveThreshold() {
+  if (!Array.isArray(model.history)) return false;
+  return model.history.some(h => {
+    const v = Number(h?.actualPct);
+    return isFinite(v) && v > 0.5;
+  });
 }
