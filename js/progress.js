@@ -603,9 +603,25 @@ function initOrRestoreHistoryDate(){
   const hd = document.getElementById('historyDate');
   if (!hd) return;
   const m = (typeof window !== 'undefined' && window.model) ? window.model : model;
-  const latest = getLatestHistoryDateFromModel(m);
-  hd.value = latest || '';
+  let dateStr = '';
+
+  // 1) If a manual selection exists in the model, prefer that
+  if (m && typeof m.historyDateSelected === 'string' && m.historyDateSelected) {
+    dateStr = m.historyDateSelected;
+  }
+
+  // 2) Otherwise, default to the latest valid history date (if any)
+  if (!dateStr) {
+    dateStr = getLatestHistoryDateFromModel(m);
+  }
+
+  // 3) If still nothing (no history or corrupt dates), leave blank
+  hd.value = dateStr || '';
 }
+
+
+
+
 function renderLegend(chart){
   const cont = $('#customLegend');
   if(!cont) return;
@@ -1130,8 +1146,9 @@ try{ computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model
         }
         if(baselineRows.length){ model.baseline = { days: baselineRows.map(r=>r.date), planned: baselineRows.map(r=> (r.val==null? null : clamp(r.val,0,100))) }; }
         $('#projectName').value = model.project.name||''; $('#projectStartup').value = model.project.startup||''; $('#startupLabelInput').value = model.project.markerLabel || 'Baseline Complete';
+        syncScopeRowsToModel();
         initOrRestoreHistoryDate();
-        syncScopeRowsToModel(); computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); 
+        computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); 
 // alert('Full CSV loaded.');
       }catch(err){ alert('Failed to parse CSV: '+err.message); } };
     reader.readAsText(file);
@@ -1209,9 +1226,9 @@ function loadFromXml(xmlText){
   document.getElementById('projectName').value = model.project.name || '';
   document.getElementById('projectStartup').value = model.project.startup || '';
   document.getElementById('startupLabelInput').value = model.project.markerLabel || 'Baseline Complete';
-  initOrRestoreHistoryDate();
   syncScopeRowsToModel();
-  computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
+        initOrRestoreHistoryDate();
+        computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
   sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
 }
 
@@ -1231,6 +1248,9 @@ function hydrateFromSession(){
 
     model = stored;
     window.model = model;
+  model.historyDateSelected = '';
+  const hd = document.getElementById('historyDate');
+  if (hd) hd.value = '';
 
     const nameEl = document.getElementById('projectName');
     const startupEl = document.getElementById('projectStartup');
@@ -1302,6 +1322,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const hd = document.getElementById('historyDate');
     if (hd) {
       const handleChange = () => {
+        const m = (typeof window !== 'undefined' && window.model) ? window.model : model;
+        m.historyDateSelected = hd.value || '';
+        if (typeof window !== 'undefined') {
+          window.model = m;
+        }
+        if (typeof window.sessionStorage !== 'undefined' && window.COOKIE_KEY) {
+          try {
+            sessionStorage.setItem(COOKIE_KEY, JSON.stringify(m));
+          } catch (err) {
+            console.error('Failed to persist historyDate selection', err);
+          }
+        }
         if (typeof computeAndRender === 'function') {
           computeAndRender();
         }
@@ -1403,9 +1435,9 @@ function loadFromPresetCsv(text){
   document.getElementById('projectName').value = model.project.name||'';
   document.getElementById('projectStartup').value = model.project.startup||'';
   document.getElementById('startupLabelInput').value = model.project.markerLabel || 'Baseline Complete';
-  initOrRestoreHistoryDate();
   syncScopeRowsToModel();
-  computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
+        initOrRestoreHistoryDate();
+        computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
   sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
 }
 
