@@ -496,59 +496,6 @@ function syncActualFromDOM(){
   }
 }
 
-let lastTotalActualForHistory = null;
-function updateHistoryDate(totalActual){
-  const hd = document.getElementById('historyDate');
-  if(!hd) return;
-
-  // Manual override for this session wins
-  if(hd.dataset.manual === 'true'){
-    if(typeof totalActual === 'number'){
-      lastTotalActualForHistory = totalActual;
-    }
-    return;
-  }
-
-  const modelRef = (typeof window !== 'undefined' && window.model) ? window.model : (window.model || {});
-  const hist = Array.isArray(modelRef.history) ? modelRef.history : [];
-
-  // Find latest history date (lexicographically max YYYY-MM-DD)
-  let lastDate = null;
-  for(const h of hist){
-    if(h && h.date){
-      if(!lastDate || h.date > lastDate){
-        lastDate = h.date;
-      }
-    }
-  }
-
-  const prev = (typeof lastTotalActualForHistory === 'number') ? lastTotalActualForHistory : null;
-  const curr = (typeof totalActual === 'number') ? totalActual : prev;
-
-  let changed = false;
-  if(prev !== null && curr !== null && typeof curr === 'number'){
-    changed = Math.abs(curr - prev) > 1e-6;
-  }
-
-  // If total actual changed (scope edits) -> default to "today" (local)
-  if(changed){
-    try{
-      // today is a local-midnight Date defined earlier via getLocalToday()
-      if(typeof fmtDate === 'function' && typeof today !== 'undefined'){
-        hd.value = fmtDate(today);
-      }
-    }catch(e){
-      // fall back silently
-    }
-  } else if(!hd.value && lastDate){
-    // First load with no manual value -> last saved actual date
-    hd.value = lastDate;
-  }
-
-  if(curr !== null && typeof curr === 'number'){
-    lastTotalActualForHistory = curr;
-  }
-}
 
 function computeAndRender(){
   // Moved baseline/planned percentages into the legend; leave this area empty.
@@ -563,7 +510,7 @@ function computeAndRender(){
         row.classList.remove('scope-complete');
     }
  });
-  const totalActual = calcTotalActualProgress(); $('#totalActual').textContent = totalActual.toFixed(1)+'%'; updateHistoryDate(totalActual);
+  const totalActual = calcTotalActualProgress(); $('#totalActual').textContent = totalActual.toFixed(1)+'%';
   const plan = calcPlannedSeriesByDay(); const days = plan.days || []; const plannedCum = plan.plannedCum || plan.planned || []; const actualCum = calcActualSeriesByDay(days); const baselineCum = getBaselineSeries(days, plannedCum);
   renderDailyTable(days, baselineCum, plannedCum, actualCum, { computeAndRender });
   drawChart(days, baselineCum, plannedCum, actualCum);
@@ -634,6 +581,45 @@ const rel = computeDaysRelativeToPlan(days, plannedCum, actualCum);
   } else { model.daysRelativeToPlan = null; $('#planDelta').textContent = ''; }
   sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
 }
+
+function getLatestHistoryDateFromModel(m){
+  const src = m || model;
+  if (!src || !Array.isArray(src.history) || src.history.length === 0) return '';
+  let last = '';
+  for (const h of src.history) {
+    if (!h || !h.date) continue;
+    const d = h.date;
+    if (typeof d !== 'string') continue;
+    // Require YYYY-MM-DD format
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) continue;
+    const parsed = parseDate(d);
+    if (!parsed || isNaN(parsed.getTime())) continue;
+    if (!last || d > last) last = d;
+  }
+  return last;
+}
+
+function initOrRestoreHistoryDate(){
+  const hd = document.getElementById('historyDate');
+  if (!hd) return;
+  const m = (typeof window !== 'undefined' && window.model) ? window.model : model;
+  let dateStr = '';
+
+  // 1) If a manual selection exists in the model, prefer that
+  if (m && typeof m.historyDateSelected === 'string' && m.historyDateSelected) {
+    dateStr = m.historyDateSelected;
+  }
+
+  // 2) Otherwise, default to the latest valid history date (if any)
+  if (!dateStr) {
+    dateStr = getLatestHistoryDateFromModel(m);
+  }
+
+  // 3) If still nothing (no history or corrupt dates), leave blank
+  hd.value = dateStr || '';
+}
+
+
 
 
 function renderLegend(chart){
@@ -1160,6 +1146,7 @@ try{ computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model
         }
         if(baselineRows.length){ model.baseline = { days: baselineRows.map(r=>r.date), planned: baselineRows.map(r=> (r.val==null? null : clamp(r.val,0,100))) }; }
         $('#projectName').value = model.project.name||''; $('#projectStartup').value = model.project.startup||''; $('#startupLabelInput').value = model.project.markerLabel || 'Baseline Complete';
+        initOrRestoreHistoryDate();
         syncScopeRowsToModel(); computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); 
 // alert('Full CSV loaded.');
       }catch(err){ alert('Failed to parse CSV: '+err.message); } };
@@ -1238,6 +1225,7 @@ function loadFromXml(xmlText){
   document.getElementById('projectName').value = model.project.name || '';
   document.getElementById('projectStartup').value = model.project.startup || '';
   document.getElementById('startupLabelInput').value = model.project.markerLabel || 'Baseline Complete';
+  initOrRestoreHistoryDate();
   syncScopeRowsToModel();
   computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
   sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
@@ -1259,6 +1247,9 @@ function hydrateFromSession(){
 
     model = stored;
     window.model = model;
+  model.historyDateSelected = '';
+  const hd = document.getElementById('historyDate');
+  if (hd) hd.value = '';
 
     const nameEl = document.getElementById('projectName');
     const startupEl = document.getElementById('projectStartup');
@@ -1267,6 +1258,7 @@ function hydrateFromSession(){
     if(nameEl) nameEl.value = (model.project && model.project.name) || '';
     if(startupEl) startupEl.value = (model.project && model.project.startup) || '';
     if(labelEl) labelEl.value = (model.project && model.project.markerLabel) || 'Baseline Complete';
+    initOrRestoreHistoryDate();
 
     syncScopeRowsToModel();
     computeAndRender();
@@ -1326,15 +1318,28 @@ $('#baselineBtn').addEventListener('click', ()=>{
 // Initialize history-related behavior (snapshot button, history table inputs)
 document.addEventListener('DOMContentLoaded', () => {
   try {
-    
-const hd = document.getElementById('historyDate');
-if (hd) {
-  const markManual = () => { hd.dataset.manual = 'true';   if (typeof computeAndRender === 'function') computeAndRender();
-};
-  hd.addEventListener('input', markManual);
-  hd.addEventListener('change', markManual);
-}
-
+    const hd = document.getElementById('historyDate');
+    if (hd) {
+      const handleChange = () => {
+        const m = (typeof window !== 'undefined' && window.model) ? window.model : model;
+        m.historyDateSelected = hd.value || '';
+        if (typeof window !== 'undefined') {
+          window.model = m;
+        }
+        if (typeof window.sessionStorage !== 'undefined' && window.COOKIE_KEY) {
+          try {
+            sessionStorage.setItem(COOKIE_KEY, JSON.stringify(m));
+          } catch (err) {
+            console.error('Failed to persist historyDate selection', err);
+          }
+        }
+        if (typeof computeAndRender === 'function') {
+          computeAndRender();
+        }
+      };
+      hd.addEventListener('input', handleChange);
+      hd.addEventListener('change', handleChange);
+    }
 
     initHistory({ calcTotalActualProgress, fmtDate, today, computeAndRender });
   } catch (e) {
@@ -1429,6 +1434,7 @@ function loadFromPresetCsv(text){
   document.getElementById('projectName').value = model.project.name||'';
   document.getElementById('projectStartup').value = model.project.startup||'';
   document.getElementById('startupLabelInput').value = model.project.markerLabel || 'Baseline Complete';
+  initOrRestoreHistoryDate();
   syncScopeRowsToModel();
   computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
   sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
