@@ -1,3 +1,4 @@
+// url.js
 export async function loadFromUrlParams() {
   const params = new URLSearchParams(window.location.search);
 
@@ -19,13 +20,10 @@ export async function loadFromUrlParams() {
 }
 
 function resolveUrl(path) {
-  // Absolute URL → return unchanged
   if (/^https?:\/\//i.test(path)) {
     return path.trim();
   }
-
-  // Relative path → resolve relative to the current page (progress.html)
-  return new URL(path, window.location.href).toString();
+  return `/${path.replace(/^\/+/, "")}`;
 }
 
 async function fetchText(url) {

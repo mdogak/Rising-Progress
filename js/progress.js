@@ -1,4 +1,3 @@
-const hasUrlParam = new URLSearchParams(window.location.search).has('url');
 import { getBaselineSeries, takeBaseline, renderDailyTable, initHistory } from './history.js';
 
 
@@ -149,23 +148,14 @@ function onScopeChange(e){
 /*****************
  * Row +/- actions
  *****************/
-document.addEventListener("DOMContentLoaded", async () => {
-  const params = new URLSearchParams(window.location.search);
-  const urlPath = params.get("path");
-  if (urlPath) {
-    const urlResult = await loadFromUrlParams();
-    if (urlResult && urlResult.text) {
-      loadFromCsvText(urlResult.text);
-      sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
-      return;
-    }
-  }
-  const hydrated = (typeof hydrateFromSession === 'function') ? hydrateFromSession() : false;
-  if (hydrated) return;
-  fetch("Project_Files/default_progress_all.csv")
-    .then(r => r.text())
-    .then(t => loadFromPresetCsv(t))
-    .catch(err => console.error("Failed to load default", err));
+document.addEventListener('DOMContentLoaded', () => {
+  const scopeRowsEl = $('#scopeRows');
+  if (!scopeRowsEl) return;
+  scopeRowsEl.addEventListener('click', (e)=>{
+    const btn = e.target.closest('button'); if(!btn) return; const row = e.target.closest('.row'); if(!row) return; const i = Number(row.dataset.index);
+    if(btn.classList.contains('del')){ model.scopes.splice(i,1); syncScopeRowsToModel(); computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); }
+    else if(btn.classList.contains('add')){ const newScope = defaultScope(i+1); model.scopes.splice(i+1,0,newScope); model.scopes = model.scopes.map((s,idx)=> ({...s, label: (s.label.startsWith('Scope #')? `Scope #${idx+1}` : s.label)})); syncScopeRowsToModel(); computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); }
+  });
 });
 
 /*****************
@@ -1576,7 +1566,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 /*****************
-});
  * Lightweight self-tests (console)
  *****************/
 
@@ -1623,6 +1612,7 @@ document.querySelectorAll('input[type="file"]').forEach(el=>{
     // Give parsing a tick, then recompute and render legend
     setTimeout(()=>{ try{ refreshLegendNow(); }catch(e){} }, 30);
   });
+});
 
 // === Embedded CSV loader for "Pipeline" preset (default) ===
 function loadFromPresetCsv(text){
@@ -1824,8 +1814,28 @@ document.addEventListener('DOMContentLoaded', function () {
       closeDropdown();
     }
   });
+});
 
-}
+// Auto-load default CSV once on initial load (session-only persistence)
+document.addEventListener('DOMContentLoaded', () => {
+  try {
+    const url = new URL(window.location.href);
+    const wasRedirected = url.searchParams.get('redirected') === '1';
+    const hasPathParam = url.searchParams.has('path');
+
+    // First try to restore any existing in-session project
+    const hydrated = (typeof hydrateFromSession === 'function') ? hydrateFromSession() : false;
+
+    // Only auto-load the default CSV if we did NOT hydrate from session
+    // and this is not a post-login redirect
+    if (!hydrated && !wasRedirected && !hasPathParam) {
+      fetch('Project_Files/default_progress_all.csv')
+        .then(r => r.text())
+        .then(t => loadFromPresetCsv(t))
+        .catch(err => {
+          console.error('Failed to auto-load default CSV:', err);
+        });
+    }
 
     // Clean up the redirected flag from the URL to keep things tidy
     if (wasRedirected) {
