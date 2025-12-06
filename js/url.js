@@ -23,7 +23,7 @@ function resolveUrl(path) {
   if (/^https?:\/\//i.test(path)) {
     return path.trim();
   }
-  return `/${path.replace(/^\/+/, "")}`;
+  return path;
 }
 
 async function fetchText(url) {
