@@ -3,21 +3,20 @@
 <head>
   <meta charset="UTF-8">
   <title>Progress</title>
-  <script src="./js/progress.js"></script>
 </head>
 <body>
   <!-- content -->
 
   <script type="module">
     import { loadFromUrlParams, applyProjectModel } from './js/url.js';
+    import { loadFromCsvText } from './js/progress.js';
 
     (async function () {
       const loaded = await loadFromUrlParams();
       if (!loaded) return;
 
       if (loaded.ext === "csv") {
-        // global function from progress.js
-        loadFromCsvText(loaded.text);
+        await loadFromCsvText(loaded.text);
         return;
       }
 
