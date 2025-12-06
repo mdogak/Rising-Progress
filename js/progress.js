@@ -1566,6 +1566,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 /*****************
+});
  * Lightweight self-tests (console)
  *****************/
 
@@ -1821,14 +1822,13 @@ document.addEventListener('DOMContentLoaded', () => {
   try {
     const url = new URL(window.location.href);
     const wasRedirected = url.searchParams.get('redirected') === '1';
-    const hasPathParam = url.searchParams.has('path');
 
     // First try to restore any existing in-session project
     const hydrated = (typeof hydrateFromSession === 'function') ? hydrateFromSession() : false;
 
     // Only auto-load the default CSV if we did NOT hydrate from session
     // and this is not a post-login redirect
-    if (!hydrated && !wasRedirected && !hasPathParam) {
+    if (!hydrated && !wasRedirected) {
       fetch('Project_Files/default_progress_all.csv')
         .then(r => r.text())
         .then(t => loadFromPresetCsv(t))
