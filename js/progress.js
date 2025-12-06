@@ -980,6 +980,153 @@ const yAxisLabelAnnotation = { type:'label', xValue: labels[0], yValue: 50, cont
  * CSV helpers (Save/Load)
  *****************/
 
+export function loadFromCsvText(text) {
+  try {
+    // If this looks like XML, delegate to the XML loader.
+    if (/^\s*</.test(text)) {
+      loadFromXml(text);
+      return;
+    }
+
+    // Special case: simple S-curve CSV with cumulative planned/actual.
+    if (/^Date,Planned_Cumulative,Actual_Cumulative/m.test(text)) {
+      const lines = text.trim().split(/\r?\n/);
+      lines.shift(); // drop header
+      model.dailyActuals = {};
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        const parts = line.split(',');
+        const d = parts[0];
+        const a = parts[2];
+        if (d && a !== '' && !isNaN(parseFloat(a))) {
+          model.dailyActuals[d] = clamp(parseFloat(a) || 0, 0, 100);
+        }
+      }
+      computeAndRender();
+      if (window.sessionStorage) {
+        sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
+      }
+      return;
+    }
+
+    // Full project CSV produced by buildAllCSV().
+    const rows = parseCSV(text);
+    let section = '';
+
+    // Reset model before loading a full project CSV.
+    model = {
+      project: { name: '', startup: '', markerLabel: 'Baseline Complete' },
+      scopes: [],
+      history: [],
+      dailyActuals: {},
+      baseline: null,
+      daysRelativeToPlan: null
+    };
+    window.model = model;
+
+    let scopeHeaders = [];
+    let baselineRows = [];
+
+    for (const r of rows) {
+      if (r.length === 1 && r[0].startsWith('#SECTION:')) {
+        section = r[0].slice('#SECTION:'.length).trim();
+        continue;
+      }
+      if (r.length === 0 || (r.length === 1 && r[0] === '')) continue;
+
+      if (section === 'PROJECT') {
+        if (r[0] === 'key') continue;
+        if (r[0] === 'name') {
+          model.project.name = r[1] || '';
+        } else if (r[0] === 'startup') {
+          model.project.startup = r[1] || '';
+        } else if (r[0] === 'markerLabel') {
+          model.project.markerLabel = r[1] || 'Baseline Complete';
+        }
+      } else if (section === 'SCOPES') {
+        if (!scopeHeaders.length) {
+          scopeHeaders = r;
+          continue;
+        }
+        const idx = (name) => scopeHeaders.indexOf(name);
+        const s = {
+          label: r[idx('label')] || '',
+          start: r[idx('start')] || '',
+          end: r[idx('end')] || '',
+          cost: parseFloat(r[idx('cost')] || '0') || 0,
+          unitsToDate: parseFloat(r[idx('progressValue')] || '0') || 0,
+          totalUnits:
+            r[idx('totalUnits')] === undefined || r[idx('totalUnits')] === ''
+              ? ''
+              : (parseFloat(r[idx('totalUnits')]) || 0),
+          unitsLabel: r[idx('unitsLabel')] || '%',
+          actualPct: 0
+        };
+        s.actualPct = s.totalUnits
+          ? (s.unitsToDate && s.totalUnits ? (s.unitsToDate / s.totalUnits) * 100 : 0)
+          : (s.unitsToDate || 0);
+        model.scopes.push(s);
+      } else if (section === 'DAILY_ACTUALS') {
+        if (r[0] === 'date') continue;
+        const d = r[0];
+        const a = r[1];
+        if (d) {
+          model.dailyActuals[d] =
+            a === '' ? undefined : clamp(parseFloat(a) || 0, 0, 100);
+        }
+      } else if (section === 'HISTORY') {
+        if (r[0] === 'date') continue;
+        if (r[0]) {
+          model.history.push({
+            date: r[0],
+            actualPct: parseFloat(r[1] || '0') || 0
+          });
+        }
+      } else if (section === 'BASELINE') {
+        if (r[0] === 'date') continue;
+        baselineRows.push({
+          date: r[0],
+          val: r[1] === '' ? null : (parseFloat(r[1] || '0') || 0)
+        });
+      }
+    }
+
+    if (baselineRows.length) {
+      model.baseline = {
+        days: baselineRows.map((r) => r.date),
+        planned: baselineRows.map((r) =>
+          r.val == null ? null : clamp(r.val, 0, 100)
+        )
+      };
+    }
+
+    const projNameEl = document.getElementById('projectName');
+    if (projNameEl) projNameEl.value = model.project.name || '';
+    const startupEl = document.getElementById('projectStartup');
+    if (startupEl) startupEl.value = model.project.startup || '';
+    const markerEl = document.getElementById('startupLabelInput');
+    if (markerEl) markerEl.value = model.project.markerLabel || 'Baseline Complete';
+
+    if (typeof syncScopeRowsToModel === 'function') {
+      syncScopeRowsToModel();
+    }
+    computeAndRender();
+    if (window.sessionStorage) {
+      sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
+    }
+  } catch (err) {
+    console.error(err);
+    alert('Failed to parse CSV: ' + (err && err.message ? err.message : err));
+  }
+}
+
+// Also expose for any legacy global usage.
+if (typeof window !== 'undefined') {
+  window.loadFromCsvText = loadFromCsvText;
+}
+
+
+
 function escapeXml(v){
   if(v==null) return '';
   return String(v)
