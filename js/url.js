@@ -20,10 +20,21 @@ export async function loadFromUrlParams() {
 }
 
 function resolveUrl(path) {
+  if (!path) return null;
+
+  // Always remove ALL leading slashes
+  path = path.replace(/^\/+/, "");
+
+  // Absolute URL → return unchanged
   if (/^https?:\/\//i.test(path)) {
+    console.log("Resolved absolute URL:", path.trim());
     return path.trim();
   }
-  return `/${path.replace(/^\/+/, "")}`;
+
+  // Resolve relative to progress.html
+  const resolved = new URL(path, window.location.href).toString();
+  console.log("Resolved relative URL:", resolved);
+  return resolved;
 }
 
 async function fetchText(url) {
