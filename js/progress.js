@@ -1890,3 +1890,8 @@ function hasHistoryActualsAboveThreshold() {
     return isFinite(v) && v > 0.5;
   });
 }
+
+// Initialization protection check
+if (!window.computeAndRender) {
+  console.error('progress.js did not initialize!');
+}
