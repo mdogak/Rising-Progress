@@ -3,27 +3,30 @@
 <head>
   <meta charset="UTF-8">
   <title>Progress</title>
+  <script src="./js/progress.js"></script>
 </head>
 <body>
   <!-- content -->
+
   <script type="module">
-    import { loadFromUrlParams } from './js/url.js';
-    import { loadFromCsvText } from './js/csv.js';
+    import { loadFromUrlParams, applyProjectModel } from './js/url.js';
 
     (async function () {
       const loaded = await loadFromUrlParams();
       if (!loaded) return;
 
       if (loaded.ext === "csv") {
+        // global function from progress.js
         loadFromCsvText(loaded.text);
         return;
       }
+
       if (loaded.ext === "json") {
-        // applyProjectModel is in url.js
         applyProjectModel(JSON.parse(loaded.text));
         return;
       }
     })();
   </script>
+
 </body>
 </html>
