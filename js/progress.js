@@ -1,12 +1,5 @@
 import { getBaselineSeries, takeBaseline, renderDailyTable, initHistory } from './history.js';
 
-// Ensure legend text renders after files are loaded without needing a toggle
-document.querySelectorAll('input[type="file"]').forEach(el=>{
-  el.addEventListener('change', ()=>{
-    // Give parsing a tick, then recompute and render legend
-    setTimeout(()=>{ try{ refreshLegendNow(); }catch(e){} }, 30);
-  });
-});
 
 /*****************
  * Utilities
@@ -155,10 +148,14 @@ function onScopeChange(e){
 /*****************
  * Row +/- actions
  *****************/
-$('#scopeRows').addEventListener('click', (e)=>{
-  const btn = e.target.closest('button'); if(!btn) return; const row = e.target.closest('.row'); if(!row) return; const i = Number(row.dataset.index);
-  if(btn.classList.contains('del')){ model.scopes.splice(i,1); syncScopeRowsToModel(); computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); }
-  else if(btn.classList.contains('add')){ const newScope = defaultScope(i+1); model.scopes.splice(i+1,0,newScope); model.scopes = model.scopes.map((s,idx)=> ({...s, label: (s.label.startsWith('Scope #')? `Scope #${idx+1}` : s.label)})); syncScopeRowsToModel(); computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); }
+document.addEventListener('DOMContentLoaded', () => {
+  const scopeRowsEl = $('#scopeRows');
+  if (!scopeRowsEl) return;
+  scopeRowsEl.addEventListener('click', (e)=>{
+    const btn = e.target.closest('button'); if(!btn) return; const row = e.target.closest('.row'); if(!row) return; const i = Number(row.dataset.index);
+    if(btn.classList.contains('del')){ model.scopes.splice(i,1); syncScopeRowsToModel(); computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); }
+    else if(btn.classList.contains('add')){ const newScope = defaultScope(i+1); model.scopes.splice(i+1,0,newScope); model.scopes = model.scopes.map((s,idx)=> ({...s, label: (s.label.startsWith('Scope #')? `Scope #${idx+1}` : s.label)})); syncScopeRowsToModel(); computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); }
+  });
 });
 
 /*****************
@@ -1503,28 +1500,73 @@ function defaultAll(){
 /*****************
  * Events
  *****************/
-$('#projectName').addEventListener('input', computeAndRender);
-$('#projectStartup').addEventListener('change', computeAndRender);
-$('#startupLabelInput').addEventListener('input', computeAndRender);
-$('#labelToggle').addEventListener('change', computeAndRender);
+document.addEventListener('DOMContentLoaded', () => {
+  const projectNameEl = document.getElementById('projectName');
+  if (projectNameEl) {
+    projectNameEl.addEventListener('input', computeAndRender);
+  }
 
-// Toolbar Save/Load/Clear with confirmations
-$('#toolbarClear').addEventListener('click', ()=>{ if(!confirm('Clear scope fields and history?')) return; const ps = calcEarliestStart(); model.scopes = model.scopes.map(s=> ({...s, start:'', end:'', cost:0, unitsToDate:0, totalUnits:'', actualPct:0 })); if(ps){ const psStr = fmtDate(ps); Object.keys(model.dailyActuals).forEach(k=>{ if(k>=psStr) delete model.dailyActuals[k]; }); model.history = model.history.filter(h=> h.date < psStr); } syncScopeRowsToModel(); computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); });
+  const startupEl = document.getElementById('projectStartup');
+  if (startupEl) {
+    startupEl.addEventListener('change', computeAndRender);
+  }
 
+  const startupLabelEl = document.getElementById('startupLabelInput');
+  if (startupLabelEl) {
+    startupLabelEl.addEventListener('input', computeAndRender);
+  }
 
-// Baseline button behavior
-$('#baselineBtn').addEventListener('click', ()=>{
-  const {days, plannedCum} = calcPlannedSeriesByDay();
+  const labelToggleEl = document.getElementById('labelToggle');
+  if (labelToggleEl) {
+    labelToggleEl.addEventListener('change', computeAndRender);
+  }
 
-  // Always ask before saving baseline
-  if(!confirm('Are you sure you want to establish a new baseline for the project?')) return;
+  // Toolbar Save/Load/Clear with confirmations
+  const toolbarClearEl = document.getElementById('toolbarClear');
+  if (toolbarClearEl) {
+    toolbarClearEl.addEventListener('click', () => {
+      if (!confirm('Clear scope fields and history?')) return;
+      const ps = calcEarliestStart();
+      model.scopes = model.scopes.map(s => ({
+        ...s,
+        start: '',
+        end: '',
+        cost: 0,
+        unitsToDate: 0,
+        totalUnits: '',
+        actualPct: 0
+      }));
+      if (ps) {
+        const psStr = fmtDate(ps);
+        Object.keys(model.dailyActuals).forEach(k => {
+          if (k >= psStr) delete model.dailyActuals[k];
+        });
+        model.history = model.history.filter(h => h.date < psStr);
+      }
+      syncScopeRowsToModel();
+      computeAndRender();
+      sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
+    });
+  }
 
-  // Delegate baseline capture to history.js helper
-  takeBaseline(days, plannedCum, model);
-  computeAndRender();
-  // alert('Baseline captured.'); // (optional)
+  // Baseline button behavior
+  const baselineBtn = document.getElementById('baselineBtn');
+  if (baselineBtn) {
+    baselineBtn.addEventListener('click', () => {
+      const { days, plannedCum } = calcPlannedSeriesByDay();
+
+      // Always ask before saving baseline
+      if (!confirm('Are you sure you want to establish a new baseline for the project?')) return;
+
+      // Delegate baseline capture to history.js helper
+      takeBaseline(days, plannedCum, model);
+      computeAndRender();
+      // alert('Baseline captured.'); // (optional)
+    });
+  }
 });
 /*****************
+});
  * Lightweight self-tests (console)
  *****************/
 
