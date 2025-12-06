@@ -1,3 +1,4 @@
+const hasUrlParam = new URLSearchParams(window.location.search).has('url');
 import { getBaselineSeries, takeBaseline, renderDailyTable, initHistory } from './history.js';
 
 
