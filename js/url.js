@@ -34,10 +34,8 @@ async function fetchText(url) {
     const text = await res.text();
     const ext = url.toLowerCase().endsWith(".json") ? "json" : "csv";
 
-    // store url
-    if (window.model) {
-      window.model.loadedFromUrl = url;
-    }
+    if (!window.model) window.model = {};
+    window.model.loadedFromUrl = url;
 
     return { text, url, ext };
   } catch (err) {
