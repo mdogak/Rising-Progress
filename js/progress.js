@@ -167,7 +167,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     .then(t => loadFromPresetCsv(t))
     .catch(err => console.error("Failed to load default", err));
 });
-});
 
 /*****************
  * Calculations
@@ -1624,7 +1623,6 @@ document.querySelectorAll('input[type="file"]').forEach(el=>{
     // Give parsing a tick, then recompute and render legend
     setTimeout(()=>{ try{ refreshLegendNow(); }catch(e){} }, 30);
   });
-});
 
 // === Embedded CSV loader for "Pipeline" preset (default) ===
 function loadFromPresetCsv(text){
@@ -1826,27 +1824,8 @@ document.addEventListener('DOMContentLoaded', function () {
       closeDropdown();
     }
   });
-});
 
-// Auto-load default CSV once on initial load (session-only persistence)
-document.addEventListener('DOMContentLoaded', () => {
-  try {
-    const url = new URL(window.location.href);
-    const wasRedirected = url.searchParams.get('redirected') === '1';
-
-    // First try to restore any existing in-session project
-    const hydrated = (typeof hydrateFromSession === 'function') ? hydrateFromSession() : false;
-
-    // Only auto-load the default CSV if we did NOT hydrate from session
-    // and this is not a post-login redirect
-    if (!hydrated && !wasRedirected) {
-      fetch('Project_Files/default_progress_all.csv')
-        .then(r => r.text())
-        .then(t => loadFromPresetCsv(t))
-        .catch(err => {
-          console.error('Failed to auto-load default CSV:', err);
-        });
-    }
+}
 
     // Clean up the redirected flag from the URL to keep things tidy
     if (wasRedirected) {
