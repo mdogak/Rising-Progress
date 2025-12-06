@@ -343,6 +343,33 @@ document.addEventListener("DOMContentLoaded", () => {
   document.body.appendChild(badge);
 });
 </script>
+<script type="module">
+  import { loadFromUrlParams, applyProjectModel } from './js/url.js';
+  import { loadFromCsvText } from './js/progress.js';
+
+  (async () => {
+    try {
+      const loaded = await loadFromUrlParams();
+      if (!loaded) return;
+
+      if (loaded.ext === 'csv') {
+        await loadFromCsvText(loaded.text);
+        return;
+      }
+
+      if (loaded.ext === 'json') {
+        try {
+          const obj = JSON.parse(loaded.text);
+          applyProjectModel(obj);
+        } catch (e) {
+          console.error('Failed to parse JSON from URL path param', e);
+        }
+      }
+    } catch (e) {
+      console.error('Error in URL-based loader bootstrap', e);
+    }
+  })();
+</script>
 </body>
 </html>
 </div>
