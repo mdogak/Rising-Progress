@@ -1501,29 +1501,71 @@ function defaultAll(){
  * Events
  *****************/
 document.addEventListener('DOMContentLoaded', () => {
-$('#projectName').addEventListener('input', computeAndRender);
-$('#projectStartup').addEventListener('change', computeAndRender);
-$('#startupLabelInput').addEventListener('input', computeAndRender);
-$('#labelToggle').addEventListener('change', computeAndRender);
+  const projectNameEl = document.getElementById('projectName');
+  if (projectNameEl) {
+    projectNameEl.addEventListener('input', computeAndRender);
+  }
 
-// Toolbar Save/Load/Clear with confirmations
-$('#toolbarClear').addEventListener('click', ()=>{ if(!confirm('Clear scope fields and history?')) return; const ps = calcEarliestStart(); model.scopes = model.scopes.map(s=> ({...s, start:'', end:'', cost:0, unitsToDate:0, totalUnits:'', actualPct:0 })); if(ps){ const psStr = fmtDate(ps); Object.keys(model.dailyActuals).forEach(k=>{ if(k>=psStr) delete model.dailyActuals[k]; }); model.history = model.history.filter(h=> h.date < psStr); } syncScopeRowsToModel(); computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); });
+  const startupEl = document.getElementById('projectStartup');
+  if (startupEl) {
+    startupEl.addEventListener('change', computeAndRender);
+  }
 
+  const startupLabelEl = document.getElementById('startupLabelInput');
+  if (startupLabelEl) {
+    startupLabelEl.addEventListener('input', computeAndRender);
+  }
 
-// Baseline button behavior
-$('#baselineBtn').addEventListener('click', ()=>{
-  const {days, plannedCum} = calcPlannedSeriesByDay();
+  const labelToggleEl = document.getElementById('labelToggle');
+  if (labelToggleEl) {
+    labelToggleEl.addEventListener('change', computeAndRender);
+  }
 
-  // Always ask before saving baseline
-  if(!confirm('Are you sure you want to establish a new baseline for the project?')) return;
+  // Toolbar Save/Load/Clear with confirmations
+  const toolbarClearEl = document.getElementById('toolbarClear');
+  if (toolbarClearEl) {
+    toolbarClearEl.addEventListener('click', () => {
+      if (!confirm('Clear scope fields and history?')) return;
+      const ps = calcEarliestStart();
+      model.scopes = model.scopes.map(s => ({
+        ...s,
+        start: '',
+        end: '',
+        cost: 0,
+        unitsToDate: 0,
+        totalUnits: '',
+        actualPct: 0
+      }));
+      if (ps) {
+        const psStr = fmtDate(ps);
+        Object.keys(model.dailyActuals).forEach(k => {
+          if (k >= psStr) delete model.dailyActuals[k];
+        });
+        model.history = model.history.filter(h => h.date < psStr);
+      }
+      syncScopeRowsToModel();
+      computeAndRender();
+      sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
+    });
+  }
 
-  // Delegate baseline capture to history.js helper
-  takeBaseline(days, plannedCum, model);
-  computeAndRender();
-  // alert('Baseline captured.'); // (optional)
+  // Baseline button behavior
+  const baselineBtn = document.getElementById('baselineBtn');
+  if (baselineBtn) {
+    baselineBtn.addEventListener('click', () => {
+      const { days, plannedCum } = calcPlannedSeriesByDay();
+
+      // Always ask before saving baseline
+      if (!confirm('Are you sure you want to establish a new baseline for the project?')) return;
+
+      // Delegate baseline capture to history.js helper
+      takeBaseline(days, plannedCum, model);
+      computeAndRender();
+      // alert('Baseline captured.'); // (optional)
+    });
+  }
 });
 /*****************
-});
  * Lightweight self-tests (console)
  *****************/
 
@@ -1779,13 +1821,14 @@ document.addEventListener('DOMContentLoaded', () => {
   try {
     const url = new URL(window.location.href);
     const wasRedirected = url.searchParams.get('redirected') === '1';
+    const hasPathParam = url.searchParams.has('path');
 
     // First try to restore any existing in-session project
     const hydrated = (typeof hydrateFromSession === 'function') ? hydrateFromSession() : false;
 
     // Only auto-load the default CSV if we did NOT hydrate from session
     // and this is not a post-login redirect
-    if (!hydrated && !wasRedirected) {
+    if (!hydrated && !wasRedirected && !hasPathParam) {
       fetch('Project_Files/default_progress_all.csv')
         .then(r => r.text())
         .then(t => loadFromPresetCsv(t))
