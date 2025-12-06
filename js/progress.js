@@ -149,14 +149,24 @@ function onScopeChange(e){
 /*****************
  * Row +/- actions
  *****************/
-document.addEventListener('DOMContentLoaded', () => {
-  const scopeRowsEl = $('#scopeRows');
-  if (!scopeRowsEl) return;
-  scopeRowsEl.addEventListener('click', (e)=>{
-    const btn = e.target.closest('button'); if(!btn) return; const row = e.target.closest('.row'); if(!row) return; const i = Number(row.dataset.index);
-    if(btn.classList.contains('del')){ model.scopes.splice(i,1); syncScopeRowsToModel(); computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); }
-    else if(btn.classList.contains('add')){ const newScope = defaultScope(i+1); model.scopes.splice(i+1,0,newScope); model.scopes = model.scopes.map((s,idx)=> ({...s, label: (s.label.startsWith('Scope #')? `Scope #${idx+1}` : s.label)})); syncScopeRowsToModel(); computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); }
-  });
+document.addEventListener("DOMContentLoaded", async () => {
+  const params = new URLSearchParams(window.location.search);
+  const urlPath = params.get("path");
+  if (urlPath) {
+    const urlResult = await loadFromUrlParams();
+    if (urlResult && urlResult.text) {
+      loadFromCsvText(urlResult.text);
+      sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
+      return;
+    }
+  }
+  const hydrated = (typeof hydrateFromSession === 'function') ? hydrateFromSession() : false;
+  if (hydrated) return;
+  fetch("Project_Files/default_progress_all.csv")
+    .then(r => r.text())
+    .then(t => loadFromPresetCsv(t))
+    .catch(err => console.error("Failed to load default", err));
+});
 });
 
 /*****************
