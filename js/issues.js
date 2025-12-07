@@ -347,7 +347,6 @@ function closeIssuesModal(){
   }
 
   
-  
   function copyIssuesToClipboard(){
     const overlay = document.getElementById('issuesOverlay') || ensureOverlay();
 
@@ -355,19 +354,37 @@ function closeIssuesModal(){
     const subtitleEl = overlay.querySelector('.issues-modal-subtitle');
     const listEl = overlay.querySelector('#issuesList');
 
-    let lines = [];
+    const lines = [];
 
-    if (titleEl && titleEl.textContent) lines.push(titleEl.textContent.trim());
-    if (subtitleEl && subtitleEl.textContent) lines.push(subtitleEl.textContent.trim());
-    lines.push("");
+    if (titleEl && titleEl.textContent) {
+      lines.push(titleEl.textContent.trim());
+    }
+    if (subtitleEl && subtitleEl.textContent) {
+      lines.push(subtitleEl.textContent.trim());
+    }
+    lines.push('');
 
-    if (listEl) {
-      Array.from(listEl.children).forEach(li => {
-        const txt = li.textContent.trim();
-        if (txt.endsWith(':')) {
-          lines.push(txt); // header, no bullet
+    if (listEl && listEl.children && listEl.children.length) {
+      Array.prototype.forEach.call(listEl.children, function(li){
+        const txt = (li.textContent || '').trim();
+        if (!txt) return;
+        if (li.classList.contains('issues-scope-title')) {
+          // Scope header: no bullet, no extra spaces
+          lines.push(txt);
         } else {
-          lines.push('     • ' + txt); // 5 spaces + bullet
+          // Issue item: 5 spaces + bullet + space
+          lines.push('     • ' + txt);
+        }
+      });
+    } else {
+      // Fallback to buildIssues if list not yet built
+      const bullets = buildIssues();
+      bullets.forEach(function(text){
+        if (!text) return;
+        if (text.endsWith(':')) {
+          lines.push(text);
+        } else {
+          lines.push('     • ' + String(text).trim());
         }
       });
     }
@@ -376,14 +393,8 @@ function closeIssuesModal(){
 ');
 
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).catch(()=>fallbackCopy(text));
-    } else {
-      fallbackCopy(text);
-    }
-  }
-
-
-function fallbackCopy(text);
+      navigator.clipboard.writeText(text).catch(function(){
+        fallbackCopy(text);
       });
     } else {
       fallbackCopy(text);
