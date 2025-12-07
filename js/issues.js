@@ -348,62 +348,62 @@ function closeIssuesModal(){
 
   
   function copyIssuesToClipboard(){
-    const overlay = document.getElementById('issuesOverlay') || ensureOverlay();
-      const listEl = overlay.querySelector('#issuesList');
-      const titleEl = overlay.querySelector('#issuesTitle');
-      const subtitleEl = overlay.querySelector('.issues-modal-subtitle');
-      const dateEl = overlay.querySelector('#issuesLastHistory');
-    
-      // Build HTML manually so CSS formatting survives pasting
-      let html = '<div>';
-    
-      // Title
-      if (titleEl) {
-        html += `<div style="font-size:18px; font-weight:700; margin-bottom:4px;">${titleEl.textContent}</div>`;
-      }
-    
-      // Subtitle
-      if (subtitleEl) {
-        html += `<div style="color:#ea580c; margin-bottom:4px;">${subtitleEl.textContent}</div>`;
-      }
-    
-      // Updated date
-      if (dateEl && dateEl.textContent.trim() !== '') {
-        html += `<div style="font-size:13px; color:#4b5563; margin-bottom:12px;">${dateEl.textContent}</div>`;
-      }
-    
-      html += '<div>';
-    
-      // Issues list
-      Array.from(listEl.children).forEach(li => {
-        const text = li.textContent.trim();
-    
-        if (li.classList.contains('issues-scope-title')) {
-          // Scope header (bold, no bullet)
-          html += `<div style="font-weight:700; margin-top:10px;">${text}</div>`;
-        } else {
-          // Issue item (indented bullet)
-          html += `
-            <div style="margin-left:20px; display:flex; align-items:flex-start;">
-              <div style="margin-right:6px;">•</div>
-              <div>${text}</div>
-            </div>`;
+      const overlay = document.getElementById('issuesOverlay') || ensureOverlay();
+        const listEl = overlay.querySelector('#issuesList');
+        const titleEl = overlay.querySelector('#issuesTitle');
+        const subtitleEl = overlay.querySelector('.issues-modal-subtitle');
+        const dateEl = overlay.querySelector('#issuesLastHistory'); // New
+      
+        // Build HTML manually so CSS formatting survives pasting
+        let html = '<div>';
+      
+        // Title (bold)
+        if (titleEl) {
+          html += `<div style="font-size:18px; font-weight:700; margin-bottom:4px;">${titleEl.textContent}</div>`;
         }
-      });
-    
-      html += '</div></div>';
-    
-      // Copy with HTML first, and duplicate HTML for plain text to avoid unformatted fallback
-      if (navigator.clipboard && navigator.clipboard.write) {
-        navigator.clipboard.write([
-          new ClipboardItem({
-            "text/html": new Blob([html], { type: "text/html" }),
-            "text/plain": new Blob([html], { type: "text/plain" })
-          })
-        ]).catch(() => fallbackCopy(html));
-      } else {
-        fallbackCopy(html);
-      }
+      
+        // Subtitle (orange)
+        if (subtitleEl) {
+          html += `<div style="color:#ea580c; margin-bottom:4px;">${subtitleEl.textContent}</div>`;
+        }
+      
+        // 🔹 UPDATED DATE (same style used in modal, NOT bold)
+        if (dateEl && dateEl.textContent.trim() !== '') {
+          html += `<div style="font-size:13px; color:#4b5563; margin-bottom:12px;">${dateEl.textContent}</div>`;
+        }
+      
+        html += '<div>';
+      
+        // Issues list (headers + indented bullets)
+        Array.from(listEl.children).forEach(li => {
+          const text = li.textContent.trim();
+      
+          if (li.classList.contains('issues-scope-title')) {
+            // Scope header (bold, no bullet)
+            html += `<div style="font-weight:700; margin-top:10px;">${text}</div>`;
+          } else {
+            // Issue item (bullet + indent)
+            html += `
+              <div style="margin-left:20px; display:flex; align-items:flex-start;">
+                <div style="margin-right:6px;">•</div>
+                <div>${text}</div>
+              </div>`;
+          }
+        });
+      
+        html += '</div></div>';
+      
+        // Copy with HTML first, and HTML fallback
+        if (navigator.clipboard && navigator.clipboard.write) {
+          navigator.clipboard.write([
+            new ClipboardItem({
+              "text/html": new Blob([html], { type: "text/html" }),
+              "text/plain": new Blob([html], { type: "text/plain" })
+            })
+          ]).catch(() => fallbackCopy(html));
+        } else {
+          fallbackCopy(html);
+  }
   }
 
 function fallbackCopy(text){
