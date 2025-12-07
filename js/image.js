@@ -28,7 +28,7 @@ window.copyChartImageToClipboard = async function () {
   try {
     const originalCanvas = await captureRegionCanvas();
 
-    const targetWidth = 700;
+    const targetWidth = 800;
     const scaleFactor = targetWidth / originalCanvas.width;
     const targetHeight = originalCanvas.height * scaleFactor;
 
@@ -45,7 +45,7 @@ window.copyChartImageToClipboard = async function () {
 
     try {
       await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
-      alert("Image copied at email-friendly size (700px width)");
+      alert("Image copied at email-friendly size (800px width)");
     } catch (e) {
       const fallback = resizedCanvas.toDataURL('image/jpeg', 0.85);
       const a = document.createElement('a');
