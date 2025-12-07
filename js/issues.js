@@ -364,12 +364,12 @@ function closeIssuesModal(){
       
         // Subtitle (orange)
         if (subtitleEl) {
-          html += `<div style="color:#ea580c; margin-bottom:4px;">${subtitleEl.textContent}</div>`;
+          html += `<div style="font-weight:400;color:#ea580c; margin-bottom:4px;">${subtitleEl.textContent}</div>`;
         }
       
         // 🔹 UPDATED DATE (same style used in modal, NOT bold)
         if (dateEl && dateEl.textContent.trim() !== '') {
-          html += `<div style="font-size:13px; color:#4b5563; margin-bottom:12px;">${dateEl.textContent}</div>`;
+          html += `<div style="font-weight:400;font-size:13px; color:#4b5563; margin-bottom:12px;">${dateEl.textContent}</div>`;
         }
       
         html += '<div>';
@@ -384,7 +384,7 @@ function closeIssuesModal(){
           } else {
             // Issue item (bullet + indent)
             html += `
-              <div style="margin-left:20px; display:flex; align-items:flex-start;">
+              <div style="font-weight:400;margin-left:20px; display:flex; align-items:flex-start;">
                 <div style="margin-right:6px;">•</div>
                 <div>${text}</div>
               </div>`;
