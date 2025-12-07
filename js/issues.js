@@ -350,40 +350,30 @@ function closeIssuesModal(){
   function copyIssuesToClipboard(){
     const overlay = document.getElementById('issuesOverlay') || ensureOverlay();
 
-    const titleEl = overlay.querySelector('#issuesTitle');
-    const subtitleEl = overlay.querySelector('.issues-modal-subtitle');
+  const modal = overlay.querySelector('.issues-modal');
+  if (!modal) return;
 
-    let bullets = [];
-    const listEl = overlay.querySelector('#issuesList');
-    if (listEl && listEl.children.length) {
-      bullets = Array.from(listEl.children)
-        .map(li => li.textContent.trim())
-        .filter(Boolean);
-    } else {
-      bullets = buildIssues();
-    }
+  // Clone ONLY the content you want copied (title, subtitle, list)
+  const clone = modal.cloneNode(true);
 
-    if (!bullets || bullets.length === 0) return;
+  // Remove the Copy button from the cloned content
+  const copyBtn = clone.querySelector('#issuesCopyBtn');
+  if (copyBtn) copyBtn.remove();
 
-    const parts = [];
-    if (titleEl && titleEl.textContent) {
-      parts.push(titleEl.textContent.trim());
-    }
-    if (subtitleEl && subtitleEl.textContent) {
-      parts.push(subtitleEl.textContent.trim());
-    }
-    parts.push('');
-    parts.push(bullets.map(b => '• ' + b).join('\n'));
+  // Convert to rich HTML string
+  const html = clone.innerHTML;
 
-    const text = parts.join('\n');
-
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).catch(function(){
-        fallbackCopy(text);
-      });
-    } else {
-      fallbackCopy(text);
-    }
+  // Copy as HTML (rich text) + fallback plain text
+  if (navigator.clipboard && navigator.clipboard.write) {
+    navigator.clipboard.write([
+      new ClipboardItem({
+        "text/html": new Blob([html], { type: "text/html" }),
+        "text/plain": new Blob([clone.innerText], { type: "text/plain" })
+      })
+    ]).catch(() => fallbackCopy(clone.innerText));
+  } else {
+    fallbackCopy(clone.innerText);
+  }
   }
 
 function fallbackCopy(text){
