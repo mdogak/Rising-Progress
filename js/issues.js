@@ -348,31 +348,52 @@ function closeIssuesModal(){
 
   
   function copyIssuesToClipboard(){
-    const overlay = document.getElementById('issuesOverlay') || ensureOverlay();
+      const overlay = document.getElementById('issuesOverlay') || ensureOverlay();
+  const listEl = overlay.querySelector('#issuesList');
+  const titleEl = overlay.querySelector('#issuesTitle');
+  const subtitleEl = overlay.querySelector('.issues-modal-subtitle');
 
-  const modal = overlay.querySelector('.issues-modal');
-  if (!modal) return;
+  // Build HTML manually so CSS formatting survives pasting
+  let html = '<div>';
 
-  // Clone ONLY the content you want copied (title, subtitle, list)
-  const clone = modal.cloneNode(true);
+  if (titleEl) {
+    html += `<div style="font-size:18px; font-weight:700; margin-bottom:4px;">${titleEl.textContent}</div>`;
+  }
 
-  // Remove the Copy button from the cloned content
-  const copyBtn = clone.querySelector('#issuesCopyBtn');
-  if (copyBtn) copyBtn.remove();
+  if (subtitleEl) {
+    html += `<div style="color:#ea580c; margin-bottom:12px;">${subtitleEl.textContent}</div>`;
+  }
 
-  // Convert to rich HTML string
-  const html = clone.innerHTML;
+  html += '<div>';
 
-  // Copy as HTML (rich text) + fallback plain text
+  Array.from(listEl.children).forEach(li => {
+    const text = li.textContent.trim();
+
+    if (li.classList.contains('issues-scope-title')) {
+      // Scope header (bold, no bullet)
+      html += `<div style="font-weight:700; margin-top:10px;">${text}</div>`;
+    } else {
+      // Issue item (indented bullet)
+      html += `
+        <div style="margin-left:20px; display:flex; align-items:flex-start;">
+          <div style="margin-right:6px;">•</div>
+          <div>${text}</div>
+        </div>`;
+    }
+  });
+
+  html += '</div></div>';
+
+  // Copy with HTML first, plain text fallback
   if (navigator.clipboard && navigator.clipboard.write) {
     navigator.clipboard.write([
       new ClipboardItem({
         "text/html": new Blob([html], { type: "text/html" }),
-        "text/plain": new Blob([clone.innerText], { type: "text/plain" })
+        "text/plain": new Blob([html], { type: "text/plain" }) // duplicate HTML so formatting isn't lost
       })
-    ]).catch(() => fallbackCopy(clone.innerText));
+    ]).catch(() => fallbackCopy(html));
   } else {
-    fallbackCopy(clone.innerText);
+    fallbackCopy(html);
   }
   }
 
