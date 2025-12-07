@@ -494,3 +494,7 @@
 .scope-complete:hover {
   opacity: 0.75;
 }
+
+
+.issues-scope-title { list-style-type: none !important; }
+.issues-scope-item { list-style-type: disc; }
