@@ -352,45 +352,30 @@ function closeIssuesModal(){
 
     const titleEl = overlay.querySelector('#issuesTitle');
     const subtitleEl = overlay.querySelector('.issues-modal-subtitle');
+
+    let bullets = [];
     const listEl = overlay.querySelector('#issuesList');
+    if (listEl && listEl.children.length) {
+      bullets = Array.from(listEl.children)
+        .map(li => li.textContent.trim())
+        .filter(Boolean);
+    } else {
+      bullets = buildIssues();
+    }
 
-    const lines = [];
+    if (!bullets || bullets.length === 0) return;
 
+    const parts = [];
     if (titleEl && titleEl.textContent) {
-      lines.push(titleEl.textContent.trim());
+      parts.push(titleEl.textContent.trim());
     }
     if (subtitleEl && subtitleEl.textContent) {
-      lines.push(subtitleEl.textContent.trim());
+      parts.push(subtitleEl.textContent.trim());
     }
-    lines.push('');
+    parts.push('');
+    parts.push(bullets.map(b => '• ' + b).join('\n'));
 
-    if (listEl && listEl.children && listEl.children.length) {
-      Array.prototype.forEach.call(listEl.children, function(li){
-        const txt = (li.textContent || '').trim();
-        if (!txt) return;
-        if (li.classList.contains('issues-scope-title')) {
-          // Scope header: no bullet, no extra spaces
-          lines.push(txt);
-        } else {
-          // Issue item: 5 spaces + bullet + space
-          lines.push('     • ' + txt);
-        }
-      });
-    } else {
-      // Fallback to buildIssues if list not yet built
-      const bullets = buildIssues();
-      bullets.forEach(function(text){
-        if (!text) return;
-        if (text.endsWith(':')) {
-          lines.push(text);
-        } else {
-          lines.push('     • ' + String(text).trim());
-        }
-      });
-    }
-
-    const text = lines.join('
-');
+    const text = parts.join('\n');
 
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).catch(function(){
