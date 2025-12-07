@@ -347,39 +347,43 @@ function closeIssuesModal(){
   }
 
   
+  
   function copyIssuesToClipboard(){
     const overlay = document.getElementById('issuesOverlay') || ensureOverlay();
 
     const titleEl = overlay.querySelector('#issuesTitle');
     const subtitleEl = overlay.querySelector('.issues-modal-subtitle');
-
-    let bullets = [];
     const listEl = overlay.querySelector('#issuesList');
-    if (listEl && listEl.children.length) {
-      bullets = Array.from(listEl.children)
-        .map(li => li.textContent.trim())
-        .filter(Boolean);
-    } else {
-      bullets = buildIssues();
+
+    let lines = [];
+
+    if (titleEl && titleEl.textContent) lines.push(titleEl.textContent.trim());
+    if (subtitleEl && subtitleEl.textContent) lines.push(subtitleEl.textContent.trim());
+    lines.push("");
+
+    if (listEl) {
+      Array.from(listEl.children).forEach(li => {
+        const txt = li.textContent.trim();
+        if (txt.endsWith(':')) {
+          lines.push(txt); // header, no bullet
+        } else {
+          lines.push('     • ' + txt); // 5 spaces + bullet
+        }
+      });
     }
 
-    if (!bullets || bullets.length === 0) return;
-
-    const parts = [];
-    if (titleEl && titleEl.textContent) {
-      parts.push(titleEl.textContent.trim());
-    }
-    if (subtitleEl && subtitleEl.textContent) {
-      parts.push(subtitleEl.textContent.trim());
-    }
-    parts.push('');
-    parts.push(bullets.map(b => '• ' + b).join('\n'));
-
-    const text = parts.join('\n');
+    const text = lines.join('
+');
 
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).catch(function(){
-        fallbackCopy(text);
+      navigator.clipboard.writeText(text).catch(()=>fallbackCopy(text));
+    } else {
+      fallbackCopy(text);
+    }
+  }
+
+
+function fallbackCopy(text);
       });
     } else {
       fallbackCopy(text);
