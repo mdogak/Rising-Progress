@@ -348,42 +348,62 @@ function closeIssuesModal(){
 
   
   function copyIssuesToClipboard(){
-    const overlay = document.getElementById('issuesOverlay') || ensureOverlay();
-
-    const titleEl = overlay.querySelector('#issuesTitle');
-    const subtitleEl = overlay.querySelector('.issues-modal-subtitle');
-
-    let bullets = [];
-    const listEl = overlay.querySelector('#issuesList');
-    if (listEl && listEl.children.length) {
-      bullets = Array.from(listEl.children)
-        .map(li => li.textContent.trim())
-        .filter(Boolean);
-    } else {
-      bullets = buildIssues();
-    }
-
-    if (!bullets || bullets.length === 0) return;
-
-    const parts = [];
-    if (titleEl && titleEl.textContent) {
-      parts.push(titleEl.textContent.trim());
-    }
-    if (subtitleEl && subtitleEl.textContent) {
-      parts.push(subtitleEl.textContent.trim());
-    }
-    parts.push('');
-    parts.push(bullets.map(b => '• ' + b).join('\n'));
-
-    const text = parts.join('\n');
-
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).catch(function(){
-        fallbackCopy(text);
-      });
-    } else {
-      fallbackCopy(text);
-    }
+      const overlay = document.getElementById('issuesOverlay') || ensureOverlay();
+        const listEl = overlay.querySelector('#issuesList');
+        const titleEl = overlay.querySelector('#issuesTitle');
+        const subtitleEl = overlay.querySelector('.issues-modal-subtitle');
+        const dateEl = overlay.querySelector('#issuesLastHistory'); // New
+      
+        // Build HTML manually so CSS formatting survives pasting
+        let html = '<div>';
+      
+        // Title (bold)
+        if (titleEl) {
+          html += `<div style="font-size:18px; font-weight:700; margin-bottom:4px;">${titleEl.textContent}</div>`;
+        }
+      
+        // Subtitle (orange)
+        if (subtitleEl) {
+          html += `<div style="font-weight:400;color:#ea580c; margin-bottom:4px;">${subtitleEl.textContent}</div>`;
+        }
+      
+        // 🔹 UPDATED DATE (same style used in modal, NOT bold)
+        if (dateEl && dateEl.textContent.trim() !== '') {
+          html += `<div style="font-weight:400;font-size:13px; color:#4b5563; margin-bottom:12px;">${dateEl.textContent}</div>`;
+        }
+      
+        html += '<div>';
+      
+        // Issues list (headers + indented bullets)
+        Array.from(listEl.children).forEach(li => {
+          const text = li.textContent.trim();
+      
+          if (li.classList.contains('issues-scope-title')) {
+            // Scope header (bold, no bullet)
+            html += `<div style="font-weight:700; margin-top:10px;">${text}</div>`;
+          } else {
+            // Issue item (bullet + indent)
+            html += `
+              <div style="font-weight:400;margin-left:20px; display:flex; align-items:flex-start;">
+                <div style="margin-right:6px;">•</div>
+                <div>${text}</div>
+              </div>`;
+          }
+        });
+      
+        html += '</div></div>';
+      
+        // Copy with HTML first, and HTML fallback
+        if (navigator.clipboard && navigator.clipboard.write) {
+          navigator.clipboard.write([
+            new ClipboardItem({
+              "text/html": new Blob([html], { type: "text/html" }),
+              "text/plain": new Blob([html], { type: "text/plain" })
+            })
+          ]).catch(() => fallbackCopy(html));
+        } else {
+          fallbackCopy(html);
+  }
   }
 
 function fallbackCopy(text){
