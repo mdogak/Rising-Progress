@@ -1598,10 +1598,10 @@ document.addEventListener('DOMContentLoaded', function () {
         uploadCSVAndLoad();
       } else {
         let file = '';
-        if (act === 'default') file = 'Project_Files/default_progress_all.csv';
-        if (act === 'pipeline') file = 'Project_Files/Pipeline_progress_all.csv';
-        if (act === 'mech') file = 'Project_Files/Mech_Facility_progress_all.csv';
-        if (act === 'ie') file = 'Project_Files/I&E_Facility_progress_all.csv';
+        if (act === 'default') file = 'Project_Files/default_progress_all.prgs';
+        if (act === 'pipeline') file = 'Project_Files/Pipeline_progress_all.prgs';
+        if (act === 'mech') file = 'Project_Files/Mech_Facility_progress_all.prgs';
+        if (act === 'ie') file = 'Project_Files/I&E_Facility_progress_all.prgs';
 
         if (file) {
           fetch(file)
@@ -1640,7 +1640,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Only auto-load the default CSV if we did NOT hydrate from session
     // and this is not a post-login redirect
     if (!hydrated && !wasRedirected) {
-      fetch('Project_Files/default_progress_all.csv')
+      fetch('Project_Files/default_progress_all.prgs')
         .then(r => r.text())
         .then(t => loadFromPresetCsv(t))
         .catch(err => {
