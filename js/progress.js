@@ -1197,7 +1197,7 @@ function uploadCSVAndLoad(){
   // Clear saved data when opening a file
   if (window.sessionStorage) window.sessionStorage.removeItem(COOKIE_KEY);
   model = { project:{name:'', startup:'', markerLabel:'Baseline Complete'}, scopes:[], history:[], dailyActuals:{}, baseline:null, daysRelativeToPlan:null };
-  window.model = model; const inp = document.createElement('input'); inp.type='file'; inp.accept='.csv,text/plain,application/xml,.xml,.prgs,application/octet-stream'; inp.onchange = () => { const file = inp.files[0]; if(!file) return; const reader = new FileReader(); reader.onload = (e)=>{ try{ const text = e.target.result;
+  window.model = model; const inp = document.createElement('input'); inp.type='file'; inp.accept='.csv,text/csv,application/xml,.xml,.prgs,application/octet-stream'; inp.onchange = () => { const file = inp.files[0]; if(!file) return; const reader = new FileReader(); reader.onload = (e)=>{ try{ const text = e.target.result;
         const isXml = file && file.name && file.name.toLowerCase().endsWith('.xml');
         if(isXml || /^\s*</.test(text)){
           try{
@@ -1598,10 +1598,10 @@ document.addEventListener('DOMContentLoaded', function () {
         uploadCSVAndLoad();
       } else {
         let file = '';
-        if (act === 'default') file = 'Project_Files/default_progress_all.prgs';
-        if (act === 'pipeline') file = 'Project_Files/Pipeline_progress_all.prgs';
-        if (act === 'mech') file = 'Project_Files/Mech_Facility_progress_all.prgs';
-        if (act === 'ie') file = 'Project_Files/I&E_Facility_progress_all.prgs';
+        if (act === 'default') file = 'Project_Files/default_progress_all.csv';
+        if (act === 'pipeline') file = 'Project_Files/Pipeline_progress_all.csv';
+        if (act === 'mech') file = 'Project_Files/Mech_Facility_progress_all.csv';
+        if (act === 'ie') file = 'Project_Files/I&E_Facility_progress_all.csv';
 
         if (file) {
           fetch(file)
@@ -1640,7 +1640,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Only auto-load the default CSV if we did NOT hydrate from session
     // and this is not a post-login redirect
     if (!hydrated && !wasRedirected) {
-      fetch('Project_Files/default_progress_all.prgs')
+      fetch('Project_Files/default_progress_all.csv')
         .then(r => r.text())
         .then(t => loadFromPresetCsv(t))
         .catch(err => {
@@ -1703,10 +1703,10 @@ function hasHistoryActualsAboveThreshold() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    const loadBtn = document.getElementById('toolbarLoad');
-    if (loadBtn) loadBtn.textContent = "Open Project";
-    const saveBtn = document.getElementById('saveCSV');
-    if (saveBtn) saveBtn.textContent = "Save Project";
-    const saveXmlBtn = document.getElementById('saveXML');
-    if (saveXmlBtn) saveXmlBtn.textContent = "Export XML";
+  const loadBtn = document.getElementById('toolbarLoad');
+  if (loadBtn) loadBtn.textContent = "Open Project";
+  const saveBtn = document.getElementById('saveCSV');
+  if (saveBtn) saveBtn.textContent = "Save Project";
+  const saveXmlBtn = document.getElementById('saveXML');
+  if (saveXmlBtn) saveXmlBtn.textContent = "Export XML";
 });
