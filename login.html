@@ -21,7 +21,7 @@
     body {
         margin: 0;
         font-family: "Inter", sans-serif;
-        background: #ffffff;
+        background: rgba(255,255,255,0.20);
         height: 100vh;
         display: flex;
         justify-content: center;
@@ -37,11 +37,25 @@
         animation: fadeIn 0.5s ease;
         border-top: 8px solid #2563eb;
         text-align: center;
+        position: relative;
     }
 
     @keyframes fadeIn {
         from { opacity: 0; transform: translateY(20px); }
         to { opacity: 1; transform: translateY(0); }
+    }
+
+    .close-btn {
+        position: absolute;
+        top: 8px;
+        right: 12px;
+        font-size: 20px;
+        cursor: pointer;
+        color: #9ca3af;
+        transition: 0.2s;
+    }
+    .close-btn:hover {
+        color: #4b5563;
     }
 
     .logo {
@@ -127,6 +141,25 @@
         font-weight: 600;
     }
     .terms a:hover { text-decoration: underline; }
+
+    .or-divider {
+        display: flex;
+        align-items: center;
+        text-align: center;
+        margin: 16px 0 12px;
+        font-size: 13px;
+        color: #6b7280;
+    }
+    .or-divider::before,
+    .or-divider::after {
+        content: "";
+        flex: 1;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    .or-divider span {
+        margin: 0 8px;
+        text-transform: lowercase;
+    }
 </style>
 
 <script type="module">
@@ -137,63 +170,115 @@
         createUserWithEmailAndPassword,
         sendPasswordResetEmail,
         signInWithPopup,
-        GoogleAuthProvider
+        GoogleAuthProvider,
+        updateProfile
     } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 
-function getRedirectTarget() {
-    const params = new URLSearchParams(window.location.search);
-    const target = params.get("redirect") || "progress.html";
-    return target;
-}
-
-const firebaseConfig = {
-      apiKey: "AIzaSyDai5gpX1x9I3uaF4MI7WAzq2oItLRPoZA",
-      authDomain: "rising-progress.firebaseapp.com",
-      projectId: "rising-progress",
-};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const provider = new GoogleAuthProvider();
-
-window.login = function () {
-    const email = document.getElementById("email").value;
-    const password = document.getElementById("password").value;
-    signInWithEmailAndPassword(auth, email, password)
-        .then(() => window.location.href = getRedirectTarget())
-        .catch(err => alert(err.message));
-};
-
-window.signup = function () {
-    const email = document.getElementById("email").value;
-    const password = document.getElementById("password").value;
-    createUserWithEmailAndPassword(auth, email, password)
-        .then(() => window.location.href = getRedirectTarget())
-        .catch(err => alert(err.message));
-};
-
-window.googleLogin = function () {
-    signInWithPopup(auth, provider)
-        .then(() => window.location.href = getRedirectTarget())
-        .catch(err => alert(err.message));
-};
-
-window.resetPassword = function () {
-    const email = document.getElementById("email").value;
-    if (!email) {
-        alert("Enter your email above first.");
-        return;
+    function getRedirectTarget() {
+        const params = new URLSearchParams(window.location.search);
+        const target = params.get("redirect") || "progress.html";
+        return target;
     }
-    sendPasswordResetEmail(auth, email)
-        .then(() => alert("Password reset email sent."))
-        .catch(err => alert(err.message));
-};
+
+    const firebaseConfig = {
+          apiKey: "AIzaSyDai5gpX1x9I3uaF4MI7WAzq2oItLRPoZA",
+          authDomain: "rising-progress.firebaseapp.com",
+          projectId: "rising-progress",
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const provider = new GoogleAuthProvider();
+
+    window.login = function () {
+        const email = document.getElementById("email").value;
+        const password = document.getElementById("password").value;
+        signInWithEmailAndPassword(auth, email, password)
+            .then(() => window.location.href = getRedirectTarget())
+            .catch(err => alert(err.message));
+    };
+
+    window.showSignup = function () {
+        document.getElementById("loginCard").style.display = "none";
+        document.getElementById("signupCard").style.display = "block";
+    };
+
+    window.showLogin = function () {
+        document.getElementById("signupCard").style.display = "none";
+        document.getElementById("loginCard").style.display = "block";
+    };
+
+    function generateAvatarURL(first, last) {
+        const initials = encodeURIComponent(
+            (first.charAt(0) || "").toUpperCase() + (last.charAt(0) || "").toUpperCase()
+        );
+        return `https://ui-avatars.com/api/?name=${initials}&background=2563eb&color=ffffff`;
+    }
+
+    window.createAccount = function () {
+        const first = document.getElementById("firstName").value.trim();
+        const last = document.getElementById("lastName").value.trim();
+        const email = document.getElementById("signupEmail").value;
+        const password = document.getElementById("signupPassword").value;
+        const confirm = document.getElementById("signupConfirm").value;
+
+        if (!first || !last) {
+            alert("Please enter your first and last name.");
+            return;
+        }
+        if (!email || !password || !confirm) {
+            alert("Please fill out all fields.");
+            return;
+        }
+        if (password !== confirm) {
+            alert("Passwords do not match.");
+            return;
+        }
+
+        createUserWithEmailAndPassword(auth, email, password)
+            .then(async (cred) => {
+                const user = cred.user;
+                const avatar = generateAvatarURL(first, last);
+
+                try {
+                    await updateProfile(user, {
+                        displayName: `${first} ${last}`,
+                        photoURL: avatar
+                    });
+                } catch (e) {
+                    console.error("Profile update failed:", e);
+                }
+
+                window.location.href = getRedirectTarget();
+            })
+            .catch(err => alert(err.message));
+    };
+
+    window.googleLogin = function () {
+        signInWithPopup(auth, provider)
+            .then(() => window.location.href = getRedirectTarget())
+            .catch(err => alert(err.message));
+    };
+
+    window.resetPassword = function () {
+        const email = document.getElementById("email").value;
+        if (!email) {
+            alert("Enter your email above first.");
+            return;
+        }
+        sendPasswordResetEmail(auth, email)
+            .then(() => alert("Password reset email sent."))
+            .catch(err => alert(err.message));
+    };
 </script>
 
 </head>
 
 <body>
-    <div class="card">
+
+    <div class="card" id="loginCard">
+        <div class="close-btn" onclick="window.location.href='progress.html'">×</div>
+
         <img src="risingprogress.png" class="logo" alt="Rising Progress Logo">
 
         <div class="subtitle">Login for free trial to use all features</div>
@@ -206,10 +291,15 @@ window.resetPassword = function () {
         </div>
 
         <button class="btn btn-login" onclick="login()">Login</button>
-        <button class="btn btn-signup" onclick="signup()">Create Account</button>
+
+    
+      
+        <button class="btn btn-signup" onclick="showSignup()">Create Account</button>
+
+  
 
         <button class="btn google-btn" onclick="googleLogin()">
-            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" />
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" />
             Sign in with Google
         </button>
 
@@ -217,5 +307,27 @@ window.resetPassword = function () {
             By logging in, you accept the <a href="terms.html" target="_blank">Terms & Conditions</a>.
         </div>
     </div>
+
+    <div class="card" id="signupCard" style="display:none;">
+        <div class="close-btn" onclick="window.location.href='progress.html'">×</div>
+
+        <img src="risingprogress.png" class="logo" alt="Rising Progress Logo">
+
+        <div class="subtitle">Create your Rising Progress account</div>
+
+        <input id="firstName" type="text" placeholder="First Name" />
+        <input id="lastName" type="text" placeholder="Last Name" />
+        <input id="signupEmail" type="email" placeholder="Email" />
+        <input id="signupPassword" type="password" placeholder="Password" />
+        <input id="signupConfirm" type="password" placeholder="Confirm Password" />
+
+        <button class="btn btn-signup" onclick="createAccount()">Create Account</button>
+
+        <div class="terms">
+            Already have an account?
+            <a href="#" onclick="showLogin()">Back to login</a>
+        </div>
+    </div>
+
 </body>
 </html>
