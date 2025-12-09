@@ -1710,3 +1710,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const saveXmlBtn = document.getElementById('saveXML');
   if (saveXmlBtn) saveXmlBtn.textContent = "Export XML";
 });
+
+document.addEventListener('DOMContentLoaded', () => {
+  const loadBtn = document.getElementById('toolbarLoad');
+  if (loadBtn) loadBtn.innerHTML = "📂 Load Project ▾";
+  const ddItem = document.querySelector('#loadDropdown [data-act="open"]');
+  if (ddItem) ddItem.textContent = "Open Project";
+});
