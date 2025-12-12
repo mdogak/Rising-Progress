@@ -13,9 +13,15 @@ window.saveChartImageJpg = async function () {
   try {
     const canvas = await captureRegionCanvas();
     const url = canvas.toDataURL('image/jpeg', 0.92);
+
+    const projectName = (model.project?.name || 'project')
+        .trim()
+        .replace(/\s+/g, '_')
+        .replace(/[^a-zA-Z0-9_-]/g, '');
+    
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'chart.jpg';
+    a.download = `${projectName}_progress_chart.jpg`;
     document.body.appendChild(a);
     a.click();
     a.remove();
