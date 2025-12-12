@@ -1319,6 +1319,19 @@ function uploadCSVAndLoad(){
         }
         if(baselineRows.length){ model.baseline = { days: baselineRows.map(r=>r.date), planned: baselineRows.map(r=> (r.val==null? null : clamp(r.val,0,100))) }; }
         $('#projectName').value = model.project.name||''; $('#projectStartup').value = model.project.startup||''; $('#startupLabelInput').value = model.project.markerLabel || 'Baseline Complete';
+        
+        // Apply loaded project toggle states (PRGS)
+        (function(){
+          const proj = model.project || {};
+          const labelToggleEl = document.getElementById('labelToggle');
+          if (labelToggleEl && typeof proj.labelToggle !== 'undefined') {
+            labelToggleEl.checked = !!proj.labelToggle;
+          }
+          if (typeof proj.legendBaselineCheckbox !== 'undefined') baselineVisible = !!proj.legendBaselineCheckbox;
+          if (typeof proj.legendPlannedCheckbox !== 'undefined') plannedVisible = !!proj.legendPlannedCheckbox;
+          if (typeof proj.legendActualCheckbox !== 'undefined') actualVisible = !!proj.legendActualCheckbox;
+          if (typeof proj.legendForecastCheckbox !== 'undefined') forecastVisible = !!proj.legendForecastCheckbox;
+        })();
         syncScopeRowsToModel(); computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); 
 // alert('Full CSV loaded.');
       }catch(err){ alert('Failed to parse CSV: '+err.message); } };
@@ -1810,6 +1823,19 @@ function loadFromPresetCsv(text){
   document.getElementById('projectName').value = model.project.name||'';
   document.getElementById('projectStartup').value = model.project.startup||'';
   document.getElementById('startupLabelInput').value = model.project.markerLabel || 'Baseline Complete';
+  
+  // Apply loaded project toggle states (PRGS preset)
+  (function(){
+    const proj = model.project || {};
+    const labelToggleEl = document.getElementById('labelToggle');
+    if (labelToggleEl && typeof proj.labelToggle !== 'undefined') {
+      labelToggleEl.checked = !!proj.labelToggle;
+    }
+    if (typeof proj.legendBaselineCheckbox !== 'undefined') baselineVisible = !!proj.legendBaselineCheckbox;
+    if (typeof proj.legendPlannedCheckbox !== 'undefined') plannedVisible = !!proj.legendPlannedCheckbox;
+    if (typeof proj.legendActualCheckbox !== 'undefined') actualVisible = !!proj.legendActualCheckbox;
+    if (typeof proj.legendForecastCheckbox !== 'undefined') forecastVisible = !!proj.legendForecastCheckbox;
+  })();
   syncScopeRowsToModel(); computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
 }
 
