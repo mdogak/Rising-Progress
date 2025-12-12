@@ -1015,28 +1015,18 @@ function buildMSPXML() {
   addProjAttr('Text1', 'Startup', proj.startup || '');
   addProjAttr('Text2', 'MarkerLabel', proj.markerLabel || 'Baseline Complete');
 
-  // Legend / label flags (mirror PRGS behavior)
+  // Legend / label flags - always use current UI checkbox state when available
   const labelToggleEl = document.getElementById('labelToggle');
+  const baselineCb = document.getElementById('legendBaselineCheckbox');
+  const plannedCb = document.getElementById('legendPlannedCheckbox');
+  const actualCb = document.getElementById('legendActualCheckbox');
+  const forecastCb = document.getElementById('legendForecastCheckbox');
 
-  const labelToggleFlag = (typeof proj.labelToggle !== 'undefined')
-    ? !!proj.labelToggle
-    : !!(labelToggleEl && labelToggleEl.checked);
-
-  const legendBaselineFlag = (typeof proj.legendBaselineCheckbox !== 'undefined')
-    ? !!proj.legendBaselineCheckbox
-    : (typeof baselineVisible !== 'undefined' ? !!baselineVisible : true);
-
-  const legendPlannedFlag = (typeof proj.legendPlannedCheckbox !== 'undefined')
-    ? !!proj.legendPlannedCheckbox
-    : (typeof plannedVisible !== 'undefined' ? !!plannedVisible : true);
-
-  const legendActualFlag = (typeof proj.legendActualCheckbox !== 'undefined')
-    ? !!proj.legendActualCheckbox
-    : (typeof actualVisible !== 'undefined' ? !!actualVisible : true);
-
-  const legendForecastFlag = (typeof proj.legendForecastCheckbox !== 'undefined')
-    ? !!proj.legendForecastCheckbox
-    : (typeof forecastVisible !== 'undefined' ? !!forecastVisible : true);
+  const labelToggleFlag = !!(labelToggleEl && typeof labelToggleEl.checked === 'boolean' ? labelToggleEl.checked : (proj.labelToggle || false));
+  const legendBaselineFlag = !!(baselineCb && typeof baselineCb.checked === 'boolean' ? baselineCb.checked : (typeof proj.legendBaselineCheckbox !== 'undefined' ? proj.legendBaselineCheckbox : true));
+  const legendPlannedFlag = !!(plannedCb && typeof plannedCb.checked === 'boolean' ? plannedCb.checked : (typeof proj.legendPlannedCheckbox !== 'undefined' ? proj.legendPlannedCheckbox : true));
+  const legendActualFlag = !!(actualCb && typeof actualCb.checked === 'boolean' ? actualCb.checked : (typeof proj.legendActualCheckbox !== 'undefined' ? proj.legendActualCheckbox : true));
+  const legendForecastFlag = !!(forecastCb && typeof forecastCb.checked === 'boolean' ? forecastCb.checked : (typeof proj.legendForecastCheckbox !== 'undefined' ? proj.legendForecastCheckbox : true));
 
   addProjAttr('Text3', 'LabelToggle', labelToggleFlag ? 'true' : 'false');
   addProjAttr('Text4', 'LegendBaselineCheckbox', legendBaselineFlag ? 'true' : 'false');
@@ -1180,9 +1170,42 @@ function buildAllCSV(){
   // PROJECT section
   out += '#SECTION:PROJECT\n';
   out += 'key,value\n';
+
+  const proj = model.project || {};
+  const labelToggleEl = document.getElementById('labelToggle');
+  const baselineCb = document.getElementById('legendBaselineCheckbox');
+  const plannedCb = document.getElementById('legendPlannedCheckbox');
+  const actualCb = document.getElementById('legendActualCheckbox');
+  const forecastCb = document.getElementById('legendForecastCheckbox');
+
+  const labelToggleVal = (labelToggleEl && typeof labelToggleEl.checked === 'boolean')
+    ? !!labelToggleEl.checked
+    : !!proj.labelToggle;
+
+  const legendBaselineVal = (baselineCb && typeof baselineCb.checked === 'boolean')
+    ? !!baselineCb.checked
+    : (typeof proj.legendBaselineCheckbox !== 'undefined' ? !!proj.legendBaselineCheckbox : true);
+
+  const legendPlannedVal = (plannedCb && typeof plannedCb.checked === 'boolean')
+    ? !!plannedCb.checked
+    : (typeof proj.legendPlannedCheckbox !== 'undefined' ? !!proj.legendPlannedCheckbox : true);
+
+  const legendActualVal = (actualCb && typeof actualCb.checked === 'boolean')
+    ? !!actualCb.checked
+    : (typeof proj.legendActualCheckbox !== 'undefined' ? !!proj.legendActualCheckbox : true);
+
+  const legendForecastVal = (forecastCb && typeof forecastCb.checked === 'boolean')
+    ? !!forecastCb.checked
+    : (typeof proj.legendForecastCheckbox !== 'undefined' ? !!proj.legendForecastCheckbox : true);
+
   out += csvLine(['name', model.project.name || '']);
   out += csvLine(['startup', model.project.startup || '']);
   out += csvLine(['markerLabel', model.project.markerLabel || 'Baseline Complete']);
+  out += csvLine(['labelToggle', labelToggleVal ? 'true' : 'false']);
+  out += csvLine(['legendBaselineCheckbox', legendBaselineVal ? 'true' : 'false']);
+  out += csvLine(['legendPlannedCheckbox', legendPlannedVal ? 'true' : 'false']);
+  out += csvLine(['legendActualCheckbox', legendActualVal ? 'true' : 'false']);
+  out += csvLine(['legendForecastCheckbox', legendForecastVal ? 'true' : 'false']);
   out += '\n';
 
   // SCOPES section
@@ -1283,12 +1306,6 @@ function uploadCSVAndLoad(){
         let scopeHeaders = []; let baselineRows = [];
         for(let r of rows){ if(r.length===1 && r[0].startsWith('#SECTION:')){ section = r[0].slice('#SECTION:'.length).trim(); continue; } if(r.length===0 || (r.length===1 && r[0]==='')) continue;
           if(section==='PROJECT'){ if(r[0]==='key') { continue; } if(r[0]==='name') model.project.name = r[1]||''; if(r[0]==='startup') model.project.startup = r[1]||''; if(r[0]==='markerLabel') model.project.markerLabel = r[1]||'Baseline Complete';
-      if(r[0]==='labelToggle') localModel.project.labelToggle = (r[1]==='true');
-      if(r[0]==='legendBaselineCheckbox') localModel.project.legendBaselineCheckbox = (r[1]==='true');
-      if(r[0]==='legendPlannedCheckbox') localModel.project.legendPlannedCheckbox = (r[1]==='true');
-      if(r[0]==='legendActualCheckbox') localModel.project.legendActualCheckbox = (r[1]==='true');
-      if(r[0]==='legendForecastCheckbox') localModel.project.legendForecastCheckbox = (r[1]==='true');
-
             if(r[0]==='labelToggle') model.project.labelToggle = (r[1]==='true');
             if(r[0]==='legendBaselineCheckbox') model.project.legendBaselineCheckbox = (r[1]==='true');
             if(r[0]==='legendPlannedCheckbox') model.project.legendPlannedCheckbox = (r[1]==='true');
@@ -1748,6 +1765,11 @@ function loadFromPresetCsv(text){
       if(r[0]==='name') localModel.project.name = r[1]||'';
       if(r[0]==='startup') localModel.project.startup = r[1]||'';
       if(r[0]==='markerLabel') localModel.project.markerLabel = r[1]||'Baseline Complete';
+      if(r[0]==='labelToggle') localModel.project.labelToggle = (r[1]==='true');
+      if(r[0]==='legendBaselineCheckbox') localModel.project.legendBaselineCheckbox = (r[1]==='true');
+      if(r[0]==='legendPlannedCheckbox') localModel.project.legendPlannedCheckbox = (r[1]==='true');
+      if(r[0]==='legendActualCheckbox') localModel.project.legendActualCheckbox = (r[1]==='true');
+      if(r[0]==='legendForecastCheckbox') localModel.project.legendForecastCheckbox = (r[1]==='true');
     } else if(section==='SCOPES'){
       if(!scopeHeaders.length){ scopeHeaders = r; continue; }
       const idx = (name)=> scopeHeaders.indexOf(name);
