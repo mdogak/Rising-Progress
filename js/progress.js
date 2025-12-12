@@ -994,30 +994,21 @@ function escapeXml(v){
 function buildMSPXML() {
   const proj = model.project || {};
   let xml = '';
-  xml += '<?xml version="1.0" encoding="UTF-8"?>
-';
-  xml += '<Project xmlns="http://schemas.microsoft.com/project">
-';
+  xml += '<?xml version="1.0" encoding="UTF-8"?>\n';
+  xml += '<Project xmlns="http://schemas.microsoft.com/project">\n';
 
   // Project name
-  xml += '  <Name>' + escapeXml(proj.name || '') + '</Name>
-';
+  xml += '  <Name>' + escapeXml(proj.name || '') + '</Name>\n';
 
   // Project-level ExtendedAttributes (Microsoft Project schema)
-  xml += '  <ExtendedAttributes>
-';
+  xml += '  <ExtendedAttributes>\n';
 
   function addProjAttr(fieldID, name, value) {
-    xml += '    <ExtendedAttribute>
-';
-    xml += '      <FieldID>' + fieldID + '</FieldID>
-';
-    xml += '      <Name>' + name + '</Name>
-';
-    xml += '      <Value><![CDATA[' + (value || '') + ']]></Value>
-';
-    xml += '    </ExtendedAttribute>
-';
+    xml += '    <ExtendedAttribute>\n';
+    xml += '      <FieldID>' + fieldID + '</FieldID>\n';
+    xml += '      <Name>' + name + '</Name>\n';
+    xml += '      <Value><![CDATA[' + (value || '') + ']]></Value>\n';
+    xml += '    </ExtendedAttribute>\n';
   }
 
   // Core project fields
@@ -1060,8 +1051,7 @@ function buildMSPXML() {
       const d = model.baseline.days[i];
       const v = model.baseline.planned[i];
       if (!d) continue;
-      baselineCSV += d + ',' + (v == null ? '' : v) + '
-';
+      baselineCSV += d + ',' + (v == null ? '' : v) + '\n';
     }
   }
   addProjAttr('Text8', 'BaselineHistory', baselineCSV);
@@ -1072,8 +1062,7 @@ function buildMSPXML() {
     model.history.forEach(h => {
       if (!h || !h.date) return;
       const v = (h.actualPct != null ? h.actualPct : 0);
-      actualCSV += h.date + ',' + v + '
-';
+      actualCSV += h.date + ',' + v + '\n';
     });
   }
   addProjAttr('Text9', 'ActualHistory', actualCSV);
@@ -1084,30 +1073,22 @@ function buildMSPXML() {
     Object.keys(model.dailyActuals).sort().forEach(d => {
       const v = model.dailyActuals[d];
       if (!d) return;
-      dailyCSV += d + ',' + (v == null ? '' : v) + '
-';
+      dailyCSV += d + ',' + (v == null ? '' : v) + '\n';
     });
   }
   addProjAttr('Text10', 'DailyActuals', dailyCSV);
 
-  xml += '  </ExtendedAttributes>
-';
+  xml += '  </ExtendedAttributes>\n';
 
   // Tasks: one per scope
-  xml += '  <Tasks>
-';
+  xml += '  <Tasks>\n';
 
   function addTaskAttr(fieldID, name, value) {
-    xml += '        <ExtendedAttribute>
-';
-    xml += '          <FieldID>' + fieldID + '</FieldID>
-';
-    xml += '          <Name>' + name + '</Name>
-';
-    xml += '          <Value><![CDATA[' + (value || '') + ']]></Value>
-';
-    xml += '        </ExtendedAttribute>
-';
+    xml += '        <ExtendedAttribute>\n';
+    xml += '          <FieldID>' + fieldID + '</FieldID>\n';
+    xml += '          <Name>' + name + '</Name>\n';
+    xml += '          <Value><![CDATA[' + (value || '') + ']]></Value>\n';
+    xml += '        </ExtendedAttribute>\n';
   }
 
   (model.scopes || []).forEach((s, idx) => {
@@ -1117,32 +1098,23 @@ function buildMSPXML() {
     const pct = clamp(isFinite(s.actualPct) ? Number(s.actualPct) || 0 : 0, 0, 100);
     const cost = isFinite(s.cost) ? s.cost : 0;
 
-    xml += '    <Task>
-';
-    xml += '      <UID>' + (idx + 1) + '</UID>
-';
-    xml += '      <ID>' + (idx + 1) + '</ID>
-';
-    xml += '      <Name>' + escapeXml(label) + '</Name>
-';
+    xml += '    <Task>\n';
+    xml += '      <UID>' + (idx + 1) + '</UID>\n';
+    xml += '      <ID>' + (idx + 1) + '</ID>\n';
+    xml += '      <Name>' + escapeXml(label) + '</Name>\n';
 
     if (start) {
-      xml += '      <Start>' + start + 'T08:00:00</Start>
-';
+      xml += '      <Start>' + start + 'T08:00:00</Start>\n';
     }
     if (end) {
-      xml += '      <Finish>' + end + 'T17:00:00</Finish>
-';
+      xml += '      <Finish>' + end + 'T17:00:00</Finish>\n';
     }
 
-    xml += '      <PercentComplete>' + pct + '</PercentComplete>
-';
-    xml += '      <Cost>' + cost + '</Cost>
-';
+    xml += '      <PercentComplete>' + pct + '</PercentComplete>\n';
+    xml += '      <Cost>' + cost + '</Cost>\n';
 
     // Task-level ExtendedAttributes for remaining PRGS scope fields
-    xml += '      <ExtendedAttributes>
-';
+    xml += '      <ExtendedAttributes>\n';
     const unitsToDate = (s.unitsToDate != null ? String(s.unitsToDate) : '');
     const totalUnits = (s.totalUnits != null ? String(s.totalUnits) : '');
     const unitsLabel = s.unitsLabel || '';
@@ -1150,18 +1122,18 @@ function buildMSPXML() {
     addTaskAttr('Text11', 'UnitsToDate', unitsToDate);
     addTaskAttr('Text12', 'TotalUnits', totalUnits);
     addTaskAttr('Text13', 'UnitsLabel', unitsLabel);
-    xml += '      </ExtendedAttributes>
-';
+    xml += '      </ExtendedAttributes>\n';
 
-    xml += '    </Task>
-';
+    xml += '    </Task>\n';
   });
 
-  xml += '  </Tasks>
-';
+  xml += '  </Tasks>\n';
   xml += '</Project>';
   return xml;
 }
+
+
+
 
 async function saveXml(){
   try{
@@ -1330,16 +1302,16 @@ function loadFromXml(xmlText){
   const parser = new DOMParser();
   const doc = parser.parseFromString(xmlText, 'application/xml');
   const perr = doc.getElementsByTagName('parsererror');
-  if(perr && perr.length){ throw new Error('Invalid XML'); }
+  if (perr && perr.length) { throw new Error('Invalid XML'); }
 
   const projEl = doc.getElementsByTagName('Project')[0];
-  if(!projEl){ throw new Error('No <Project> element found'); }
+  if (!projEl) { throw new Error('No <Project> element found'); }
 
   // Project name
   const nameEl = projEl.getElementsByTagName('Name')[0];
   const projectName = nameEl ? nameEl.textContent : '';
 
-  // Project-level ExtendedAttributes
+  // Project-level ExtendedAttributes (those whose parent is the Project element)
   let startupVal = '';
   let markerLabelVal = '';
   let labelToggleFlag;
@@ -1351,7 +1323,14 @@ function loadFromXml(xmlText){
   let actualHistoryStr = '';
   let dailyActualsStr = '';
 
-  const projExtRoot = projEl.getElementsByTagName('ExtendedAttributes')[0];
+  const projExtRoots = projEl.getElementsByTagName('ExtendedAttributes');
+  let projExtRoot = null;
+  for (let i = 0; i < projExtRoots.length; i++) {
+    if (projExtRoots[i].parentNode === projEl) {
+      projExtRoot = projExtRoots[i];
+      break;
+    }
+  }
   if (projExtRoot) {
     const projExts = projExtRoot.getElementsByTagName('ExtendedAttribute');
     for (let i = 0; i < projExts.length; i++) {
@@ -1378,16 +1357,16 @@ function loadFromXml(xmlText){
   }
 
   const newModel = {
-    project:{
+    project: {
       name: projectName || '',
       startup: startupVal || '',
       markerLabel: markerLabelVal || 'Baseline Complete'
     },
-    scopes:[],
-    history:[],
-    dailyActuals:{},
-    baseline:null,
-    daysRelativeToPlan:null
+    scopes: [],
+    history: [],
+    dailyActuals: {},
+    baseline: null,
+    daysRelativeToPlan: null
   };
 
   // Apply legend + label flags
@@ -1409,8 +1388,7 @@ function loadFromXml(xmlText){
 
   // Baseline from CSV
   if (baselineHistoryStr) {
-    const lines = baselineHistoryStr.split(/?
-/);
+    const lines = baselineHistoryStr.split(/\r?\n/);
     const rows = [];
     for (let line of lines) {
       if (!line) continue;
@@ -1423,7 +1401,7 @@ function loadFromXml(xmlText){
         const num = parseFloat(vStr);
         if (!isNaN(num)) val = clamp(num, 0, 100);
       }
-      rows.push({ date:d, val:val });
+      rows.push({ date: d, val: val });
     }
     if (rows.length) {
       newModel.baseline = {
@@ -1435,8 +1413,7 @@ function loadFromXml(xmlText){
 
   // History from CSV
   if (actualHistoryStr) {
-    const lines = actualHistoryStr.split(/?
-/);
+    const lines = actualHistoryStr.split(/\r?\n/);
     const hist = [];
     for (let line of lines) {
       if (!line) continue;
@@ -1446,7 +1423,7 @@ function loadFromXml(xmlText){
       const vStr = (parts[1] || '').trim();
       const num = parseFloat(vStr);
       if (!isNaN(num)) {
-        hist.push({ date:d, actualPct: clamp(num, 0, 100) });
+        hist.push({ date: d, actualPct: clamp(num, 0, 100) });
       }
     }
     if (hist.length) {
@@ -1456,8 +1433,7 @@ function loadFromXml(xmlText){
 
   // DailyActuals from CSV
   if (dailyActualsStr) {
-    const lines = dailyActualsStr.split(/?
-/);
+    const lines = dailyActualsStr.split(/\r?\n/);
     const da = {};
     for (let line of lines) {
       if (!line) continue;
@@ -1503,12 +1479,20 @@ function loadFromXml(xmlText){
 
     const pct = clamp(parseFloat(pctRaw) || 0, 0, 100);
 
-    // Task ExtendedAttributes
+    // Task ExtendedAttributes: UnitsToDate, TotalUnits, UnitsLabel
     let unitsToDate = '';
     let totalUnits = '';
     let unitsLabel = '';
 
-    const tExtRoot = t.getElementsByTagName('ExtendedAttributes')[0];
+    // Find ExtendedAttributes element whose parent is this Task
+    let tExtRoot = null;
+    const tExtRoots = t.getElementsByTagName('ExtendedAttributes');
+    for (let j = 0; j < tExtRoots.length; j++) {
+      if (tExtRoots[j].parentNode === t) {
+        tExtRoot = tExtRoots[j];
+        break;
+      }
+    }
     if (tExtRoot) {
       const tExts = tExtRoot.getElementsByTagName('ExtendedAttribute');
       for (let j = 0; j < tExts.length; j++) {
@@ -1601,6 +1585,9 @@ function loadFromXml(xmlText){
   computeAndRender();
   sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
 }
+
+
+
 
 /*****************
  * Persistence and Controls
