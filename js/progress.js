@@ -1282,7 +1282,19 @@ function uploadCSVAndLoad(){
         const rows = parseCSV(text); let section = ''; model = { project:{name:'',startup:'', markerLabel:'Baseline Complete'}, scopes:[], history:[], dailyActuals:{}, baseline:null, daysRelativeToPlan:null }; window.model = model; window.model = model;
         let scopeHeaders = []; let baselineRows = [];
         for(let r of rows){ if(r.length===1 && r[0].startsWith('#SECTION:')){ section = r[0].slice('#SECTION:'.length).trim(); continue; } if(r.length===0 || (r.length===1 && r[0]==='')) continue;
-          if(section==='PROJECT'){ if(r[0]==='key') { continue; } if(r[0]==='name') model.project.name = r[1]||''; if(r[0]==='startup') model.project.startup = r[1]||''; if(r[0]==='markerLabel') model.project.markerLabel = r[1]||'Baseline Complete'; }
+          if(section==='PROJECT'){ if(r[0]==='key') { continue; } if(r[0]==='name') model.project.name = r[1]||''; if(r[0]==='startup') model.project.startup = r[1]||''; if(r[0]==='markerLabel') model.project.markerLabel = r[1]||'Baseline Complete';
+      if(r[0]==='labelToggle') localModel.project.labelToggle = (r[1]==='true');
+      if(r[0]==='legendBaselineCheckbox') localModel.project.legendBaselineCheckbox = (r[1]==='true');
+      if(r[0]==='legendPlannedCheckbox') localModel.project.legendPlannedCheckbox = (r[1]==='true');
+      if(r[0]==='legendActualCheckbox') localModel.project.legendActualCheckbox = (r[1]==='true');
+      if(r[0]==='legendForecastCheckbox') localModel.project.legendForecastCheckbox = (r[1]==='true');
+
+            if(r[0]==='labelToggle') model.project.labelToggle = (r[1]==='true');
+            if(r[0]==='legendBaselineCheckbox') model.project.legendBaselineCheckbox = (r[1]==='true');
+            if(r[0]==='legendPlannedCheckbox') model.project.legendPlannedCheckbox = (r[1]==='true');
+            if(r[0]==='legendActualCheckbox') model.project.legendActualCheckbox = (r[1]==='true');
+            if(r[0]==='legendForecastCheckbox') model.project.legendForecastCheckbox = (r[1]==='true');
+ }
           else if(section==='SCOPES'){ if(!scopeHeaders.length){ scopeHeaders = r; continue; } const idx = (name)=> scopeHeaders.indexOf(name); const s = { label: r[idx('label')]||'', start: r[idx('start')]||'', end: r[idx('end')]||'', cost: parseFloat(r[idx('cost')]||'0')||0, unitsToDate: parseFloat(r[idx('progressValue')]||'0')||0, totalUnits: (r[idx('totalUnits')]===undefined||r[idx('totalUnits')]==='')? '' : (parseFloat(r[idx('totalUnits')])||0), unitsLabel: r[idx('unitsLabel')]||'%', actualPct: 0 }; s.actualPct = s.totalUnits? (s.unitsToDate && s.totalUnits? (s.unitsToDate/s.totalUnits*100) : 0) : (s.unitsToDate||0); model.scopes.push(s); }
           else if(section==='DAILY_ACTUALS'){ if(r[0]==='date') continue; const d = r[0]; const a = r[1]; if(d){ model.dailyActuals[d] = a===''? undefined : clamp(parseFloat(a)||0,0,100); } }
           else if(section==='HISTORY'){ if(r[0]==='date') continue; if(r[0]) model.history.push({date:r[0], actualPct: parseFloat(r[1]||'0')||0}); }
