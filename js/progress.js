@@ -616,29 +616,6 @@ function computeAndRender(){
   model.project.name = $('#projectName').value.trim();
   model.project.startup = $('#projectStartup').value;
   model.project.markerLabel = ($('#startupLabelInput').value || 'Baseline Complete').trim();
-  const labelToggleEl = document.getElementById('labelToggle');
-
-  if (!model.project) model.project = {};
-  if (labelToggleEl) {
-    model.project.labelToggle = !!labelToggleEl.checked;
-  } else if (typeof model.project.labelToggle === 'undefined') {
-    model.project.labelToggle = true;
-  }
-
-  // Persist legend visibility flags from the in-memory booleans
-  if (typeof baselineVisible !== 'undefined') {
-    model.project.legendBaselineCheckbox = !!baselineVisible;
-  }
-  if (typeof plannedVisible !== 'undefined') {
-    model.project.legendPlannedCheckbox = !!plannedVisible;
-  }
-  if (typeof actualVisible !== 'undefined') {
-    model.project.legendActualCheckbox = !!actualVisible;
-  }
-  if (typeof forecastVisible !== 'undefined') {
-    model.project.legendForecastCheckbox = !!forecastVisible;
-  }
-
   $$('#scopeRows .row').forEach((row)=>{ const i = Number(row.dataset.index); updatePlannedCell(row, model.scopes[i]);
     const s = model.scopes[i];
     if (s && s.actualPct >= 100) {
@@ -1015,101 +992,177 @@ function escapeXml(v){
 
 
 function buildMSPXML() {
+  const proj = model.project || {};
   let xml = '';
-  xml += '<?xml version="1.0" encoding="UTF-8"?>\n';
-  xml += '<Project xmlns="http://schemas.microsoft.com/project">\n';
+  xml += '<?xml version="1.0" encoding="UTF-8"?>
+';
+  xml += '<Project xmlns="http://schemas.microsoft.com/project">
+';
 
-  xml += '  <Name>' + (model.project?.name || '') + '</Name>\n';
+  // Project name
+  xml += '  <Name>' + escapeXml(proj.name || '') + '</Name>
+';
 
-  xml += '  <ExtendedAttributes>\n';
+  // Project-level ExtendedAttributes (Microsoft Project schema)
+  xml += '  <ExtendedAttributes>
+';
 
-  function addAttr(fieldID, name, value) {
-    xml += '    <ExtendedAttribute>\n';
-    xml += '      <FieldID>' + fieldID + '</FieldID>\n';
-    xml += '      <Name>' + name + '</Name>\n';
-    xml += '      <Value><![CDATA[' + (value || '') + ']]></Value>\n';
-    xml += '    </ExtendedAttribute>\n';
+  function addProjAttr(fieldID, name, value) {
+    xml += '    <ExtendedAttribute>
+';
+    xml += '      <FieldID>' + fieldID + '</FieldID>
+';
+    xml += '      <Name>' + name + '</Name>
+';
+    xml += '      <Value><![CDATA[' + (value || '') + ']]></Value>
+';
+    xml += '    </ExtendedAttribute>
+';
   }
 
-  addAttr('Text1', 'Startup', model.project?.startup || '');
-  addAttr('Text2', 'MarkerLabel', model.project?.markerLabel || 'Baseline Complete');
+  // Core project fields
+  addProjAttr('Text1', 'Startup', proj.startup || '');
+  addProjAttr('Text2', 'MarkerLabel', proj.markerLabel || 'Baseline Complete');
 
-  const projFlags = model.project || {};
-  const labelToggleEl = document.getElementById("labelToggle");
+  // Legend / label flags (mirror PRGS behavior)
+  const labelToggleEl = document.getElementById('labelToggle');
 
-  const labelToggleFlag = (typeof projFlags.labelToggle !== 'undefined')
-    ? !!projFlags.labelToggle
+  const labelToggleFlag = (typeof proj.labelToggle !== 'undefined')
+    ? !!proj.labelToggle
     : !!(labelToggleEl && labelToggleEl.checked);
 
-  const legendBaselineFlag = (typeof projFlags.legendBaselineCheckbox !== 'undefined')
-    ? !!projFlags.legendBaselineCheckbox
+  const legendBaselineFlag = (typeof proj.legendBaselineCheckbox !== 'undefined')
+    ? !!proj.legendBaselineCheckbox
     : (typeof baselineVisible !== 'undefined' ? !!baselineVisible : true);
 
-  const legendPlannedFlag = (typeof projFlags.legendPlannedCheckbox !== 'undefined')
-    ? !!projFlags.legendPlannedCheckbox
+  const legendPlannedFlag = (typeof proj.legendPlannedCheckbox !== 'undefined')
+    ? !!proj.legendPlannedCheckbox
     : (typeof plannedVisible !== 'undefined' ? !!plannedVisible : true);
 
-  const legendActualFlag = (typeof projFlags.legendActualCheckbox !== 'undefined')
-    ? !!projFlags.legendActualCheckbox
+  const legendActualFlag = (typeof proj.legendActualCheckbox !== 'undefined')
+    ? !!proj.legendActualCheckbox
     : (typeof actualVisible !== 'undefined' ? !!actualVisible : true);
 
-  const legendForecastFlag = (typeof projFlags.legendForecastCheckbox !== 'undefined')
-    ? !!projFlags.legendForecastCheckbox
+  const legendForecastFlag = (typeof proj.legendForecastCheckbox !== 'undefined')
+    ? !!proj.legendForecastCheckbox
     : (typeof forecastVisible !== 'undefined' ? !!forecastVisible : true);
 
-  addAttr('Text3', 'LegendBaselineCheckbox', legendBaselineFlag ? 'true' : 'false');
-  addAttr('Text4', 'LegendPlannedCheckbox', legendPlannedFlag ? 'true' : 'false');
-  addAttr('Text5', 'LegendActualCheckbox', legendActualFlag ? 'true' : 'false');
-  addAttr('Text6', 'LegendForecastCheckbox', legendForecastFlag ? 'true' : 'false');
-  addAttr('Text7', 'LabelToggle', labelToggleFlag ? 'true' : 'false');
+  addProjAttr('Text3', 'LabelToggle', labelToggleFlag ? 'true' : 'false');
+  addProjAttr('Text4', 'LegendBaselineCheckbox', legendBaselineFlag ? 'true' : 'false');
+  addProjAttr('Text5', 'LegendPlannedCheckbox', legendPlannedFlag ? 'true' : 'false');
+  addProjAttr('Text6', 'LegendActualCheckbox', legendActualFlag ? 'true' : 'false');
+  addProjAttr('Text7', 'LegendForecastCheckbox', legendForecastFlag ? 'true' : 'false');
 
-  // BaselineHistory lines
+  // Baseline snapshot as CSV (date,baselinePct)
   let baselineCSV = '';
-  if (model.baseline && model.baseline.days && model.baseline.planned) {
-      for (let i = 0; i < model.baseline.days.length; i++) {
-          baselineCSV += model.baseline.days[i] + ',' + model.baseline.planned[i] + '\\n';
-      }
+  if (model.baseline && Array.isArray(model.baseline.days) && Array.isArray(model.baseline.planned)) {
+    for (let i = 0; i < model.baseline.days.length; i++) {
+      const d = model.baseline.days[i];
+      const v = model.baseline.planned[i];
+      if (!d) continue;
+      baselineCSV += d + ',' + (v == null ? '' : v) + '
+';
+    }
   }
-  addAttr('Text6', 'BaselineHistory', baselineCSV);
+  addProjAttr('Text8', 'BaselineHistory', baselineCSV);
 
-  // ActualHistory lines
+  // History as CSV (date,actualPct)
   let actualCSV = '';
-  if (model.history) {
-      model.history.forEach(h => { actualCSV += h.date + ',' + h.actualPct + '\\n'; });
+  if (Array.isArray(model.history)) {
+    model.history.forEach(h => {
+      if (!h || !h.date) return;
+      const v = (h.actualPct != null ? h.actualPct : 0);
+      actualCSV += h.date + ',' + v + '
+';
+    });
   }
-  addAttr('Text7', 'ActualHistory', actualCSV);
+  addProjAttr('Text9', 'ActualHistory', actualCSV);
 
-  // DailyActuals lines
+  // DailyActuals as CSV (date,value)
   let dailyCSV = '';
-  if (model.dailyActuals) {
-      Object.keys(model.dailyActuals).forEach(d => {
-        dailyCSV += d + ',' + model.dailyActuals[d] + '\\n';
-      });
+  if (model.dailyActuals && typeof model.dailyActuals === 'object') {
+    Object.keys(model.dailyActuals).sort().forEach(d => {
+      const v = model.dailyActuals[d];
+      if (!d) return;
+      dailyCSV += d + ',' + (v == null ? '' : v) + '
+';
+    });
   }
-  addAttr('Text8', 'DailyActuals', dailyCSV);
+  addProjAttr('Text10', 'DailyActuals', dailyCSV);
 
-  xml += '  </ExtendedAttributes>\n';
+  xml += '  </ExtendedAttributes>
+';
 
-  xml += '  <Tasks>\n';
-  model.scopes.forEach((s, idx) => {
-      xml += '    <Task>\n';
-      xml += '      <UID>' + (idx + 1) + '</UID>\n';
-      xml += '      <ID>' + (idx + 1) + '</ID>\n';
-      xml += '      <Name>' + s.label + '</Name>\n';
-      xml += '      <Start>' + s.start + 'T08:00:00</Start>\n';
-      xml += '      <Finish>' + s.end + 'T17:00:00</Finish>\n';
-      xml += '      <PercentComplete>' + (s.actualPct || 0) + '</PercentComplete>\n';
-      xml += '      <Cost>' + (s.cost || 0) + '</Cost>\n';
-      xml += '      <ProgressValue>' + (s.unitsToDate || 0) + '</ProgressValue>\n';
-      xml += '      <TotalUnits>' + (s.totalUnits || '') + '</TotalUnits>\n';
-      xml += '      <UnitsLabel>' + (s.unitsLabel || '') + '</UnitsLabel>\n';
-      xml += '    </Task>\n';
+  // Tasks: one per scope
+  xml += '  <Tasks>
+';
+
+  function addTaskAttr(fieldID, name, value) {
+    xml += '        <ExtendedAttribute>
+';
+    xml += '          <FieldID>' + fieldID + '</FieldID>
+';
+    xml += '          <Name>' + name + '</Name>
+';
+    xml += '          <Value><![CDATA[' + (value || '') + ']]></Value>
+';
+    xml += '        </ExtendedAttribute>
+';
+  }
+
+  (model.scopes || []).forEach((s, idx) => {
+    const label = s.label || ('Scope #' + (idx + 1));
+    const start = s.start || '';
+    const end = s.end || '';
+    const pct = clamp(isFinite(s.actualPct) ? Number(s.actualPct) || 0 : 0, 0, 100);
+    const cost = isFinite(s.cost) ? s.cost : 0;
+
+    xml += '    <Task>
+';
+    xml += '      <UID>' + (idx + 1) + '</UID>
+';
+    xml += '      <ID>' + (idx + 1) + '</ID>
+';
+    xml += '      <Name>' + escapeXml(label) + '</Name>
+';
+
+    if (start) {
+      xml += '      <Start>' + start + 'T08:00:00</Start>
+';
+    }
+    if (end) {
+      xml += '      <Finish>' + end + 'T17:00:00</Finish>
+';
+    }
+
+    xml += '      <PercentComplete>' + pct + '</PercentComplete>
+';
+    xml += '      <Cost>' + cost + '</Cost>
+';
+
+    // Task-level ExtendedAttributes for remaining PRGS scope fields
+    xml += '      <ExtendedAttributes>
+';
+    const unitsToDate = (s.unitsToDate != null ? String(s.unitsToDate) : '');
+    const totalUnits = (s.totalUnits != null ? String(s.totalUnits) : '');
+    const unitsLabel = s.unitsLabel || '';
+
+    addTaskAttr('Text11', 'UnitsToDate', unitsToDate);
+    addTaskAttr('Text12', 'TotalUnits', totalUnits);
+    addTaskAttr('Text13', 'UnitsLabel', unitsLabel);
+    xml += '      </ExtendedAttributes>
+';
+
+    xml += '    </Task>
+';
   });
-  xml += '  </Tasks>\n';
 
+  xml += '  </Tasks>
+';
   xml += '</Project>';
   return xml;
 }
+
 async function saveXml(){
   try{
     const xml = buildMSPXML();
@@ -1155,39 +1208,9 @@ function buildAllCSV(){
   // PROJECT section
   out += '#SECTION:PROJECT\n';
   out += 'key,value\n';
-
-  const proj = model.project || {};
-  const labelToggleEl = document.getElementById('labelToggle');
-
-  // Determine the effective flags to persist
-  const labelToggleVal = (typeof proj.labelToggle !== 'undefined')
-    ? !!proj.labelToggle
-    : !!(labelToggleEl && labelToggleEl.checked);
-
-  const legendBaselineVal = (typeof proj.legendBaselineCheckbox !== 'undefined')
-    ? !!proj.legendBaselineCheckbox
-    : (typeof baselineVisible !== 'undefined' ? !!baselineVisible : true);
-
-  const legendPlannedVal = (typeof proj.legendPlannedCheckbox !== 'undefined')
-    ? !!proj.legendPlannedCheckbox
-    : (typeof plannedVisible !== 'undefined' ? !!plannedVisible : true);
-
-  const legendActualVal = (typeof proj.legendActualCheckbox !== 'undefined')
-    ? !!proj.legendActualCheckbox
-    : (typeof actualVisible !== 'undefined' ? !!actualVisible : true);
-
-  const legendForecastVal = (typeof proj.legendForecastCheckbox !== 'undefined')
-    ? !!proj.legendForecastCheckbox
-    : (typeof forecastVisible !== 'undefined' ? !!forecastVisible : true);
-
   out += csvLine(['name', model.project.name || '']);
   out += csvLine(['startup', model.project.startup || '']);
   out += csvLine(['markerLabel', model.project.markerLabel || 'Baseline Complete']);
-  out += csvLine(['labelToggle', labelToggleVal ? 'true' : 'false']);
-  out += csvLine(['legendBaselineCheckbox', legendBaselineVal ? 'true' : 'false']);
-  out += csvLine(['legendPlannedCheckbox', legendPlannedVal ? 'true' : 'false']);
-  out += csvLine(['legendActualCheckbox', legendActualVal ? 'true' : 'false']);
-  out += csvLine(['legendForecastCheckbox', legendForecastVal ? 'true' : 'false']);
   out += '\n';
 
   // SCOPES section
@@ -1287,17 +1310,7 @@ function uploadCSVAndLoad(){
         const rows = parseCSV(text); let section = ''; model = { project:{name:'',startup:'', markerLabel:'Baseline Complete'}, scopes:[], history:[], dailyActuals:{}, baseline:null, daysRelativeToPlan:null }; window.model = model; window.model = model;
         let scopeHeaders = []; let baselineRows = [];
         for(let r of rows){ if(r.length===1 && r[0].startsWith('#SECTION:')){ section = r[0].slice('#SECTION:'.length).trim(); continue; } if(r.length===0 || (r.length===1 && r[0]==='')) continue;
-          if(section==='PROJECT'){ 
-            if(r[0]==='key') { continue; } 
-            if(r[0]==='name') model.project.name = r[1]||''; 
-            if(r[0]==='startup') model.project.startup = r[1]||''; 
-            if(r[0]==='markerLabel') model.project.markerLabel = r[1]||'Baseline Complete'; 
-            if(r[0]==='labelToggle') model.project.labelToggle = (r[1] === 'true');
-            if(r[0]==='legendBaselineCheckbox') model.project.legendBaselineCheckbox = (r[1] === 'true');
-            if(r[0]==='legendPlannedCheckbox') model.project.legendPlannedCheckbox = (r[1] === 'true');
-            if(r[0]==='legendActualCheckbox') model.project.legendActualCheckbox = (r[1] === 'true');
-            if(r[0]==='legendForecastCheckbox') model.project.legendForecastCheckbox = (r[1] === 'true');
-          }
+          if(section==='PROJECT'){ if(r[0]==='key') { continue; } if(r[0]==='name') model.project.name = r[1]||''; if(r[0]==='startup') model.project.startup = r[1]||''; if(r[0]==='markerLabel') model.project.markerLabel = r[1]||'Baseline Complete'; }
           else if(section==='SCOPES'){ if(!scopeHeaders.length){ scopeHeaders = r; continue; } const idx = (name)=> scopeHeaders.indexOf(name); const s = { label: r[idx('label')]||'', start: r[idx('start')]||'', end: r[idx('end')]||'', cost: parseFloat(r[idx('cost')]||'0')||0, unitsToDate: parseFloat(r[idx('progressValue')]||'0')||0, totalUnits: (r[idx('totalUnits')]===undefined||r[idx('totalUnits')]==='')? '' : (parseFloat(r[idx('totalUnits')])||0), unitsLabel: r[idx('unitsLabel')]||'%', actualPct: 0 }; s.actualPct = s.totalUnits? (s.unitsToDate && s.totalUnits? (s.unitsToDate/s.totalUnits*100) : 0) : (s.unitsToDate||0); model.scopes.push(s); }
           else if(section==='DAILY_ACTUALS'){ if(r[0]==='date') continue; const d = r[0]; const a = r[1]; if(d){ model.dailyActuals[d] = a===''? undefined : clamp(parseFloat(a)||0,0,100); } }
           else if(section==='HISTORY'){ if(r[0]==='date') continue; if(r[0]) model.history.push({date:r[0], actualPct: parseFloat(r[1]||'0')||0}); }
@@ -1305,37 +1318,6 @@ function uploadCSVAndLoad(){
         }
         if(baselineRows.length){ model.baseline = { days: baselineRows.map(r=>r.date), planned: baselineRows.map(r=> (r.val==null? null : clamp(r.val,0,100))) }; }
         $('#projectName').value = model.project.name||''; $('#projectStartup').value = model.project.startup||''; $('#startupLabelInput').value = model.project.markerLabel || 'Baseline Complete';
-
-        (function(){
-          const proj = model.project || {};
-          const labelToggleEl = document.getElementById('labelToggle');
-          const baselineCb = document.getElementById('legendBaselineCheckbox');
-          const plannedCb = document.getElementById('legendPlannedCheckbox');
-          const actualCb = document.getElementById('legendActualCheckbox');
-          const forecastCb = document.getElementById('legendForecastCheckbox');
-
-          if (labelToggleEl && typeof proj.labelToggle !== 'undefined') {
-            labelToggleEl.checked = !!proj.labelToggle;
-          }
-
-          if (typeof proj.legendBaselineCheckbox !== 'undefined') {
-            baselineVisible = !!proj.legendBaselineCheckbox;
-            if (baselineCb) baselineCb.checked = baselineVisible;
-          }
-          if (typeof proj.legendPlannedCheckbox !== 'undefined') {
-            plannedVisible = !!proj.legendPlannedCheckbox;
-            if (plannedCb) plannedCb.checked = plannedVisible;
-          }
-          if (typeof proj.legendActualCheckbox !== 'undefined') {
-            actualVisible = !!proj.legendActualCheckbox;
-            if (actualCb) actualCb.checked = actualVisible;
-          }
-          if (typeof proj.legendForecastCheckbox !== 'undefined') {
-            forecastVisible = !!proj.legendForecastCheckbox;
-            if (forecastCb) forecastCb.checked = forecastVisible;
-          }
-        })();
-
         syncScopeRowsToModel(); computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); 
 // alert('Full CSV loaded.');
       }catch(err){ alert('Failed to parse CSV: '+err.message); } };
@@ -1350,15 +1332,14 @@ function loadFromXml(xmlText){
   const perr = doc.getElementsByTagName('parsererror');
   if(perr && perr.length){ throw new Error('Invalid XML'); }
 
-  // MS Project uses default namespace; we can use getElementsByTagName since we know element names
   const projEl = doc.getElementsByTagName('Project')[0];
   if(!projEl){ throw new Error('No <Project> element found'); }
 
+  // Project name
   const nameEl = projEl.getElementsByTagName('Name')[0];
   const projectName = nameEl ? nameEl.textContent : '';
 
-  // Read ExtendedAttributes for project-level metadata (MS Project schema)
-  const extEls = projEl.getElementsByTagName('ExtendedAttribute');
+  // Project-level ExtendedAttributes
   let startupVal = '';
   let markerLabelVal = '';
   let labelToggleFlag;
@@ -1370,36 +1351,38 @@ function loadFromXml(xmlText){
   let actualHistoryStr = '';
   let dailyActualsStr = '';
 
-  for (let i = 0; i < extEls.length; i++) {
-    const nEl = extEls[i].getElementsByTagName('Name')[0];
-    const vEl = extEls[i].getElementsByTagName('Value')[0];
-    if (!nEl || !vEl) continue;
-    const nm = nEl.textContent;
-    const val = vEl.textContent || '';
-    const trimmed = val.trim();
-    const boolVal = (trimmed === 'true');
+  const projExtRoot = projEl.getElementsByTagName('ExtendedAttributes')[0];
+  if (projExtRoot) {
+    const projExts = projExtRoot.getElementsByTagName('ExtendedAttribute');
+    for (let i = 0; i < projExts.length; i++) {
+      const ea = projExts[i];
+      const nEl = ea.getElementsByTagName('Name')[0];
+      const vEl = ea.getElementsByTagName('Value')[0];
+      if (!nEl || !vEl) continue;
+      const nm = nEl.textContent;
+      const val = vEl.textContent || '';
+      const trimmed = val.trim();
+      const boolVal = (trimmed === 'true');
 
-    if (nm === 'Startup') startupVal = trimmed;
-    if (nm === 'MarkerLabel') markerLabelVal = trimmed;
-    if (nm === 'LabelToggle') labelToggleFlag = boolVal;
-    if (nm === 'LegendBaselineCheckbox') legendBaselineFlag = boolVal;
-    if (nm === 'LegendPlannedCheckbox') legendPlannedFlag = boolVal;
-    if (nm === 'LegendActualCheckbox') legendActualFlag = boolVal;
-    if (nm === 'LegendForecastCheckbox') legendForecastFlag = boolVal;
-    if (nm === 'BaselineHistory') baselineHistoryStr = val;
-    if (nm === 'ActualHistory') actualHistoryStr = val;
-    if (nm === 'DailyActuals') dailyActualsStr = val;
+      if (nm === 'Startup') startupVal = trimmed;
+      if (nm === 'MarkerLabel') markerLabelVal = trimmed;
+      if (nm === 'LabelToggle') labelToggleFlag = boolVal;
+      if (nm === 'LegendBaselineCheckbox') legendBaselineFlag = boolVal;
+      if (nm === 'LegendPlannedCheckbox') legendPlannedFlag = boolVal;
+      if (nm === 'LegendActualCheckbox') legendActualFlag = boolVal;
+      if (nm === 'LegendForecastCheckbox') legendForecastFlag = boolVal;
+      if (nm === 'BaselineHistory') baselineHistoryStr = val;
+      if (nm === 'ActualHistory') actualHistoryStr = val;
+      if (nm === 'DailyActuals') dailyActualsStr = val;
+    }
   }
 
-  const taskEls = projEl.getElementsByTagName('Task');
-
   const newModel = {
-    project:{ 
-      name: projectName || '', 
-      startup: startupVal || '', 
-      markerLabel: markerLabelVal || 'Baseline Complete' 
+    project:{
+      name: projectName || '',
+      startup: startupVal || '',
+      markerLabel: markerLabelVal || 'Baseline Complete'
     },
-
     scopes:[],
     history:[],
     dailyActuals:{},
@@ -1407,7 +1390,7 @@ function loadFromXml(xmlText){
     daysRelativeToPlan:null
   };
 
-  // Apply legend + label flags into project if present
+  // Apply legend + label flags
   if (typeof labelToggleFlag !== 'undefined') {
     newModel.project.labelToggle = labelToggleFlag;
   }
@@ -1424,43 +1407,46 @@ function loadFromXml(xmlText){
     newModel.project.legendForecastCheckbox = legendForecastFlag;
   }
 
-  // Rebuild baseline, history, and dailyActuals from ExtendedAttributes CSV payloads
+  // Baseline from CSV
   if (baselineHistoryStr) {
-    const lines = baselineHistoryStr.split(/\r?\n/);
+    const lines = baselineHistoryStr.split(/?
+/);
     const rows = [];
     for (let line of lines) {
       if (!line) continue;
       const parts = line.split(',');
       if (!parts[0]) continue;
       const d = parts[0].trim();
-      const vStr = (parts[1]||'').trim();
+      const vStr = (parts[1] || '').trim();
       let val = null;
       if (vStr !== '' && vStr.toLowerCase() !== 'null') {
         const num = parseFloat(vStr);
-        if (!isNaN(num)) val = clamp(num,0,100);
+        if (!isNaN(num)) val = clamp(num, 0, 100);
       }
-      rows.push({date:d, val:val});
+      rows.push({ date:d, val:val });
     }
     if (rows.length) {
       newModel.baseline = {
-        days: rows.map(r=>r.date),
-        planned: rows.map(r=> (r.val==null ? null : clamp(r.val,0,100)))
+        days: rows.map(r => r.date),
+        planned: rows.map(r => (r.val == null ? null : clamp(r.val, 0, 100)))
       };
     }
   }
 
+  // History from CSV
   if (actualHistoryStr) {
-    const lines = actualHistoryStr.split(/\r?\n/);
+    const lines = actualHistoryStr.split(/?
+/);
     const hist = [];
     for (let line of lines) {
       if (!line) continue;
       const parts = line.split(',');
       if (!parts[0]) continue;
       const d = parts[0].trim();
-      const vStr = (parts[1]||'').trim();
+      const vStr = (parts[1] || '').trim();
       const num = parseFloat(vStr);
       if (!isNaN(num)) {
-        hist.push({ date:d, actualPct: clamp(num,0,100) });
+        hist.push({ date:d, actualPct: clamp(num, 0, 100) });
       }
     }
     if (hist.length) {
@@ -1468,15 +1454,18 @@ function loadFromXml(xmlText){
     }
   }
 
+  // DailyActuals from CSV
   if (dailyActualsStr) {
-    const lines = dailyActualsStr.split(/\r?\n/);
+    const lines = dailyActualsStr.split(/?
+/);
     const da = {};
     for (let line of lines) {
       if (!line) continue;
       const parts = line.split(',');
       if (!parts[0]) continue;
       const d = parts[0].trim();
-      const vStr = (parts[1]||'').trim();
+      const vStr = (parts[1] || '').trim();
+      if (vStr === '') continue;
       const num = parseFloat(vStr);
       if (!isNaN(num)) {
         da[d] = num;
@@ -1485,52 +1474,98 @@ function loadFromXml(xmlText){
     newModel.dailyActuals = da;
   }
 
-  for(let i=0;i<taskEls.length;i++){
+  // Tasks → scopes
+  const taskEls = projEl.getElementsByTagName('Task');
+  for (let i = 0; i < taskEls.length; i++) {
     const t = taskEls[i];
     const uidEl = t.getElementsByTagName('UID')[0];
-    if(uidEl && uidEl.textContent === '0'){ continue; } // skip summary task if present
+    if (uidEl && uidEl.textContent === '0') {
+      // Skip summary task if present
+      continue;
+    }
 
     const nmEl = t.getElementsByTagName('Name')[0];
     const startEl = t.getElementsByTagName('Start')[0];
     const finEl = t.getElementsByTagName('Finish')[0];
     const pctEl = t.getElementsByTagName('PercentComplete')[0];
+    const costEl = t.getElementsByTagName('Cost')[0];
 
-    const label = nmEl ? nmEl.textContent : ('Task ' + (i+1));
+    const label = nmEl ? nmEl.textContent : ('Task ' + (i + 1));
     const startRaw = startEl ? startEl.textContent : '';
     const finishRaw = finEl ? finEl.textContent : '';
     const pctRaw = pctEl ? pctEl.textContent : '0';
-    const costEl = t.getElementsByTagName('Cost')[0];
-    const progEl = t.getElementsByTagName('ProgressValue')[0];
-    const tuEl = t.getElementsByTagName('TotalUnits')[0];
-    const ulEl = t.getElementsByTagName('UnitsLabel')[0];
-    const cost = costEl ? (parseFloat(costEl.textContent||'0')||0) : 0;
-    const progressValue = progEl ? (parseFloat(progEl.textContent||'0')||0) : 0;
-    const totalUnits = tuEl ? (tuEl.textContent||'') : '';
-    const unitsLabel = ulEl ? (ulEl.textContent||'%') : '%';
 
-    // Convert ISO date-time (YYYY-MM-DDTHH:MM:SS) to YYYY-MM-DD
-    const start = startRaw && startRaw.length >= 10 ? startRaw.slice(0,10) : '';
-    const end = finishRaw && finishRaw.length >= 10 ? finishRaw.slice(0,10) : '';
+    const cost = costEl ? (parseFloat(costEl.textContent || '0') || 0) : 0;
 
-    const pct = Math.max(0, Math.min(100, parseFloat(pctRaw)||0));
+    // Convert ISO datetime to YYYY-MM-DD
+    const start = startRaw && startRaw.length >= 10 ? startRaw.slice(0, 10) : '';
+    const end = finishRaw && finishRaw.length >= 10 ? finishRaw.slice(0, 10) : '';
+
+    const pct = clamp(parseFloat(pctRaw) || 0, 0, 100);
+
+    // Task ExtendedAttributes
+    let unitsToDate = '';
+    let totalUnits = '';
+    let unitsLabel = '';
+
+    const tExtRoot = t.getElementsByTagName('ExtendedAttributes')[0];
+    if (tExtRoot) {
+      const tExts = tExtRoot.getElementsByTagName('ExtendedAttribute');
+      for (let j = 0; j < tExts.length; j++) {
+        const ea = tExts[j];
+        const nEl = ea.getElementsByTagName('Name')[0];
+        const vEl = ea.getElementsByTagName('Value')[0];
+        if (!nEl || !vEl) continue;
+        const nm = nEl.textContent;
+        const val = vEl.textContent || '';
+        if (nm === 'UnitsToDate') unitsToDate = val.trim();
+        if (nm === 'TotalUnits') totalUnits = val.trim();
+        if (nm === 'UnitsLabel') unitsLabel = val.trim();
+      }
+    }
+
+    let totalUnitsNum = null;
+    if (totalUnits !== '') {
+      const tuNum = parseFloat(totalUnits);
+      if (!isNaN(tuNum)) totalUnitsNum = tuNum;
+    }
+
+    let unitsToDateNum = 0;
+    if (unitsToDate !== '') {
+      const utdNum = parseFloat(unitsToDate);
+      if (!isNaN(utdNum)) unitsToDateNum = utdNum;
+    }
+
+    // Normalize unitsLabel
+    if (!unitsLabel) {
+      unitsLabel = (totalUnitsNum && totalUnitsNum > 0) ? 'Feet' : '%';
+    }
 
     const scope = {
       label: label,
       start: start,
       end: end,
       cost: cost,
-      unitsToDate: progressValue,
-      totalUnits: totalUnits,
+      unitsToDate: unitsToDateNum,
+      totalUnits: (totalUnitsNum == null ? '' : totalUnitsNum),
       unitsLabel: unitsLabel,
       actualPct: pct
     };
+
     newModel.scopes.push(scope);
   }
 
+  // Commit into global model and UI
   model = newModel;
-  document.getElementById('projectName').value = model.project.name || '';
-  document.getElementById('projectStartup').value = model.project.startup || '';
-  document.getElementById('startupLabelInput').value = model.project.markerLabel || 'Baseline Complete';
+  window.model = model;
+
+  const nameInput = document.getElementById('projectName');
+  const startupInput = document.getElementById('projectStartup');
+  const markerInput = document.getElementById('startupLabelInput');
+
+  if (nameInput) nameInput.value = model.project.name || '';
+  if (startupInput) startupInput.value = model.project.startup || '';
+  if (markerInput) markerInput.value = model.project.markerLabel || 'Baseline Complete';
 
   (function(){
     const proj = model.project || {};
@@ -1562,7 +1597,9 @@ function loadFromXml(xmlText){
     }
   })();
 
-  syncScopeRowsToModel(); computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
+  syncScopeRowsToModel();
+  computeAndRender();
+  sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
 }
 
 /*****************
@@ -1589,36 +1626,6 @@ function hydrateFromSession(){
     if(nameEl) nameEl.value = (model.project && model.project.name) || '';
     if(startupEl) startupEl.value = (model.project && model.project.startup) || '';
     if(labelEl) labelEl.value = (model.project && model.project.markerLabel) || 'Baseline Complete';
-
-    const proj = model.project || {};
-    const labelToggleEl = document.getElementById('labelToggle');
-    const baselineCb = document.getElementById('legendBaselineCheckbox');
-    const plannedCb = document.getElementById('legendPlannedCheckbox');
-    const actualCb = document.getElementById('legendActualCheckbox');
-    const forecastCb = document.getElementById('legendForecastCheckbox');
-
-    // Restore label toggle checkbox
-    if (labelToggleEl && typeof proj.labelToggle !== 'undefined') {
-      labelToggleEl.checked = !!proj.labelToggle;
-    }
-
-    // Restore legend visibility booleans from model, then apply to checkboxes (if any)
-    if (typeof proj.legendBaselineCheckbox !== 'undefined') {
-      baselineVisible = !!proj.legendBaselineCheckbox;
-      if (baselineCb) baselineCb.checked = baselineVisible;
-    }
-    if (typeof proj.legendPlannedCheckbox !== 'undefined') {
-      plannedVisible = !!proj.legendPlannedCheckbox;
-      if (plannedCb) plannedCb.checked = plannedVisible;
-    }
-    if (typeof proj.legendActualCheckbox !== 'undefined') {
-      actualVisible = !!proj.legendActualCheckbox;
-      if (actualCb) actualCb.checked = actualVisible;
-    }
-    if (typeof proj.legendForecastCheckbox !== 'undefined') {
-      forecastVisible = !!proj.legendForecastCheckbox;
-      if (forecastCb) forecastCb.checked = forecastVisible;
-    }
 
     syncScopeRowsToModel();
     computeAndRender();
@@ -1742,11 +1749,6 @@ function loadFromPresetCsv(text){
       if(r[0]==='name') localModel.project.name = r[1]||'';
       if(r[0]==='startup') localModel.project.startup = r[1]||'';
       if(r[0]==='markerLabel') localModel.project.markerLabel = r[1]||'Baseline Complete';
-      if(r[0]==='labelToggle') localModel.project.labelToggle = (r[1] === 'true');
-      if(r[0]==='legendBaselineCheckbox') localModel.project.legendBaselineCheckbox = (r[1] === 'true');
-      if(r[0]==='legendPlannedCheckbox') localModel.project.legendPlannedCheckbox = (r[1] === 'true');
-      if(r[0]==='legendActualCheckbox') localModel.project.legendActualCheckbox = (r[1] === 'true');
-      if(r[0]==='legendForecastCheckbox') localModel.project.legendForecastCheckbox = (r[1] === 'true');
     } else if(section==='SCOPES'){
       if(!scopeHeaders.length){ scopeHeaders = r; continue; }
       const idx = (name)=> scopeHeaders.indexOf(name);
@@ -1787,37 +1789,6 @@ function loadFromPresetCsv(text){
   document.getElementById('projectName').value = model.project.name||'';
   document.getElementById('projectStartup').value = model.project.startup||'';
   document.getElementById('startupLabelInput').value = model.project.markerLabel || 'Baseline Complete';
-
-  (function(){
-    const proj = model.project || {};
-    const labelToggleEl = document.getElementById('labelToggle');
-    const baselineCb = document.getElementById('legendBaselineCheckbox');
-    const plannedCb = document.getElementById('legendPlannedCheckbox');
-    const actualCb = document.getElementById('legendActualCheckbox');
-    const forecastCb = document.getElementById('legendForecastCheckbox');
-
-    if (labelToggleEl && typeof proj.labelToggle !== 'undefined') {
-      labelToggleEl.checked = !!proj.labelToggle;
-    }
-
-    if (typeof proj.legendBaselineCheckbox !== 'undefined') {
-      baselineVisible = !!proj.legendBaselineCheckbox;
-      if (baselineCb) baselineCb.checked = baselineVisible;
-    }
-    if (typeof proj.legendPlannedCheckbox !== 'undefined') {
-      plannedVisible = !!proj.legendPlannedCheckbox;
-      if (plannedCb) plannedCb.checked = plannedVisible;
-    }
-    if (typeof proj.legendActualCheckbox !== 'undefined') {
-      actualVisible = !!proj.legendActualCheckbox;
-      if (actualCb) actualCb.checked = actualVisible;
-    }
-    if (typeof proj.legendForecastCheckbox !== 'undefined') {
-      forecastVisible = !!proj.legendForecastCheckbox;
-      if (forecastCb) forecastCb.checked = forecastVisible;
-    }
-  })();
-
   syncScopeRowsToModel(); computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
 }
 
