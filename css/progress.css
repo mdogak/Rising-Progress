@@ -419,6 +419,19 @@
 }
 
 
+/* Removes bullet from scope titles only */
+.issues-list .issues-scope-title {
+  list-style-type: none;
+  font-weight: bold;
+  margin-left: 0;
+}
+
+/* Ensures bullets remain for issue items */
+.issues-list .issues-scope-item {
+  list-style-type: disc;
+  margin-left: 20px;
+}
+
 /* Beta badge */
 #betaBadge {
   position: fixed;
