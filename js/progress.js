@@ -616,6 +616,19 @@ function computeAndRender(){
   model.project.name = $('#projectName').value.trim();
   model.project.startup = $('#projectStartup').value;
   model.project.markerLabel = ($('#startupLabelInput').value || 'Baseline Complete').trim();
+  const labelToggleEl = document.getElementById('labelToggle');
+  const baselineCb = document.getElementById('legendBaselineCheckbox');
+  const plannedCb = document.getElementById('legendPlannedCheckbox');
+  const actualCb = document.getElementById('legendActualCheckbox');
+  const forecastCb = document.getElementById('legendForecastCheckbox');
+
+  if (!model.project) model.project = {};
+  model.project.labelToggle = !!(labelToggleEl && labelToggleEl.checked);
+  model.project.legendBaselineCheckbox = !!(baselineCb && baselineCb.checked);
+  model.project.legendPlannedCheckbox = !!(plannedCb && plannedCb.checked);
+  model.project.legendActualCheckbox = !!(actualCb && actualCb.checked);
+  model.project.legendForecastCheckbox = !!(forecastCb && forecastCb.checked);
+
   $$('#scopeRows .row').forEach((row)=>{ const i = Number(row.dataset.index); updatePlannedCell(row, model.scopes[i]);
     const s = model.scopes[i];
     if (s && s.actualPct >= 100) {
@@ -1011,12 +1024,32 @@ function buildMSPXML() {
   addAttr('Text1', 'Startup', model.project?.startup || '');
   addAttr('Text2', 'MarkerLabel', model.project?.markerLabel || 'Baseline Complete');
 
-  addAttr('Text3', 'LegendBaselineCheckbox', 
-          document.getElementById("legend-baseline")?.checked ? 'true' : 'false');
-  addAttr('Text4', 'LegendPlannedCheckbox', 
-          document.getElementById("legend-planned")?.checked ? 'true' : 'false');
-  addAttr('Text5', 'LegendActualCheckbox', 
-          document.getElementById("legend-actual")?.checked ? 'true' : 'false');
+  const projFlags = model.project || {};
+  const labelToggleFlag = (typeof projFlags.labelToggle !== 'undefined')
+    ? !!projFlags.labelToggle
+    : !!document.getElementById("labelToggle")?.checked;
+
+  const legendBaselineFlag = (typeof projFlags.legendBaselineCheckbox !== 'undefined')
+    ? !!projFlags.legendBaselineCheckbox
+    : !!document.getElementById("legendBaselineCheckbox")?.checked;
+
+  const legendPlannedFlag = (typeof projFlags.legendPlannedCheckbox !== 'undefined')
+    ? !!projFlags.legendPlannedCheckbox
+    : !!document.getElementById("legendPlannedCheckbox")?.checked;
+
+  const legendActualFlag = (typeof projFlags.legendActualCheckbox !== 'undefined')
+    ? !!projFlags.legendActualCheckbox
+    : !!document.getElementById("legendActualCheckbox")?.checked;
+
+  const legendForecastFlag = (typeof projFlags.legendForecastCheckbox !== 'undefined')
+    ? !!projFlags.legendForecastCheckbox
+    : !!document.getElementById("legendForecastCheckbox")?.checked;
+
+  addAttr('Text3', 'LegendBaselineCheckbox', legendBaselineFlag ? 'true' : 'false');
+  addAttr('Text4', 'LegendPlannedCheckbox', legendPlannedFlag ? 'true' : 'false');
+  addAttr('Text5', 'LegendActualCheckbox', legendActualFlag ? 'true' : 'false');
+  addAttr('Text9', 'LegendForecastCheckbox', legendForecastFlag ? 'true' : 'false');
+  addAttr('Text10', 'LabelToggle', labelToggleFlag ? 'true' : 'false');
 
   // BaselineHistory lines
   let baselineCSV = '';
@@ -1110,9 +1143,36 @@ function buildAllCSV(){
   // PROJECT section
   out += '#SECTION:PROJECT\n';
   out += 'key,value\n';
+
+  const proj = model.project || {};
+  const labelToggleVal = (typeof proj.labelToggle !== 'undefined')
+    ? !!proj.labelToggle
+    : !!document.getElementById('labelToggle')?.checked;
+
+  const legendBaselineVal = (typeof proj.legendBaselineCheckbox !== 'undefined')
+    ? !!proj.legendBaselineCheckbox
+    : !!document.getElementById('legendBaselineCheckbox')?.checked;
+
+  const legendPlannedVal = (typeof proj.legendPlannedCheckbox !== 'undefined')
+    ? !!proj.legendPlannedCheckbox
+    : !!document.getElementById('legendPlannedCheckbox')?.checked;
+
+  const legendActualVal = (typeof proj.legendActualCheckbox !== 'undefined')
+    ? !!proj.legendActualCheckbox
+    : !!document.getElementById('legendActualCheckbox')?.checked;
+
+  const legendForecastVal = (typeof proj.legendForecastCheckbox !== 'undefined')
+    ? !!proj.legendForecastCheckbox
+    : !!document.getElementById('legendForecastCheckbox')?.checked;
+
   out += csvLine(['name', model.project.name || '']);
   out += csvLine(['startup', model.project.startup || '']);
   out += csvLine(['markerLabel', model.project.markerLabel || 'Baseline Complete']);
+  out += csvLine(['labelToggle', labelToggleVal ? 'true' : 'false']);
+  out += csvLine(['legendBaselineCheckbox', legendBaselineVal ? 'true' : 'false']);
+  out += csvLine(['legendPlannedCheckbox', legendPlannedVal ? 'true' : 'false']);
+  out += csvLine(['legendActualCheckbox', legendActualVal ? 'true' : 'false']);
+  out += csvLine(['legendForecastCheckbox', legendForecastVal ? 'true' : 'false']);
   out += '\n';
 
   // SCOPES section
@@ -1212,7 +1272,17 @@ function uploadCSVAndLoad(){
         const rows = parseCSV(text); let section = ''; model = { project:{name:'',startup:'', markerLabel:'Baseline Complete'}, scopes:[], history:[], dailyActuals:{}, baseline:null, daysRelativeToPlan:null }; window.model = model; window.model = model;
         let scopeHeaders = []; let baselineRows = [];
         for(let r of rows){ if(r.length===1 && r[0].startsWith('#SECTION:')){ section = r[0].slice('#SECTION:'.length).trim(); continue; } if(r.length===0 || (r.length===1 && r[0]==='')) continue;
-          if(section==='PROJECT'){ if(r[0]==='key') { continue; } if(r[0]==='name') model.project.name = r[1]||''; if(r[0]==='startup') model.project.startup = r[1]||''; if(r[0]==='markerLabel') model.project.markerLabel = r[1]||'Baseline Complete'; }
+          if(section==='PROJECT'){ 
+            if(r[0]==='key') { continue; } 
+            if(r[0]==='name') model.project.name = r[1]||''; 
+            if(r[0]==='startup') model.project.startup = r[1]||''; 
+            if(r[0]==='markerLabel') model.project.markerLabel = r[1]||'Baseline Complete';
+            if(r[0]==='labelToggle') model.project.labelToggle = (r[1] === 'true');
+            if(r[0]==='legendBaselineCheckbox') model.project.legendBaselineCheckbox = (r[1] === 'true');
+            if(r[0]==='legendPlannedCheckbox') model.project.legendPlannedCheckbox = (r[1] === 'true');
+            if(r[0]==='legendActualCheckbox') model.project.legendActualCheckbox = (r[1] === 'true');
+            if(r[0]==='legendForecastCheckbox') model.project.legendForecastCheckbox = (r[1] === 'true');
+          }
           else if(section==='SCOPES'){ if(!scopeHeaders.length){ scopeHeaders = r; continue; } const idx = (name)=> scopeHeaders.indexOf(name); const s = { label: r[idx('label')]||'', start: r[idx('start')]||'', end: r[idx('end')]||'', cost: parseFloat(r[idx('cost')]||'0')||0, unitsToDate: parseFloat(r[idx('progressValue')]||'0')||0, totalUnits: (r[idx('totalUnits')]===undefined||r[idx('totalUnits')]==='')? '' : (parseFloat(r[idx('totalUnits')])||0), unitsLabel: r[idx('unitsLabel')]||'%', actualPct: 0 }; s.actualPct = s.totalUnits? (s.unitsToDate && s.totalUnits? (s.unitsToDate/s.totalUnits*100) : 0) : (s.unitsToDate||0); model.scopes.push(s); }
           else if(section==='DAILY_ACTUALS'){ if(r[0]==='date') continue; const d = r[0]; const a = r[1]; if(d){ model.dailyActuals[d] = a===''? undefined : clamp(parseFloat(a)||0,0,100); } }
           else if(section==='HISTORY'){ if(r[0]==='date') continue; if(r[0]) model.history.push({date:r[0], actualPct: parseFloat(r[1]||'0')||0}); }
@@ -1220,6 +1290,32 @@ function uploadCSVAndLoad(){
         }
         if(baselineRows.length){ model.baseline = { days: baselineRows.map(r=>r.date), planned: baselineRows.map(r=> (r.val==null? null : clamp(r.val,0,100))) }; }
         $('#projectName').value = model.project.name||''; $('#projectStartup').value = model.project.startup||''; $('#startupLabelInput').value = model.project.markerLabel || 'Baseline Complete';
+
+        (function(){
+          const proj = model.project || {};
+          const labelToggleEl = document.getElementById('labelToggle');
+          const baselineCb = document.getElementById('legendBaselineCheckbox');
+          const plannedCb = document.getElementById('legendPlannedCheckbox');
+          const actualCb = document.getElementById('legendActualCheckbox');
+          const forecastCb = document.getElementById('legendForecastCheckbox');
+
+          if (labelToggleEl && typeof proj.labelToggle !== 'undefined') {
+            labelToggleEl.checked = !!proj.labelToggle;
+          }
+          if (baselineCb && typeof proj.legendBaselineCheckbox !== 'undefined') {
+            baselineCb.checked = !!proj.legendBaselineCheckbox;
+          }
+          if (plannedCb && typeof proj.legendPlannedCheckbox !== 'undefined') {
+            plannedCb.checked = !!proj.legendPlannedCheckbox;
+          }
+          if (actualCb && typeof proj.legendActualCheckbox !== 'undefined') {
+            actualCb.checked = !!proj.legendActualCheckbox;
+          }
+          if (forecastCb && typeof proj.legendForecastCheckbox !== 'undefined') {
+            forecastCb.checked = !!proj.legendForecastCheckbox;
+          }
+        })();
+
         syncScopeRowsToModel(); computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); 
 // alert('Full CSV loaded.');
       }catch(err){ alert('Failed to parse CSV: '+err.message); } };
@@ -1241,6 +1337,25 @@ function loadFromXml(xmlText){
   const nameEl = projEl.getElementsByTagName('Name')[0];
   const projectName = nameEl ? nameEl.textContent : '';
 
+  // Read ExtendedAttributes for legend/label flags (if present)
+  const extEls = projEl.getElementsByTagName('ExtendedAttribute');
+  let labelToggleFlag, legendBaselineFlag, legendPlannedFlag, legendActualFlag, legendForecastFlag;
+
+  for (let i = 0; i < extEls.length; i++) {
+    const nEl = extEls[i].getElementsByTagName('Name')[0];
+    const vEl = extEls[i].getElementsByTagName('Value')[0];
+    if (!nEl || !vEl) continue;
+    const nm = nEl.textContent;
+    const val = vEl.textContent.trim();
+    const boolVal = (val === 'true');
+
+    if (nm === 'LabelToggle') labelToggleFlag = boolVal;
+    if (nm === 'LegendBaselineCheckbox') legendBaselineFlag = boolVal;
+    if (nm === 'LegendPlannedCheckbox') legendPlannedFlag = boolVal;
+    if (nm === 'LegendActualCheckbox') legendActualFlag = boolVal;
+    if (nm === 'LegendForecastCheckbox') legendForecastFlag = boolVal;
+  }
+
   const taskEls = projEl.getElementsByTagName('Task');
 
   const newModel = {
@@ -1251,6 +1366,22 @@ function loadFromXml(xmlText){
     baseline:null,
     daysRelativeToPlan:null
   };
+
+  if (typeof labelToggleFlag !== 'undefined') {
+    newModel.project.labelToggle = labelToggleFlag;
+  }
+  if (typeof legendBaselineFlag !== 'undefined') {
+    newModel.project.legendBaselineCheckbox = legendBaselineFlag;
+  }
+  if (typeof legendPlannedFlag !== 'undefined') {
+    newModel.project.legendPlannedCheckbox = legendPlannedFlag;
+  }
+  if (typeof legendActualFlag !== 'undefined') {
+    newModel.project.legendActualCheckbox = legendActualFlag;
+  }
+  if (typeof legendForecastFlag !== 'undefined') {
+    newModel.project.legendForecastCheckbox = legendForecastFlag;
+  }
 
   for(let i=0;i<taskEls.length;i++){
     const t = taskEls[i];
@@ -1298,6 +1429,32 @@ function loadFromXml(xmlText){
   document.getElementById('projectName').value = model.project.name || '';
   document.getElementById('projectStartup').value = model.project.startup || '';
   document.getElementById('startupLabelInput').value = model.project.markerLabel || 'Baseline Complete';
+
+  (function(){
+    const proj = model.project || {};
+    const labelToggleEl = document.getElementById('labelToggle');
+    const baselineCb = document.getElementById('legendBaselineCheckbox');
+    const plannedCb = document.getElementById('legendPlannedCheckbox');
+    const actualCb = document.getElementById('legendActualCheckbox');
+    const forecastCb = document.getElementById('legendForecastCheckbox');
+
+    if (labelToggleEl && typeof proj.labelToggle !== 'undefined') {
+      labelToggleEl.checked = !!proj.labelToggle;
+    }
+    if (baselineCb && typeof proj.legendBaselineCheckbox !== 'undefined') {
+      baselineCb.checked = !!proj.legendBaselineCheckbox;
+    }
+    if (plannedCb && typeof proj.legendPlannedCheckbox !== 'undefined') {
+      plannedCb.checked = !!proj.legendPlannedCheckbox;
+    }
+    if (actualCb && typeof proj.legendActualCheckbox !== 'undefined') {
+      actualCb.checked = !!proj.legendActualCheckbox;
+    }
+    if (forecastCb && typeof proj.legendForecastCheckbox !== 'undefined') {
+      forecastCb.checked = !!proj.legendForecastCheckbox;
+    }
+  })();
+
   syncScopeRowsToModel(); computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
 }
 
@@ -1325,6 +1482,29 @@ function hydrateFromSession(){
     if(nameEl) nameEl.value = (model.project && model.project.name) || '';
     if(startupEl) startupEl.value = (model.project && model.project.startup) || '';
     if(labelEl) labelEl.value = (model.project && model.project.markerLabel) || 'Baseline Complete';
+
+    const proj = model.project || {};
+    const labelToggleEl = document.getElementById('labelToggle');
+    const baselineCb = document.getElementById('legendBaselineCheckbox');
+    const plannedCb = document.getElementById('legendPlannedCheckbox');
+    const actualCb = document.getElementById('legendActualCheckbox');
+    const forecastCb = document.getElementById('legendForecastCheckbox');
+
+    if (labelToggleEl && typeof proj.labelToggle !== 'undefined') {
+      labelToggleEl.checked = !!proj.labelToggle;
+    }
+    if (baselineCb && typeof proj.legendBaselineCheckbox !== 'undefined') {
+      baselineCb.checked = !!proj.legendBaselineCheckbox;
+    }
+    if (plannedCb && typeof proj.legendPlannedCheckbox !== 'undefined') {
+      plannedCb.checked = !!proj.legendPlannedCheckbox;
+    }
+    if (actualCb && typeof proj.legendActualCheckbox !== 'undefined') {
+      actualCb.checked = !!proj.legendActualCheckbox;
+    }
+    if (forecastCb && typeof proj.legendForecastCheckbox !== 'undefined') {
+      forecastCb.checked = !!proj.legendForecastCheckbox;
+    }
 
     syncScopeRowsToModel();
     computeAndRender();
@@ -1448,6 +1628,11 @@ function loadFromPresetCsv(text){
       if(r[0]==='name') localModel.project.name = r[1]||'';
       if(r[0]==='startup') localModel.project.startup = r[1]||'';
       if(r[0]==='markerLabel') localModel.project.markerLabel = r[1]||'Baseline Complete';
+      if(r[0]==='labelToggle') localModel.project.labelToggle = (r[1] === 'true');
+      if(r[0]==='legendBaselineCheckbox') localModel.project.legendBaselineCheckbox = (r[1] === 'true');
+      if(r[0]==='legendPlannedCheckbox') localModel.project.legendPlannedCheckbox = (r[1] === 'true');
+      if(r[0]==='legendActualCheckbox') localModel.project.legendActualCheckbox = (r[1] === 'true');
+      if(r[0]==='legendForecastCheckbox') localModel.project.legendForecastCheckbox = (r[1] === 'true');
     } else if(section==='SCOPES'){
       if(!scopeHeaders.length){ scopeHeaders = r; continue; }
       const idx = (name)=> scopeHeaders.indexOf(name);
@@ -1488,6 +1673,32 @@ function loadFromPresetCsv(text){
   document.getElementById('projectName').value = model.project.name||'';
   document.getElementById('projectStartup').value = model.project.startup||'';
   document.getElementById('startupLabelInput').value = model.project.markerLabel || 'Baseline Complete';
+
+  (function(){
+    const proj = model.project || {};
+    const labelToggleEl = document.getElementById('labelToggle');
+    const baselineCb = document.getElementById('legendBaselineCheckbox');
+    const plannedCb = document.getElementById('legendPlannedCheckbox');
+    const actualCb = document.getElementById('legendActualCheckbox');
+    const forecastCb = document.getElementById('legendForecastCheckbox');
+
+    if (labelToggleEl && typeof proj.labelToggle !== 'undefined') {
+      labelToggleEl.checked = !!proj.labelToggle;
+    }
+    if (baselineCb && typeof proj.legendBaselineCheckbox !== 'undefined') {
+      baselineCb.checked = !!proj.legendBaselineCheckbox;
+    }
+    if (plannedCb && typeof proj.legendPlannedCheckbox !== 'undefined') {
+      plannedCb.checked = !!proj.legendPlannedCheckbox;
+    }
+    if (actualCb && typeof proj.legendActualCheckbox !== 'undefined') {
+      actualCb.checked = !!proj.legendActualCheckbox;
+    }
+    if (forecastCb && typeof proj.legendForecastCheckbox !== 'undefined') {
+      forecastCb.checked = !!proj.legendForecastCheckbox;
+    }
+  })();
+
   syncScopeRowsToModel(); computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
 }
 
