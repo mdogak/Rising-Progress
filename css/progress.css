@@ -526,3 +526,10 @@
   overflow: hidden;
 }
 
+
+/* === Chrome calendar icon overlap fix === */
+/* Add right padding so year text is not covered by calendar icon */
+.row input[type="date"] {
+  padding-right: 36px; /* space for calendar icon */
+}
+
