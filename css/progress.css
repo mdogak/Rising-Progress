@@ -507,3 +507,22 @@
 .scope-complete:hover {
   opacity: 0.75;
 }
+
+
+/* === Normalize Start / End date inputs in grid (Edge + mobile fix) === */
+.row input[type="date"] {
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+  height: 36px;
+  line-height: 36px;
+  padding: 0 10px;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+/* Prevent grid children from bleeding into adjacent columns */
+.row {
+  overflow: hidden;
+}
+
