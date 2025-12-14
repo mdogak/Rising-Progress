@@ -27,8 +27,8 @@
     .grid{display:grid;gap:16px}
     .cols-2{grid-template-columns:
     180px   /* Scope */
-    120px   /* Start */
-    120px   /* End */
+    132px   /* Start */
+    132px   /* End */
     120px   /* Cost / % Weight */
     100px   /* Total Units */
     130px   /* % or Units to Date */
@@ -43,8 +43,8 @@
   display:grid;
   grid-template-columns:
     180px   /* Scope */
-    120px   /* Start */
-    120px   /* End */
+    132px   /* Start */
+    132px   /* End */
     120px   /* Cost / % Weight */
     100px   /* Total Units */
     130px   /* % or Units to Date */
@@ -77,8 +77,8 @@
     .narrow{max-width:720px}
     .stack-when-narrow{display:grid;grid-template-columns:
     180px   /* Scope */
-    120px   /* Start */
-    120px   /* End */
+    132px   /* Start */
+    132px   /* End */
     120px   /* Cost / % Weight */
     100px   /* Total Units */
     130px   /* % or Units to Date */
@@ -98,8 +98,8 @@
     .inline-skinny{width:200px; } /* narrower label field */
     @media (max-width: 640px){ .chart-header{flex-direction:row; align-items:center;align-items:stretch} .input-inline input{width:100%} .row{grid-template-columns:
     180px   /* Scope */
-    120px   /* Start */
-    120px   /* End */
+    132px   /* Start */
+    132px   /* End */
     120px   /* Cost / % Weight */
     100px   /* Total Units */
     130px   /* % or Units to Date */
@@ -524,12 +524,5 @@
 /* Prevent grid children from bleeding into adjacent columns */
 .row {
   overflow: hidden;
-}
-
-
-/* === Chrome calendar icon overlap fix === */
-/* Add right padding so year text is not covered by calendar icon */
-.row input[type="date"] {
-  padding-right: 36px; /* space for calendar icon */
 }
 
