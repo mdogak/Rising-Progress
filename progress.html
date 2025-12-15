@@ -58,7 +58,15 @@
 <body>
 
 <div class="wrap">
-
+<datalist id="unitsList">
+<option value="%"></option>
+<option value="Feet"></option>
+<option value="Inches"></option>
+<option value="Qty"></option>
+<option value="Yd^3"></option>
+<option value="Meters"></option>
+<option value="Centimeters"></option>
+</datalist>
 <!-- Big Chart Card -->
 <div class="card" style="margin-top:16px">
 <div class="chart-header">
@@ -335,24 +343,6 @@ document.addEventListener("DOMContentLoaded", () => {
   document.body.appendChild(badge);
 });
 </script>
-
-<!-- =====================================================
-     Units List
-     To add new units, add another <option value="...">
-     ===================================================== -->
-<datalist id="unitsList">
-  <option value="%">
-  <option value="Feet">
-  <option value="Inches">
-  <option value="Meters">
-  <option value="Centimeters">
-  <option value="LF">
-  <option value="SF">
-  <option value="CY">
-  <option value="EA">
-  <option value="Qty">
-</datalist>
-
 </body>
 </html>
 </div>
