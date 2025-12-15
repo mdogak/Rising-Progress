@@ -72,7 +72,7 @@ function renderScopeRow(i){
     <div>
       <input data-k="progress" type="number" step="0.01" min="0" placeholder="% or Units to Date" value="${s.totalUnits? s.unitsToDate : s.actualPct}">
     </div>
-    <input data-k="unitsLabel" list="unitsList" value="%" placeholder="%">
+    <input data-k="unitsLabel" list="unitsList" value="${s.unitsLabel || '%'}" placeholder="%">
     <div class="small" data-k="planned"></div>
     <div class="actions">
       <button class="iconbtn del" title="Remove this row">−</button>
@@ -81,11 +81,9 @@ function renderScopeRow(i){
   `;
   row.addEventListener('change', onScopeChange);
   const unitsEl=row.querySelector('[data-k="unitsLabel"]');
-  if(unitsEl){
-    // Auto-clear default % on focus so datalist opens immediately
-    unitsEl.addEventListener('focus', () => {
-      if (unitsEl.value === '%') unitsEl.value = '';
-    });
+  if(unitsEl && unitsEl.tagName==='SELECT'){
+    const desired=(s.totalUnits? (s.unitsLabel||'Feet') : (s.unitsLabel||'%'));
+    unitsEl.value=desired;
   }
   return row;
 }
@@ -130,8 +128,11 @@ function onScopeChange(e){
   s.cost = isFinite(inputs.cost) ? inputs.cost : 0;
   const tu = inputs.totalUnitsRaw === '' ? '' : clamp(parseFloat(inputs.totalUnitsRaw)||0,0,1e12);
   s.totalUnits = tu;
-  // Preserve explicit unit selection; only force % when empty
-  s.unitsLabel = inputs.unitsLabel || '%';
+  if(tu!=='' && tu>0){
+    s.unitsLabel = (inputs.unitsLabel || 'Feet');
+  } else {
+    s.unitsLabel = (inputs.unitsLabel || '%');
+  }
   if(tu!=='' && tu>0){
     s.unitsToDate = clamp(inputs.progressVal,0,1e12);
     s.actualPct = tu>0 ? (s.unitsToDate/tu*100) : 0;
