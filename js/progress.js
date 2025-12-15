@@ -81,9 +81,11 @@ function renderScopeRow(i){
   `;
   row.addEventListener('change', onScopeChange);
   const unitsEl=row.querySelector('[data-k="unitsLabel"]');
-  if(unitsEl && unitsEl.tagName==='SELECT'){
-    const desired=(s.totalUnits? (s.unitsLabel||'Feet') : (s.unitsLabel||'%'));
-    unitsEl.value=desired;
+  if(unitsEl){
+    // Auto-clear default % on focus so datalist opens immediately
+    unitsEl.addEventListener('focus', () => {
+      if (unitsEl.value === '%') unitsEl.value = '';
+    });
   }
   return row;
 }
@@ -128,11 +130,8 @@ function onScopeChange(e){
   s.cost = isFinite(inputs.cost) ? inputs.cost : 0;
   const tu = inputs.totalUnitsRaw === '' ? '' : clamp(parseFloat(inputs.totalUnitsRaw)||0,0,1e12);
   s.totalUnits = tu;
-  if(tu!=='' && tu>0){
-    s.unitsLabel = (inputs.unitsLabel || 'Feet');
-  } else {
-    s.unitsLabel = (inputs.unitsLabel || '%');
-  }
+  // Preserve explicit unit selection; only force % when empty
+  s.unitsLabel = inputs.unitsLabel || '%';
   if(tu!=='' && tu>0){
     s.unitsToDate = clamp(inputs.progressVal,0,1e12);
     s.actualPct = tu>0 ? (s.unitsToDate/tu*100) : 0;
