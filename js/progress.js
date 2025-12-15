@@ -72,7 +72,7 @@ function renderScopeRow(i){
     <div>
       <input data-k="progress" type="number" step="0.01" min="0" placeholder="% or Units to Date" value="${s.totalUnits? s.unitsToDate : s.actualPct}">
     </div>
-    <select data-k="unitsLabel"><option value="%">%</option><option value="Feet">Feet</option><option value="Inches">Inches</option><option value="Qty">Qty</option><option value="Meters">Meters</option><option value="Centimeters">Centimeters</option></select>
+    <input data-k="unitsLabel" list="unitsList" value="%" placeholder="%">
     <div class="small" data-k="planned"></div>
     <div class="actions">
       <button class="iconbtn del" title="Remove this row">−</button>
@@ -2064,43 +2064,4 @@ document.addEventListener('DOMContentLoaded', () => {
   if (loadBtn) loadBtn.innerHTML = "📂 Load Project ▾";
   const ddItem = document.querySelector('#loadDropdown [data-act="open"]');
   if (ddItem) ddItem.textContent = "Open Project";
-});
-
-
-/* ===============================
-   Units normalization (SAFE ADD)
-   =============================== */
-document.addEventListener('input', function(e) {
-  if (!e.target.classList.contains('unitsLabel')) return;
-
-  const unitsInput = e.target;
-  const row = unitsInput.closest('.row');
-  if (!row) return;
-
-  let units = unitsInput.value.trim();
-  if (!units) {
-    units = '%';
-    unitsInput.value = '%';
-  }
-
-  // Reset progress-to-date when switching between % and non-%
-  const progressInput = row.querySelector('.progressValue');
-  if (progressInput) {
-    progressInput.value = '';
-  }
-});
-
-document.addEventListener('input', function(e) {
-  if (!e.target.classList.contains('totalUnits')) return;
-
-  const totalInput = e.target;
-  const row = totalInput.closest('.row');
-  if (!row) return;
-
-  const unitsInput = row.querySelector('.unitsLabel');
-  if (!unitsInput) return;
-
-  if (!totalInput.value.trim()) {
-    unitsInput.value = '%';
-  }
 });
