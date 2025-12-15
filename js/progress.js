@@ -2065,3 +2065,42 @@ document.addEventListener('DOMContentLoaded', () => {
   const ddItem = document.querySelector('#loadDropdown [data-act="open"]');
   if (ddItem) ddItem.textContent = "Open Project";
 });
+
+
+/* ===============================
+   Units normalization (SAFE ADD)
+   =============================== */
+document.addEventListener('input', function(e) {
+  if (!e.target.classList.contains('unitsLabel')) return;
+
+  const unitsInput = e.target;
+  const row = unitsInput.closest('.row');
+  if (!row) return;
+
+  let units = unitsInput.value.trim();
+  if (!units) {
+    units = '%';
+    unitsInput.value = '%';
+  }
+
+  // Reset progress-to-date when switching between % and non-%
+  const progressInput = row.querySelector('.progressValue');
+  if (progressInput) {
+    progressInput.value = '';
+  }
+});
+
+document.addEventListener('input', function(e) {
+  if (!e.target.classList.contains('totalUnits')) return;
+
+  const totalInput = e.target;
+  const row = totalInput.closest('.row');
+  if (!row) return;
+
+  const unitsInput = row.querySelector('.unitsLabel');
+  if (!unitsInput) return;
+
+  if (!totalInput.value.trim()) {
+    unitsInput.value = '%';
+  }
+});
