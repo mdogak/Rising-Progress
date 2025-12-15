@@ -72,7 +72,7 @@ function renderScopeRow(i){
     <div>
       <input data-k="progress" type="number" step="0.01" min="0" placeholder="% or Units to Date" value="${s.totalUnits? s.unitsToDate : s.actualPct}">
     </div>
-    <select data-k="unitsLabel"><option value="%">%</option><option value="Feet">Feet</option><option value="Inches">Inches</option><option value="Qty">Qty</option><option value="Meters">Meters</option><option value="Centimeters">Centimeters</option></select>
+    <input data-k="unitsLabel" list="unitsList" value="${s.unitsLabel || '%'}" placeholder="%">
     <div class="small" data-k="planned"></div>
     <div class="actions">
       <button class="iconbtn del" title="Remove this row">−</button>
@@ -81,9 +81,22 @@ function renderScopeRow(i){
   `;
   row.addEventListener('change', onScopeChange);
   const unitsEl=row.querySelector('[data-k="unitsLabel"]');
-  if(unitsEl && unitsEl.tagName==='SELECT'){
-    const desired=(s.totalUnits? (s.unitsLabel||'Feet') : (s.unitsLabel||'%'));
-    unitsEl.value=desired;
+  if(unitsEl){
+    // Clear default % on focus so the datalist opens immediately on click.
+    unitsEl.addEventListener('focus', () => {
+      if (unitsEl.value === '%') unitsEl.value = '';
+    });
+
+    // Restore % only after all events settle (datalist click can fire blur before input lands).
+    unitsEl.addEventListener('blur', () => {
+      setTimeout(() => {
+        if (!unitsEl.value.trim()) {
+          unitsEl.value = '%';
+          // Trigger change so model syncs if your logic depends on it.
+          unitsEl.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      }, 200);
+    });
   }
   return row;
 }
