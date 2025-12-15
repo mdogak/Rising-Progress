@@ -82,9 +82,18 @@ function renderScopeRow(i){
   row.addEventListener('change', onScopeChange);
   const unitsEl=row.querySelector('[data-k="unitsLabel"]');
   if(unitsEl){
-    // Select existing value on focus so typing immediately shows datalist
+    // Clear default % on focus so datalist opens immediately
     unitsEl.addEventListener('focus', () => {
-      unitsEl.select();
+      if (unitsEl.value === '%') {
+        unitsEl.value = '';
+      }
+    });
+
+    // Restore % on blur if left empty
+    unitsEl.addEventListener('blur', () => {
+      if (!unitsEl.value.trim()) {
+        unitsEl.value = '%';
+      }
     });
   }
 
