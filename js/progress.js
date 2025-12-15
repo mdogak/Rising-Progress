@@ -72,7 +72,8 @@ function renderScopeRow(i){
     <div>
       <input data-k="progress" type="number" step="0.01" min="0" placeholder="% or Units to Date" value="${s.totalUnits? s.unitsToDate : s.actualPct}">
     </div>
-    <input data-k="unitsLabel" list="unitsList" value="%" placeholder="%">
+    <<input data-k="unitsLabel" list="unitsList" value="${s.unitsLabel || '%'}" placeholder="%">
+
     <div class="small" data-k="planned"></div>
     <div class="actions">
       <button class="iconbtn del" title="Remove this row">−</button>
