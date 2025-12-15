@@ -82,18 +82,28 @@ function renderScopeRow(i){
   row.addEventListener('change', onScopeChange);
   const unitsEl=row.querySelector('[data-k="unitsLabel"]');
   if(unitsEl){
+    let hadInput = false;
+
     // Clear default % on focus so datalist opens immediately
     unitsEl.addEventListener('focus', () => {
+      hadInput = false;
       if (unitsEl.value === '%') {
         unitsEl.value = '';
       }
     });
 
-    // Restore % on blur if left empty
+    // Any real typing or datalist selection counts as input
+    unitsEl.addEventListener('input', () => {
+      hadInput = true;
+    });
+
+    // Restore % ONLY if still empty after blur settles
     unitsEl.addEventListener('blur', () => {
-      if (!unitsEl.value.trim()) {
-        unitsEl.value = '%';
-      }
+      setTimeout(() => {
+        if (!unitsEl.value.trim() && !hadInput) {
+          unitsEl.value = '%';
+        }
+      }, 0);
     });
   }
 
