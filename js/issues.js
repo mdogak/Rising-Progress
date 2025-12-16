@@ -1,3 +1,7 @@
+/*
+© 2025 Rising Progress LLC. All rights reserved.
+*/
+
 // issues.js
 // Builds a friendly recommendations modal based on scope flags from progress.html
 
