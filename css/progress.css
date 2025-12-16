@@ -526,27 +526,3 @@
   overflow: hidden;
 }
 
-
-/* === Horizontal scrolling fix for grid (desktop + mobile) === */
-/* Allow grid to scroll horizontally when columns exceed viewport */
-.cols-2,
-.stack-when-narrow {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-}
-
-/* Ensure rows do NOT clip overflow */
-.row {
-  overflow: visible;
-}
-
-
-/* === Minimal stable tweak: widen History container by 100px === */
-/* No overflow or scrolling behavior changes */
-.history-section,
-#historySection,
-#historyContainer {
-  width: calc(100% + 100px);
-  max-width: none;
-}
-
