@@ -509,44 +509,41 @@
 }
 
 
-/* === Normalize Start / End date inputs in grid (Edge + mobile fix) === */
-.row input[type="date"] {
-  min-width: 0;
-  width: 100%;
-  box-sizing: border-box;
-  height: 36px;
-  line-height: 36px;
-  padding: 0 10px;
-  appearance: none;
-  -webkit-appearance: none;
+/* === Scroll restore (mobile + desktop) === */
+/* If any section overflows (grid or tables), allow horizontal scrolling */
+html, body {
+  overflow-x: auto;
 }
 
-/* Prevent grid children from bleeding into adjacent columns */
-.row {
-  overflow: hidden;
-}
-
-
-/* === History section horizontal scroll fix (mobile + desktop) === */
-/* Allow history tables to scroll horizontally instead of clipping */
-#historyTableWrapper,
-.history-table-wrapper,
-.history-section {
+/* Allow the main page container to scroll horizontally when needed */
+.wrap {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 }
 
-/* Ensure history tables can exceed viewport width */
-#historyTable,
-.history-table {
-  width: max-content;
-  min-width: 100%;
+/* Progress grid containers: keep layout, but allow horizontal scroll */
+.cols-2,
+.stack-when-narrow {
+  overflow-x: auto !important;
+  overflow-y: visible !important;
+  -webkit-overflow-scrolling: touch;
 }
 
-/* Prevent table rows/cells from clipping content */
-#historyTable tr,
-#historyTable td,
-#historyTable th {
-  overflow: visible;
+/* Rows must never clip horizontally (this blocks scroll on narrow screens) */
+.row {
+  overflow: visible !important;
+}
+
+/* History section: make its container scrollable and keep table from being clipped */
+#historyTableWrapper,
+.history-table-wrapper,
+.history-section {
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+#historyTable,
+.history-table {
+  min-width: 100%;
 }
 
