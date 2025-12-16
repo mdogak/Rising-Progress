@@ -527,16 +527,21 @@
 }
 
 
-/* === Horizontal scrolling fix for grid (desktop + mobile) === */
-/* Allow grid to scroll horizontally when columns exceed viewport */
-.cols-2,
-.stack-when-narrow {
+/* === Stable mobile fix: allow History to size to its content === */
+/* Do NOT change layout elsewhere */
+.history-section,
+#historySection,
+#historyContainer {
+  max-width: none;
+  width: 100%;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 }
 
-/* Ensure rows do NOT clip overflow */
-.row {
-  overflow: visible;
+/* Let the history table define its own required width */
+.history-section table,
+#historySection table,
+#historyContainer table {
+  min-width: max-content;
 }
 
