@@ -27,8 +27,8 @@
     .grid{display:grid;gap:16px}
     .cols-2{grid-template-columns:
     180px   /* Scope */
-    132px   /* Start */
-    132px   /* End */
+    120px   /* Start */
+    120px   /* End */
     120px   /* Cost / % Weight */
     100px   /* Total Units */
     130px   /* % or Units to Date */
@@ -43,8 +43,8 @@
   display:grid;
   grid-template-columns:
     180px   /* Scope */
-    132px   /* Start */
-    132px   /* End */
+    120px   /* Start */
+    120px   /* End */
     120px   /* Cost / % Weight */
     100px   /* Total Units */
     130px   /* % or Units to Date */
@@ -77,8 +77,8 @@
     .narrow{max-width:720px}
     .stack-when-narrow{display:grid;grid-template-columns:
     180px   /* Scope */
-    132px   /* Start */
-    132px   /* End */
+    120px   /* Start */
+    120px   /* End */
     120px   /* Cost / % Weight */
     100px   /* Total Units */
     130px   /* % or Units to Date */
@@ -98,8 +98,8 @@
     .inline-skinny{width:200px; } /* narrower label field */
     @media (max-width: 640px){ .chart-header{flex-direction:row; align-items:center;align-items:stretch} .input-inline input{width:100%} .row{grid-template-columns:
     180px   /* Scope */
-    132px   /* Start */
-    132px   /* End */
+    120px   /* Start */
+    120px   /* End */
     120px   /* Cost / % Weight */
     100px   /* Total Units */
     130px   /* % or Units to Date */
@@ -527,18 +527,23 @@
 }
 
 
-/* === Stable mobile fix: allow History to size to its content === */
-/* Do NOT change layout elsewhere */
+/* === FIX: Isolate horizontal scrolling to History only === */
+/* Keep page constrained to main scope container */
+.wrap {
+  overflow-x: hidden;
+}
+
+/* Allow ONLY the history section to scroll horizontally */
 .history-section,
 #historySection,
 #historyContainer {
-  max-width: none;
-  width: 100%;
   overflow-x: auto;
+  max-width: 100%;
+  width: 100%;
   -webkit-overflow-scrolling: touch;
 }
 
-/* Let the history table define its own required width */
+/* Allow history table to define its natural width */
 .history-section table,
 #historySection table,
 #historyContainer table {
