@@ -1,3 +1,7 @@
+/*
+© 2025 Rising Progress LLC. All rights reserved.
+*/
+
 async function captureRegionCanvas() {
   const region = document.getElementById('captureRegion');
   if (!region) throw new Error("captureRegion not found");
