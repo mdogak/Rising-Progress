@@ -1,3 +1,7 @@
+/*
+© 2025 Rising Progress LLC. All rights reserved.
+*/
+
 import { getBaselineSeries, takeBaseline, renderDailyTable, initHistory } from './history.js';
 
 // Ensure legend text renders after files are loaded without needing a toggle
