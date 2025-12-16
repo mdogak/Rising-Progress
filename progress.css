@@ -541,12 +541,12 @@
 }
 
 
-/* === Minimal stable tweak: widen History container by 100px === */
-/* No overflow or scrolling behavior changes */
+/* === Stable fix: increase History container width without layout changes === */
+/* Let history section use full available width and expand as needed */
 .history-section,
 #historySection,
 #historyContainer {
-  width: calc(100% + 100px);
   max-width: none;
+  width: 100%;
 }
 
