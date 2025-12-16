@@ -1,3 +1,7 @@
+/*
+© 2025 Rising Progress LLC. All rights reserved.
+*/
+
 // History and baseline helpers for Rising Progress
 // This ES module works alongside progress.js and assumes that progress.js
 // has already attached `model`, `setCookie`, and `COOKIE_KEY` to `window`.
