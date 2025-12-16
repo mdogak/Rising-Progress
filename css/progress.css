@@ -1,4 +1,8 @@
 
+html, body {
+  overflow-x: auto;
+}
+
     :root{
       --bg:#ffffff;
       --panel:#f8fafc;/* slate-50 */
@@ -523,6 +527,6 @@
 
 /* Prevent grid children from bleeding into adjacent columns */
 .row {
-  overflow: hidden;
+  overflow: visible;
 }
 
