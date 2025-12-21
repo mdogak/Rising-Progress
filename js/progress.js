@@ -58,17 +58,33 @@ let model = {
 window.model = model;
 
 function defaultScope(i){
-  if(i===0){ const startDate = new Date(today); startDate.setDate(startDate.getDate()-1); const endDate = new Date(startDate); endDate.setDate(endDate.getDate()+7); const start = fmtDate(startDate); const end = fmtDate(endDate); return { label:`Scope #${i+1}`, start, end, cost:100, actualPct:0, unitsToDate:0, totalUnits:'', unitsLabel:'%' }; }
-  return { label:`Scope #${i+1}`, start:'', end:'', cost:0, actualPct:0, unitsToDate:0, totalUnits:'', unitsLabel:'%' };
+  if(i===0){ const startDate = new Date(today); startDate.setDate(startDate.getDate()-1); const endDate = new Date(startDate); endDate.setDate(endDate.getDate()+7); const start = fmtDate(startDate); const end = fmtDate(endDate); return { label:`Scope #${i+1}`, start, end, cost:100, actualPct:0, unitsToDate:0, totalUnits:'', unitsLabel:'%', sectionName:'' }; }
+  return { label:`Scope #${i+1}`, start:'', end:'', cost:0, actualPct:0, unitsToDate:0, totalUnits:'', unitsLabel:'%', sectionName:'' };
 }
 
 function ensureRows(n){ const cont = $('#scopeRows'); const cur = cont.children.length; for(let i=cur;i<n;i++) cont.appendChild(renderScopeRow(i)); }
-function syncScopeRowsToModel(){ const cont = $('#scopeRows'); cont.innerHTML = ''; for(let i=0;i<model.scopes.length;i++) cont.appendChild(renderScopeRow(i)); }
+function syncScopeRowsToModel(){
+  const cont = $('#scopeRows');
+  if(window.Sections && typeof window.Sections.render === 'function'){
+    window.Sections.render(cont, model, renderScopeRow, { calcScopeWeightings, calcScopePlannedPctToDate, parseDate });
+    if(!cont._sectionsHandlersAttached && typeof window.Sections.attachContainerHandlers === 'function'){
+      cont._sectionsHandlersAttached = true;
+      window.Sections.attachContainerHandlers(cont, model, ()=>{
+        syncScopeRowsToModel();
+        computeAndRender();
+        sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
+      });
+    }
+    return;
+  }
+  cont.innerHTML = '';
+  for(let i=0;i<model.scopes.length;i++) cont.appendChild(renderScopeRow(i));
+}
 
 function renderScopeRow(i){
   const row = document.createElement('div'); row.className = 'row'; row.dataset.index = i; const s = model.scopes[i] || defaultScope(i); if(!model.scopes[i]) model.scopes[i] = s;
   row.innerHTML = `
-    <input data-k="label" placeholder="Scope #${i+1}" value="${s.label}">
+    <div class="scope-cell"><span class="drag-handle" title="Drag row" draggable="true">⋮⋮</span><input data-k="label" placeholder="Scope #${i+1}" value="${s.label}"></div>
     <input data-k="start" type="date" value="${s.start}">
     <input data-k="end" type="date" value="${s.end}">
     <input data-k="cost" type="number" step="0.01" min="0" value="${s.cost}">
@@ -79,8 +95,12 @@ function renderScopeRow(i){
     <input data-k="unitsLabel" list="unitsList" value="${s.unitsLabel || '%'}" placeholder="%">
     <div class="small" data-k="planned"></div>
     <div class="actions">
-      <button class="iconbtn del" title="Remove this row">−</button>
-      <button class="iconbtn add" title="Add row below">+</button>
+      <button class="iconbtn menu" title="Row actions" aria-haspopup="true" aria-expanded="false">☰</button>
+      <div class="row-menu" hidden>
+        <button type="button" class="row-menu-item" data-action="del">Remove this row</button>
+        <button type="button" class="row-menu-item" data-action="add">Add row below</button>
+        <button type="button" class="row-menu-item" data-action="addSection">Add section</button>
+      </div>
     </div>
   `;
   row.addEventListener('change', onScopeChange);
@@ -172,12 +192,107 @@ function onScopeChange(e){
 /*****************
  * Row +/- actions
  *****************/
-$('#scopeRows').addEventListener('click', (e)=>{
-  const btn = e.target.closest('button'); if(!btn) return; const row = e.target.closest('.row'); if(!row) return; const i = Number(row.dataset.index);
-  if(btn.classList.contains('del')){ model.scopes.splice(i,1); syncScopeRowsToModel(); computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); }
-  else if(btn.classList.contains('add')){ const newScope = defaultScope(i+1); model.scopes.splice(i+1,0,newScope); model.scopes = model.scopes.map((s,idx)=> ({...s, label: (s.label.startsWith('Scope #')? `Scope #${idx+1}` : s.label)})); syncScopeRowsToModel(); computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); }
-});
+/*****************
+ * Row actions + Section remove
+ *****************/
+(function(){
+  const scopeCont = $('#scopeRows');
+  if(!scopeCont) return;
 
+  // Close any open row menus when clicking elsewhere
+  if(!window._rowMenuGlobalHandlerAttached){
+    window._rowMenuGlobalHandlerAttached = true;
+    document.addEventListener('click', (e)=>{
+      const open = document.querySelector('.row-menu:not([hidden])');
+      if(!open) return;
+      const within = e.target.closest('.actions');
+      if(within && within.contains(open)) return;
+      open.hidden = true;
+      const btn = open.parentElement ? open.parentElement.querySelector('button.menu') : null;
+      if(btn) btn.setAttribute('aria-expanded','false');
+    });
+  }
+
+  scopeCont.addEventListener('click', (e)=>{
+    const btn = e.target.closest('button');
+    if(!btn) return;
+
+    // Section header remove
+    const header = e.target.closest('.section-row');
+    if(header && btn.classList.contains('section-remove')){
+      const startIndex = Number(header.dataset.startIndex);
+      if(window.Sections && typeof window.Sections.removeSection === 'function'){
+        window.Sections.removeSection(model, startIndex);
+      }
+      syncScopeRowsToModel();
+      computeAndRender();
+      sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
+      return;
+    }
+
+    // Row actions menu toggle
+    if(btn.classList.contains('menu')){
+      const actions = btn.closest('.actions');
+      const menu = actions ? actions.querySelector('.row-menu') : null;
+      if(!menu) return;
+
+      // Close other menus
+      document.querySelectorAll('.row-menu:not([hidden])').forEach(m=>{
+        if(m!==menu) m.hidden = true;
+      });
+      const expanded = btn.getAttribute('aria-expanded') === 'true';
+      menu.hidden = expanded ? true : false;
+      btn.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+      return;
+    }
+
+    // Row menu item actions
+    const item = btn.classList.contains('row-menu-item') ? btn : null;
+    if(item){
+      const action = item.getAttribute('data-action') || '';
+      const row = e.target.closest('.row');
+      if(!row) return;
+      const i = Number(row.dataset.index);
+
+      // Close menu after click
+      const menu = item.closest('.row-menu');
+      if(menu) menu.hidden = true;
+      const menuBtn = row.querySelector('button.menu');
+      if(menuBtn) menuBtn.setAttribute('aria-expanded','false');
+
+      if(action === 'del'){
+        model.scopes.splice(i,1);
+        syncScopeRowsToModel();
+        computeAndRender();
+        sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
+        return;
+      }
+
+      if(action === 'add'){
+        const newScope = defaultScope(i+1);
+        // New row inherits section of row above (if any) so it remains in the same section.
+        const inheritName = (model.scopes[i] && model.scopes[i].sectionName) ? model.scopes[i].sectionName : '';
+        newScope.sectionName = inheritName;
+        model.scopes.splice(i+1,0,newScope);
+        model.scopes = model.scopes.map((s,idx)=> ({...s, label: (s.label && s.label.startsWith('Scope #')? `Scope #${idx+1}` : s.label)}));
+        syncScopeRowsToModel();
+        computeAndRender();
+        sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
+        return;
+      }
+
+      if(action === 'addSection'){
+        if(window.Sections && typeof window.Sections.addSection === 'function'){
+          window.Sections.addSection(model, i);
+        }
+        syncScopeRowsToModel();
+        computeAndRender();
+        sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
+        return;
+      }
+    }
+  });
+})();
 /*****************
  * Calculations
  *****************/
@@ -1227,7 +1342,7 @@ function buildAllCSV(){
 
   // SCOPES section
   out += '#SECTION:SCOPES\n';
-  out += 'label,start,end,cost,progressValue,totalUnits,unitsLabel\n';
+  out += 'label,start,end,cost,progressValue,totalUnits,unitsLabel,sectionName\n';
   (model.scopes || []).forEach(s => {
     const label = s.label || '';
     const start = s.start || '';
@@ -1246,7 +1361,8 @@ function buildAllCSV(){
       cost,
       progressValue,
       totalUnits === '' ? '' : totalUnits,
-      unitsLabel
+      unitsLabel,
+      (s.sectionName || '')
     ]);
   });
   out += '\n';
