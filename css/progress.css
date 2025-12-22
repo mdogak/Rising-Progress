@@ -502,14 +502,10 @@ html, body {
   text-decoration: underline;
 }
 
-/* Completed scope row highlighting */
+/* Completed scope row highlighting (no opacity to preserve menu readability) */
 .scope-complete {
-  background: #f1f5f9 !important;
-  opacity: 0.55;
-  transition: opacity 0.2s ease, background 0.2s ease;
-}
-.scope-complete:hover {
-  opacity: 0.75;
+  background-color: #f1f5f9 !important; /* light slate */
+  color: #64748b; /* muted slate text */
 }
 
 
