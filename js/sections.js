@@ -265,6 +265,15 @@
 // - Section headers: draggable boundaries only; moving a header does NOT move its rows.
 //   After drop, ALL rows re-associate based on the nearest header above.
 function attachContainerHandlers(container, model, rerender){
+  // Always keep latest references so handlers work after loading a new project
+  container._sectionsModel = model;
+  container._sectionsRerender = rerender;
+  if(container._sectionsHandlersAttached) return;
+  container._sectionsHandlersAttached = true;
+
+  const getModel = ()=> container._sectionsModel;
+  const getRerender = ()=> container._sectionsRerender;
+
   let dragState = null; // { type:'row'|'header', fromIndex:number, name?:string, fromStart?:number }
 
   function clearDragOver(){
@@ -276,7 +285,7 @@ function attachContainerHandlers(container, model, rerender){
     if(row) return Number(row.dataset.index);
     const header = target.closest('.section-row');
     if(header) return Number(header.dataset.startIndex);
-    return model.scopes.length; // drop at end
+    return getModel().scopes.length; // drop at end
   }
 
   function nearestHeaderNameAboveIndex(scopes, idx){
@@ -298,7 +307,7 @@ function attachContainerHandlers(container, model, rerender){
 
   function reassignAllRowsFromBoundaries(boundaries){
     ensureSectionNameField(model);
-    const n = model.scopes.length;
+    const n = getModel().scopes.length;
     const b = (boundaries || [])
       .map(x => ({ name:String(x.name||''), start:Number(x.start) }))
       .filter(x => x.name && !isNaN(x.start))
@@ -326,7 +335,7 @@ function attachContainerHandlers(container, model, rerender){
         activeName = cleaned[bi].name;
         bi++;
       }
-      model.scopes[i].sectionName = activeName || '';
+      getModel().scopes[i].sectionName = activeName || '';
     }
   }
 
@@ -380,25 +389,25 @@ function attachContainerHandlers(container, model, rerender){
 
     if(dragState.type === 'row'){
       const from = Number(dragState.fromIndex);
-      if(isNaN(from) || from < 0 || from >= model.scopes.length){ dragState = null; return; }
+      if(isNaN(from) || from < 0 || from >= getModel().scopes.length){ dragState = null; return; }
 
       // Clamp target to current length (after removal we insert before this index)
       let target = Number(targetIndexRaw);
-      if(isNaN(target)) target = model.scopes.length;
+      if(isNaN(target)) target = getModel().scopes.length;
 
-      const moved = model.scopes.splice(from, 1)[0];
+      const moved = getModel().scopes.splice(from, 1)[0];
 
       // If removing from above the target, target shifts down by 1
       if(from < target) target = target - 1;
 
-      target = Math.max(0, Math.min(target, model.scopes.length));
-      model.scopes.splice(target, 0, moved);
+      target = Math.max(0, Math.min(target, getModel().scopes.length));
+      getModel().scopes.splice(target, 0, moved);
 
       // Adopt section of nearest header above destination
-      moved.sectionName = nearestHeaderNameAboveIndex(model.scopes, target);
+      moved.sectionName = nearestHeaderNameAboveIndex(getModel().scopes, target);
 
       dragState = null;
-      if(typeof rerender === 'function') rerender();
+      const rr = getRerender(); if(typeof rr === 'function') rr();
       return;
     }
 
@@ -422,8 +431,8 @@ function attachContainerHandlers(container, model, rerender){
 
       // Insert at new location (above targetIndexRaw)
       let newStart = Number(targetIndexRaw);
-      if(isNaN(newStart)) newStart = model.scopes.length;
-      newStart = Math.max(0, Math.min(newStart, model.scopes.length));
+      if(isNaN(newStart)) newStart = getModel().scopes.length;
+      newStart = Math.max(0, Math.min(newStart, getModel().scopes.length));
 
       kept.push({ name, start:newStart });
 
@@ -431,7 +440,7 @@ function attachContainerHandlers(container, model, rerender){
       reassignAllRowsFromBoundaries(kept);
 
       dragState = null;
-      if(typeof rerender === 'function') rerender();
+      const rr = getRerender(); if(typeof rr === 'function') rr();
     }
   });
 

@@ -67,8 +67,7 @@ function syncScopeRowsToModel(){
   const cont = $('#scopeRows');
   if(window.Sections && typeof window.Sections.render === 'function'){
     window.Sections.render(cont, model, renderScopeRow, { calcScopeWeightings, calcScopePlannedPctToDate, parseDate });
-    if(!cont._sectionsHandlersAttached && typeof window.Sections.attachContainerHandlers === 'function'){
-      cont._sectionsHandlersAttached = true;
+    if(typeof window.Sections.attachContainerHandlers === 'function'){
       window.Sections.attachContainerHandlers(cont, model, ()=>{
         syncScopeRowsToModel();
         computeAndRender();
