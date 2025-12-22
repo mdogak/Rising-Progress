@@ -507,10 +507,12 @@ html, body {
   background: #f1f5f9 !important;
   transition: background 0.2s ease;
 }
-.scope-complete > * {
+
+/* Fade completed row EXCEPT the actions cell (dropdown lives here) */
+.scope-complete > :not(.actions) {
   opacity: 0.55;
 }
-.scope-complete:hover > * {
+.scope-complete:hover > :not(.actions) {
   opacity: 0.75;
 }
 
