@@ -339,6 +339,85 @@ function attachContainerHandlers(container, model, rerender){
     }
   }
 
+
+  // Section title persistence:
+  // - Section headers are derived from model.scopes[].sectionName.
+  // - Inline edits must write back to the model (all rows in the segment) so names survive re-renders, moves, and refresh.
+  function commitSectionTitle(inputEl){
+    try{
+      const header = inputEl && inputEl.closest ? inputEl.closest('.section-row') : null;
+      if(!header) return;
+
+      const m = getModel();
+      if(!m || !Array.isArray(m.scopes)) return;
+      ensureSectionNameField(m);
+
+      const start = Number(header.dataset.startIndex);
+      const end = Number(header.dataset.endIndex);
+      if(isNaN(start) || isNaN(end) || start < 0 || end < start || end >= m.scopes.length) return;
+
+      const oldName = String(header.dataset.name || '');
+      const prevName = String(header.dataset.prevName || oldName || '').trim();
+
+      let newName = String(inputEl.value ?? '').trim();
+
+      // If cleared, revert to the previous name (do not allow blank section titles).
+      if(!newName) newName = prevName || oldName;
+
+      // Normalize displayed value
+      inputEl.value = newName;
+
+      // If no change, just update prevName and exit
+      if(newName === oldName){
+        header.dataset.prevName = newName;
+        return;
+      }
+
+      // Persist to model: all rows in this contiguous segment adopt the new name
+      for(let i=start;i<=end;i++){
+        if(m.scopes[i] && typeof m.scopes[i] === 'object'){
+          m.scopes[i].sectionName = newName;
+        }
+      }
+
+      // Keep header metadata consistent so drag operations use the renamed title
+      header.dataset.name = newName;
+      header.dataset.prevName = newName;
+
+      const rr = getRerender();
+      if(typeof rr === 'function') rr();
+    } catch(_){
+      // fail silently; no-op
+    }
+  }
+
+  // Capture previous value on focus so "clear to revert" works
+  container.addEventListener('focusin', (e)=>{
+    const input = e.target && e.target.closest ? e.target.closest('.section-title') : null;
+    if(!input) return;
+    const header = input.closest('.section-row');
+    if(!header) return;
+    header.dataset.prevName = String(header.dataset.name || input.value || '').trim();
+  });
+
+  // Commit on blur
+  container.addEventListener('focusout', (e)=>{
+    const input = e.target && e.target.closest ? e.target.closest('.section-title') : null;
+    if(!input) return;
+    commitSectionTitle(input);
+  });
+
+  // Commit on Enter (blur)
+  container.addEventListener('keydown', (e)=>{
+    const input = e.target && e.target.closest ? e.target.closest('.section-title') : null;
+    if(!input) return;
+    if(e.key === 'Enter'){
+      e.preventDefault();
+      input.blur();
+    }
+  });
+
+
   container.addEventListener('dragstart', (e)=>{
     const rowHandle = e.target.closest('.drag-handle');
     const headerHandle = e.target.closest('.section-handle');
