@@ -505,10 +505,12 @@ html, body {
 /* Completed scope row highlighting */
 .scope-complete {
   background: #f1f5f9 !important;
-  opacity: 0.55;
-  transition: opacity 0.2s ease, background 0.2s ease;
+  transition: background 0.2s ease;
 }
-.scope-complete:hover {
+.scope-complete > * {
+  opacity: 0.55;
+}
+.scope-complete:hover > * {
   opacity: 0.75;
 }
 
@@ -700,4 +702,10 @@ html, body {
 }
 .scope-complete .row-menu-item:hover{
   background:#f8fafc !important;
+}
+
+/* === Ensure dropdown menus are fully opaque even in completed rows === */
+.scope-complete .row-menu,
+.scope-complete .row-menu * {
+  opacity: 1 !important;
 }
