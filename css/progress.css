@@ -35,7 +35,7 @@ html, body {
     132px   /* End */
     120px   /* Cost / % Weight */
     100px   /* Total Units */
-    130px   /* % or Units to Date */
+    100px   /* % or Units to Date */
     80px    /* Units */
     100px   /* Planned */
     80px    /* Actions */;border:1px solid var(--border);border-radius:16px;padding:16px;box-shadow:0 6px 18px rgba(2,6,23,.06)}
@@ -51,7 +51,7 @@ html, body {
     132px   /* End */
     120px   /* Cost / % Weight */
     100px   /* Total Units */
-    130px   /* % or Units to Date */
+    100px   /* % or Units to Date */
     80px    /* Units */
     100px   /* Planned */
     80px    /* Actions */;  /* Actions */
@@ -85,7 +85,7 @@ html, body {
     132px   /* End */
     120px   /* Cost / % Weight */
     100px   /* Total Units */
-    130px   /* % or Units to Date */
+    100px   /* % or Units to Date */
     80px    /* Units */
     100px   /* Planned */
     80px    /* Actions */;gap:16px}
@@ -106,7 +106,7 @@ html, body {
     132px   /* End */
     120px   /* Cost / % Weight */
     100px   /* Total Units */
-    130px   /* % or Units to Date */
+    100px   /* % or Units to Date */
     80px    /* Units */
     100px   /* Planned */
     80px    /* Actions */;grid-auto-rows:auto} }
@@ -502,10 +502,14 @@ html, body {
   text-decoration: underline;
 }
 
-/* Completed scope row highlighting (no opacity to preserve menu readability) */
+/* Completed scope row highlighting */
 .scope-complete {
-  background-color: #f1f5f9 !important; /* light slate */
-  color: #64748b; /* muted slate text */
+  background: #f1f5f9 !important;
+  opacity: 0.55;
+  transition: opacity 0.2s ease, background 0.2s ease;
+}
+.scope-complete:hover {
+  opacity: 0.75;
 }
 
 
@@ -582,19 +586,20 @@ html, body {
 /* ===== Section headers (explicit) ===== */
 .section-row{
   display:grid;
+  gap:16px;
   grid-template-columns:
     180px   /* Scope */
     132px   /* Start */
     132px   /* End */
     120px   /* Cost / % Weight */
     100px   /* Total Units */
-    130px   /* % or Units to Date */
+    100px   /* % or Units to Date */
     80px    /* Units */
     100px   /* Planned */
     80px;   /* Actions */
   gap:16px;
   align-items:center;
-  padding:6px 10px;
+  padding:0;
   border-radius:12px;
   border:1px solid var(--border);
   font-weight:700;
