@@ -686,3 +686,18 @@ html, body {
   justify-self:end;
 }
 
+
+
+/* === Override dropdown menu styling inside completed rows === */
+.scope-complete .row-menu{
+  opacity: 1 !important;
+  background: #ffffff !important;
+  color: var(--text) !important;
+}
+.scope-complete .row-menu-item{
+  opacity: 1 !important;
+  color: var(--text) !important;
+}
+.scope-complete .row-menu-item:hover{
+  background:#f8fafc !important;
+}
