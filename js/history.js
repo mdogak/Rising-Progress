@@ -2,6 +2,11 @@
 © 2025 Rising Progress LLC. All rights reserved.
 */
 
+// UI state for history expand/collapse toggles.
+// This must persist across computeAndRender-driven re-renders.
+let historyUpperExpanded = false;
+let historyLowerExpanded = false;
+
 // History and baseline helpers for Rising Progress
 // This ES module works alongside progress.js and assumes that progress.js
 // has already attached `model`, `setCookie`, and `COOKIE_KEY` to `window`.
@@ -135,8 +140,9 @@ export function renderDailyTable(days, baseline, planned, actual, opts = {}) {
       if (group === "lower") tr.classList.add("history-row-lower");
 
       if (group === "upper" || group === "lower") {
-        // collapsed by default
-        tr.style.display = "none";
+        // Collapsed/expanded state must persist across re-renders.
+        const expanded = group === "upper" ? historyUpperExpanded : historyLowerExpanded;
+        tr.style.display = expanded ? "" : "none";
       }
 
       tr.innerHTML = `
@@ -164,8 +170,8 @@ export function renderDailyTable(days, baseline, planned, actual, opts = {}) {
       upperToggleRow.classList.add("history-toggle-row", "history-toggle-row-upper");
       upperToggleRow.innerHTML = `
         <td colspan="4">
-          <button type="button" class="history-toggle-btn" data-target="upper" data-expanded="false">
-            + Show older history entries
+          <button type="button" class="history-toggle-btn" data-target="upper" data-expanded="${historyUpperExpanded ? "true" : "false"}">
+            ${historyUpperExpanded ? "– Hide older history entries" : "+ Show older history entries"}
           </button>
         </td>
       `;
@@ -191,8 +197,8 @@ export function renderDailyTable(days, baseline, planned, actual, opts = {}) {
       lowerToggleRow.classList.add("history-toggle-row", "history-toggle-row-lower");
       lowerToggleRow.innerHTML = `
         <td colspan="4">
-          <button type="button" class="history-toggle-btn" data-target="lower" data-expanded="false">
-            + Show more future history entries
+          <button type="button" class="history-toggle-btn" data-target="lower" data-expanded="${historyLowerExpanded ? "true" : "false"}">
+            ${historyLowerExpanded ? "– Hide future history entries" : "+ Show more future history entries"}
           </button>
         </td>
       `;
@@ -246,20 +252,25 @@ export function renderDailyTable(days, baseline, planned, actual, opts = {}) {
           : ".history-row-lower";
 
       const rows = tb.querySelectorAll(rowsSelector);
+      const newExpanded = !expanded;
+
       rows.forEach((row) => {
-        row.style.display = expanded ? "none" : "";
+        row.style.display = newExpanded ? "" : "none";
       });
 
-      btn.setAttribute("data-expanded", expanded ? "false" : "true");
+      btn.setAttribute("data-expanded", newExpanded ? "true" : "false");
 
+      // Persist UI state across subsequent re-renders.
       if (target === "upper") {
-        btn.textContent = expanded
-          ? "+ Show older history entries"
-          : "– Hide older history entries";
+        historyUpperExpanded = newExpanded;
+        btn.textContent = newExpanded
+          ? "– Hide older history entries"
+          : "+ Show older history entries";
       } else {
-        btn.textContent = expanded
-          ? "+ Show more future history entries"
-          : "– Hide future history entries";
+        historyLowerExpanded = newExpanded;
+        btn.textContent = newExpanded
+          ? "– Hide future history entries"
+          : "+ Show more future history entries";
       }
     });
   });
