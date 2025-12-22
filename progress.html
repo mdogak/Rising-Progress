@@ -341,8 +341,8 @@ document.addEventListener("DOMContentLoaded", () => {
   if (!SHOW_BETA_BADGE) return;
   const badge = document.createElement("div");
   badge.id = "betaBadge";
-  badge.textContent = "BETA USER TESTING MODE";
-  badge.title = "This tool is currently in beta for user testing.";
+  badge.textContent = "BETA TESTING - SHARE FEEDBACK";
+  badge.title = "Click here to provide feedback for this tool as it is in beta for user testing.";
   document.body.appendChild(badge);
 });
 </script>
@@ -356,6 +356,9 @@ document.addEventListener("DOMContentLoaded", () => {
   © 2025 Rising Progress LLC. All rights reserved. ·
   <a href="terms.html" style="color:#6b7280; text-decoration:underline;">
     Terms &amp; Conditions
+  </a> ·
+  <a href="#" id="feedbackFooterLink" style="color:#6b7280; text-decoration:underline;">
+    Tell us what you think
   </a>
 </footer>
   
@@ -389,7 +392,7 @@ document.addEventListener("DOMContentLoaded", () => {
       border:none;
       cursor:pointer;
     ">✕</button>
-    <iframe id="feedbackFrame"
+    <iframe
       src="https://forms.gle/CZvAm5e8qzG5WTFMA"
       style="width:100%;height:100%;border:none;">
     </iframe>
