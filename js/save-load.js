@@ -122,35 +122,44 @@ function buildMSPXML() {
     : (typeof proj.legendForecastCheckbox !== 'undefined' ? proj.legendForecastCheckbox : true));
 
   // Baseline snapshot as CSV (date,baselinePct)
+  const baselineCSVLines = [];
   let baselineCSV = '';
   if (model.baseline && Array.isArray(model.baseline.days) && Array.isArray(model.baseline.planned)) {
     for (let i = 0; i < model.baseline.days.length; i++) {
       const dd = model.baseline.days[i];
       const v = model.baseline.planned[i];
       if (!dd) continue;
-      baselineCSV += dd + ',' + (v == null ? '' : v) + '\n';
+      baselineCSVLines.push(dd + ',' + (v == null ? '' : v) + '\n');
     }
   }
 
+  baselineCSV = baselineCSVLines.join('');
+
   // History as CSV (date,actualPct)
+  const actualCSVLines = [];
   let actualCSV = '';
   if (Array.isArray(model.history)) {
     model.history.forEach(h => {
       if (!h || !h.date) return;
       const v = (h.actualPct != null ? h.actualPct : 0);
-      actualCSV += h.date + ',' + v + '\n';
+      actualCSVLines.push(h.date + ',' + v + '\n');
     });
   }
 
+  actualCSV = actualCSVLines.join('');
+
   // DailyActuals as CSV (date,value)
+  const dailyCSVLines = [];
   let dailyCSV = '';
   if (model.dailyActuals && typeof model.dailyActuals === 'object') {
     Object.keys(model.dailyActuals).sort().forEach(dd => {
       const v = model.dailyActuals[dd];
       if (!dd) return;
-      dailyCSV += dd + ',' + (v == null ? '' : v) + '\n';
+      dailyCSVLines.push(dd + ',' + (v == null ? '' : v) + '\n');
     });
   }
+
+  dailyCSV = dailyCSVLines.join('');
 
   // ---- Define custom fields (global definitions) ----
   // NOTE: Top-level <ExtendedAttributes> MUST ONLY contain field definitions (no values).
@@ -172,93 +181,77 @@ function buildMSPXML() {
   ];
 
   // ---- XML ----
-  let xml = '';
-  xml += '<?xml version="1.0" encoding="UTF-8"?>\n';
-  xml += '<Project xmlns="http://schemas.microsoft.com/project">\n';
-
+  const xmlLines = [];
+  xmlLines.push('<?xml version="1.0" encoding="UTF-8"?>\n');
+  xmlLines.push('<Project xmlns="http://schemas.microsoft.com/project">\n');
   // Required-ish core header fields (MSPDI / MS Project XML)
-  xml += '  <SaveVersion>14</SaveVersion>\n';
-  xml += '  <Name>' + escapeXml(proj.name || '') + '</Name>
-';
-  xml += '  <LastSaved>' + nowIsoNoTZ() + '</LastSaved>
-';
-  xml += '  <ScheduleFromStart>1</ScheduleFromStart>\n';
-  xml += '  <StartDate>' + toMspDate(projStart, '08:00:00') + '</StartDate>
-';
-  xml += '  <MinutesPerDay>480</MinutesPerDay>\n';
-  xml += '  <MinutesPerWeek>2400</MinutesPerWeek>\n';
-  xml += '  <DaysPerMonth>20</DaysPerMonth>\n';
-  xml += '  <DefaultStartTime>08:00:00</DefaultStartTime>\n';
-  xml += '  <DefaultFinishTime>17:00:00</DefaultFinishTime>\n';
-  xml += '  <CalendarUID>1</CalendarUID>\n';
-
+  xmlLines.push('  <SaveVersion>14</SaveVersion>\n');
+  xmlLines.push('  <Name>' + escapeXml(proj.name || '') + '</Name>\n');
+  xmlLines.push('  <LastSaved>' + nowIsoNoTZ() + '</LastSaved>\n');
+  xmlLines.push('  <ScheduleFromStart>1</ScheduleFromStart>\n');
+  xmlLines.push('  <StartDate>' + toMspDate(projStart, '08:00:00') + '</StartDate>\n');
+  xmlLines.push('  <MinutesPerDay>480</MinutesPerDay>\n');
+  xmlLines.push('  <MinutesPerWeek>2400</MinutesPerWeek>\n');
+  xmlLines.push('  <DaysPerMonth>20</DaysPerMonth>\n');
+  xmlLines.push('  <DefaultStartTime>08:00:00</DefaultStartTime>\n');
+  xmlLines.push('  <DefaultFinishTime>17:00:00</DefaultFinishTime>\n');
+  xmlLines.push('  <CalendarUID>1</CalendarUID>\n');
   // Global ExtendedAttribute field definitions
-  xml += '  <ExtendedAttributes>\n';
+  xmlLines.push('  <ExtendedAttributes>\n');
   EXT_DEF.forEach(def => {
-    xml += '    <ExtendedAttribute>\n';
-    xml += '      <FieldID>' + fieldIdText(def.n) + '</FieldID>
-';
-    xml += '      <FieldName>' + def.fieldName + '</FieldName>
-';
-    xml += '      <Alias>' + escapeXml(def.alias) + '</Alias>
-';
-    xml += '    </ExtendedAttribute>\n';
+  xmlLines.push('    <ExtendedAttribute>\n');
+  xmlLines.push('      <FieldID>' + fieldIdText(def.n) + '</FieldID>\n');
+  xmlLines.push('      <FieldName>' + def.fieldName + '</FieldName>\n');
+  xmlLines.push('      <Alias>' + escapeXml(def.alias) + '</Alias>\n');
+  xmlLines.push('    </ExtendedAttribute>\n');
   });
-  xml += '  </ExtendedAttributes>\n';
-
+  xmlLines.push('  </ExtendedAttributes>\n');
   // Base calendar definition (Standard 8-12 / 1-5)
-  xml += '  <Calendars>\n';
-  xml += '    <Calendar>\n';
-  xml += '      <UID>1</UID>\n';
-  xml += '      <Name>Standard</Name>\n';
-  xml += '      <IsBaseCalendar>1</IsBaseCalendar>\n';
-  xml += '      <BaseCalendarUID>-1</BaseCalendarUID>\n';
-  xml += '      <WeekDays>\n';
+  xmlLines.push('  <Calendars>\n');
+  xmlLines.push('    <Calendar>\n');
+  xmlLines.push('      <UID>1</UID>\n');
+  xmlLines.push('      <Name>Standard</Name>\n');
+  xmlLines.push('      <IsBaseCalendar>1</IsBaseCalendar>\n');
+  xmlLines.push('      <BaseCalendarUID>-1</BaseCalendarUID>\n');
+  xmlLines.push('      <WeekDays>\n');
   // Sunday (non-working)
-  xml += '        <WeekDay><DayType>1</DayType><DayWorking>0</DayWorking></WeekDay>\n';
+  xmlLines.push('        <WeekDay><DayType>1</DayType><DayWorking>0</DayWorking></WeekDay>\n');
   // Monday-Friday (working 08-12, 13-17)
   [2,3,4,5,6].forEach(dt => {
-    xml += '        <WeekDay>\n';
-    xml += '          <DayType>' + dt + '</DayType>
-';
-    xml += '          <DayWorking>1</DayWorking>\n';
-    xml += '          <WorkingTimes>\n';
-    xml += '            <WorkingTime><FromTime>08:00:00</FromTime><ToTime>12:00:00</ToTime></WorkingTime>\n';
-    xml += '            <WorkingTime><FromTime>13:00:00</FromTime><ToTime>17:00:00</ToTime></WorkingTime>\n';
-    xml += '          </WorkingTimes>\n';
-    xml += '        </WeekDay>\n';
+  xmlLines.push('        <WeekDay>\n');
+  xmlLines.push('          <DayType>' + dt + '</DayType>\n');
+  xmlLines.push('          <DayWorking>1</DayWorking>\n');
+  xmlLines.push('          <WorkingTimes>\n');
+  xmlLines.push('            <WorkingTime><FromTime>08:00:00</FromTime><ToTime>12:00:00</ToTime></WorkingTime>\n');
+  xmlLines.push('            <WorkingTime><FromTime>13:00:00</FromTime><ToTime>17:00:00</ToTime></WorkingTime>\n');
+  xmlLines.push('          </WorkingTimes>\n');
+  xmlLines.push('        </WeekDay>\n');
   });
   // Saturday (non-working)
-  xml += '        <WeekDay><DayType>7</DayType><DayWorking>0</DayWorking></WeekDay>\n';
-  xml += '      </WeekDays>\n';
-  xml += '    </Calendar>\n';
-  xml += '  </Calendars>\n';
-
+  xmlLines.push('        <WeekDay><DayType>7</DayType><DayWorking>0</DayWorking></WeekDay>\n');
+  xmlLines.push('      </WeekDays>\n');
+  xmlLines.push('    </Calendar>\n');
+  xmlLines.push('  </Calendars>\n');
   // Tasks
-  xml += '  <Tasks>\n';
-
+  xmlLines.push('  <Tasks>\n');
   function addTaskEA(fieldId, value) {
-    xml += '      <ExtendedAttribute>\n';
-    xml += '        <FieldID>' + fieldId + '</FieldID>
-';
-    xml += '        <Value><![CDATA[' + (value || '') + ']]></Value>
-';
-    xml += '      </ExtendedAttribute>\n';
+  xmlLines.push('      <ExtendedAttribute>\n');
+  xmlLines.push('        <FieldID>' + fieldId + '</FieldID>\n');
+  xmlLines.push('        <Value><![CDATA[' + (value || '') + ']]></Value>\n');
+  xmlLines.push('      </ExtendedAttribute>\n');
   }
 
   // Mandatory summary task UID=0 (store project-level custom values here)
-  xml += '    <Task>\n';
-  xml += '      <UID>0</UID>\n';
-  xml += '      <ID>0</ID>\n';
-  xml += '      <Name>Project Summary Task</Name>\n';
-  xml += '      <Summary>1</Summary>\n';
-  xml += '      <Start>' + toMspDate(projStart, '08:00:00') + '</Start>
-';
-  xml += '      <Finish>' + toMspDate(projStart, '17:00:00') + '</Finish>
-';
-  xml += '      <PercentComplete>0</PercentComplete>\n';
-  xml += '      <Cost>0</Cost>\n';
-  xml += '      <Duration>PT0H0M0S</Duration>\n';
+  xmlLines.push('    <Task>\n');
+  xmlLines.push('      <UID>0</UID>\n');
+  xmlLines.push('      <ID>0</ID>\n');
+  xmlLines.push('      <Name>Project Summary Task</Name>\n');
+  xmlLines.push('      <Summary>1</Summary>\n');
+  xmlLines.push('      <Start>' + toMspDate(projStart, '08:00:00') + '</Start>\n');
+  xmlLines.push('      <Finish>' + toMspDate(projStart, '17:00:00') + '</Finish>\n');
+  xmlLines.push('      <PercentComplete>0</PercentComplete>\n');
+  xmlLines.push('      <Cost>0</Cost>\n');
+  xmlLines.push('      <Duration>PT0H0M0S</Duration>\n');
   addTaskEA(fieldIdText(1), proj.startup || '');
   addTaskEA(fieldIdText(2), proj.markerLabel || 'Baseline Complete');
   addTaskEA(fieldIdText(3), labelToggleFlag ? 'true' : 'false');
@@ -269,8 +262,7 @@ function buildMSPXML() {
   addTaskEA(fieldIdText(8), baselineCSV);
   addTaskEA(fieldIdText(9), actualCSV);
   addTaskEA(fieldIdText(10), dailyCSV);
-  xml += '    </Task>\n';
-
+  xmlLines.push('    </Task>\n');
   // One task per scope (UIDs start at 1)
   (model.scopes || []).forEach((s, idx) => {
     const uid = idx + 1;
@@ -284,26 +276,15 @@ function buildMSPXML() {
 
     const pct = toIntPct(s.actualPct);
     const cost = toDec(s.cost);
-
-    xml += '    <Task>\n';
-    xml += '      <UID>' + uid + '</UID>
-';
-    xml += '      <ID>' + uid + '</ID>
-';
-    xml += '      <Name>' + escapeXml(label) + '</Name>
-';
-
-    if (start) xml += '      <Start>' + start + '</Start>
-';
-    if (finish) xml += '      <Finish>' + finish + '</Finish>
-';
-
-    xml += '      <PercentComplete>' + pct + '</PercentComplete>
-';
-    xml += '      <Cost>' + cost + '</Cost>
-';
-    xml += '      <Duration>PT0H0M0S</Duration>\n';
-
+  xmlLines.push('    <Task>\n');
+  xmlLines.push('      <UID>' + uid + '</UID>\n');
+  xmlLines.push('      <ID>' + uid + '</ID>\n');
+  xmlLines.push('      <Name>' + escapeXml(label) + '</Name>\n');
+    if (start) xmlLines.push('      <Start>' + start + '</Start>\n');
+    if (finish) xmlLines.push('      <Finish>' + finish + '</Finish>\n');
+  xmlLines.push('      <PercentComplete>' + pct + '</PercentComplete>\n');
+  xmlLines.push('      <Cost>' + cost + '</Cost>\n');
+  xmlLines.push('      <Duration>PT0H0M0S</Duration>\n');
     // Task custom fields (ExtendedAttribute values)
     const unitsToDate = (s.unitsToDate != null ? String(s.unitsToDate) : '');
     const totalUnits = (s.totalUnits != null ? String(s.totalUnits) : '');
@@ -321,21 +302,17 @@ function buildMSPXML() {
         const puid = (p && isFinite(p.uid)) ? Number(p.uid) : null;
         if (!puid) return;
         const type = (p && isFinite(p.type)) ? Number(p.type) : 1; // 1 = Finish-to-Start
-        xml += '      <PredecessorLink>\n';
-        xml += '        <PredecessorUID>' + puid + '</PredecessorUID>
-';
-        xml += '        <Type>' + type + '</Type>
-';
-        xml += '      </PredecessorLink>\n';
+  xmlLines.push('      <PredecessorLink>\n');
+  xmlLines.push('        <PredecessorUID>' + puid + '</PredecessorUID>\n');
+  xmlLines.push('        <Type>' + type + '</Type>\n');
+  xmlLines.push('      </PredecessorLink>\n');
       });
     }
-
-    xml += '    </Task>\n';
+  xmlLines.push('    </Task>\n');
   });
-
-  xml += '  </Tasks>\n';
-  xml += '</Project>';
-  return xml;
+  xmlLines.push('  </Tasks>\n');
+  xmlLines.push('</Project>');
+  return xmlLines.join('');
 }
 
 export async function saveXml(){
