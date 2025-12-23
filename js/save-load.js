@@ -1139,3 +1139,16 @@ export function initSaveLoad(d){
 
   initAutoLoadDefault();
 }
+
+
+// Added: apply toggle states from XML ExtendedAttributes by Alias
+function applyToggleStatesFromExtendedAttributes(extAttrs) {
+  if (!Array.isArray(extAttrs)) return;
+  extAttrs.forEach(ea => {
+    if (!ea || !ea.Alias) return;
+    if (ea.Value === undefined || ea.Value === null || ea.Value === '') return;
+    if (typeof project !== 'undefined' && project.toggles && ea.Alias in project.toggles) {
+      project.toggles[ea.Alias] = (ea.Value === '1' || ea.Value === 1 || ea.Value === true || ea.Value === 'true');
+    }
+  });
+}
