@@ -4,6 +4,9 @@ Save/Load/Export module extracted from progress.js
 */
 
 let deps = null;
+let __saveLoadInitialized = false;
+let __saveLoadDomBound = false;
+let __saveLoadAutoBound = false;
 
 function requireDeps(){
   if(!deps) throw new Error('save-load.js not initialized. Call initSaveLoad(deps) first.');
@@ -943,6 +946,8 @@ function initLoadDropdown(){
 
 function initAutoLoadDefault(){
   const d = requireDeps();
+  if (__saveLoadAutoBound) return;
+  __saveLoadAutoBound = true;
   document.addEventListener('DOMContentLoaded', () => {
     try {
       const url = new URL(window.location.href);
@@ -968,6 +973,8 @@ function initAutoLoadDefault(){
 }
 
 export function initSaveLoad(d){
+  if (__saveLoadInitialized) return;
+  __saveLoadInitialized = true;
   deps = d;
 
   // Globals for compatibility (clear.js, auth wrappers, etc.)
@@ -975,10 +982,13 @@ export function initSaveLoad(d){
   window.saveXml = saveXml;
   window.loadFromPresetCsv = loadFromPresetCsv;
 
-  document.addEventListener('DOMContentLoaded', () => {
-    initSaveDropdown();
-    initLoadDropdown();
-  });
+  if (!__saveLoadDomBound) {
+    __saveLoadDomBound = true;
+    document.addEventListener('DOMContentLoaded', () => {
+      initSaveDropdown();
+      initLoadDropdown();
+    });
+  }
 
   initAutoLoadDefault();
 }
