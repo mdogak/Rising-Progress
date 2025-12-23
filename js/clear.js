@@ -1,5 +1,4 @@
 export function initToolbarClear({
-  model,
   calcEarliestStart,
   fmtDate,
   syncScopeRowsToModel,
