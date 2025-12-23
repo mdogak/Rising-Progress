@@ -54,46 +54,72 @@ function buildMSPXML() {
   const d = requireDeps();
   const model = getModel();
   const proj = model.project || {};
-  let xml = '';
-  xml += '<?xml version="1.0" encoding="UTF-8"?>\n';
-  xml += '<Project xmlns="http://schemas.microsoft.com/project">\n';
 
-  // Project name
-  xml += '  <Name>' + escapeXml(proj.name || '') + '</Name>\n';
-
-  // Project-level ExtendedAttributes (Microsoft Project schema)
-  xml += '  <ExtendedAttributes>\n';
-
-  function addProjAttr(fieldID, name, value) {
-    xml += '    <ExtendedAttribute>\n';
-    xml += '      <FieldID>' + fieldID + '</FieldID>\n';
-    xml += '      <Name>' + name + '</Name>\n';
-    xml += '      <Value><![CDATA[' + (value || '') + ']]></Value>\n';
-    xml += '    </ExtendedAttribute>\n';
+  // ---- Helpers ----
+  const pad2 = (n) => String(n).padStart(2, '0');
+  function nowIsoNoTZ(){
+    const dt = new Date();
+    return dt.getFullYear() + '-' + pad2(dt.getMonth()+1) + '-' + pad2(dt.getDate()) + 'T' +
+           pad2(dt.getHours()) + ':' + pad2(dt.getMinutes()) + ':' + pad2(dt.getSeconds());
+  }
+  function toMspDate(dateStr, timeStr){
+    // dateStr: YYYY-MM-DD
+    if (!dateStr) return '';
+    const t = timeStr || '08:00:00';
+    return dateStr + 'T' + t;
+  }
+  function fieldIdText(n){
+    // MSPDI local task custom field IDs: Text1 = 188743731, Text2 = 188743732, ...
+    return 188743730 + Number(n);
+  }
+  function boolTo01(v){ return v ? '1' : '0'; }
+  function toIntPct(v){
+    const num = (isFinite(v) ? Number(v) : 0);
+    return String(d.clamp(Math.round(num), 0, 100));
+  }
+  function toDec(v){
+    const num = (isFinite(v) ? Number(v) : 0);
+    // Keep as a clean decimal string; avoid locale issues.
+    return String(Math.round(num * 100) / 100);
   }
 
-  // Core project fields
-  addProjAttr('Text1', 'Startup', proj.startup || '');
-  addProjAttr('Text2', 'MarkerLabel', proj.markerLabel || 'Baseline Complete');
+  // Derive a reasonable project start date (earliest scope start) for better imports.
+  let projStart = '';
+  if (Array.isArray(model.scopes)) {
+    for (const s of model.scopes) {
+      if (s && s.start) {
+        if (!projStart || s.start < projStart) projStart = s.start;
+      }
+    }
+  }
+  if (!projStart) projStart = (new Date()).toISOString().slice(0, 10);
 
-  // Legend / label flags - always use current UI checkbox state when available
+  // ---- Build project-level custom values (stored on Summary task UID=0) ----
   const labelToggleEl = document.getElementById('labelToggle');
   const baselineCb = document.getElementById('legendBaselineCheckbox');
   const plannedCb = document.getElementById('legendPlannedCheckbox');
   const actualCb = document.getElementById('legendActualCheckbox');
   const forecastCb = document.getElementById('legendForecastCheckbox');
 
-  const labelToggleFlag = !!(labelToggleEl && typeof labelToggleEl.checked === 'boolean' ? labelToggleEl.checked : (proj.labelToggle || false));
-  const legendBaselineFlag = !!(baselineCb && typeof baselineCb.checked === 'boolean' ? baselineCb.checked : (typeof proj.legendBaselineCheckbox !== 'undefined' ? proj.legendBaselineCheckbox : true));
-  const legendPlannedFlag = !!(plannedCb && typeof plannedCb.checked === 'boolean' ? plannedCb.checked : (typeof proj.legendPlannedCheckbox !== 'undefined' ? proj.legendPlannedCheckbox : true));
-  const legendActualFlag = !!(actualCb && typeof actualCb.checked === 'boolean' ? actualCb.checked : (typeof proj.legendActualCheckbox !== 'undefined' ? proj.legendActualCheckbox : true));
-  const legendForecastFlag = !!(forecastCb && typeof forecastCb.checked === 'boolean' ? forecastCb.checked : (typeof proj.legendForecastCheckbox !== 'undefined' ? proj.legendForecastCheckbox : true));
+  const labelToggleFlag = !!(labelToggleEl && typeof labelToggleEl.checked === 'boolean'
+    ? labelToggleEl.checked
+    : (proj.labelToggle || false));
 
-  addProjAttr('Text3', 'LabelToggle', labelToggleFlag ? 'true' : 'false');
-  addProjAttr('Text4', 'LegendBaselineCheckbox', legendBaselineFlag ? 'true' : 'false');
-  addProjAttr('Text5', 'LegendPlannedCheckbox', legendPlannedFlag ? 'true' : 'false');
-  addProjAttr('Text6', 'LegendActualCheckbox', legendActualFlag ? 'true' : 'false');
-  addProjAttr('Text7', 'LegendForecastCheckbox', legendForecastFlag ? 'true' : 'false');
+  const legendBaselineFlag = !!(baselineCb && typeof baselineCb.checked === 'boolean'
+    ? baselineCb.checked
+    : (typeof proj.legendBaselineCheckbox !== 'undefined' ? proj.legendBaselineCheckbox : true));
+
+  const legendPlannedFlag = !!(plannedCb && typeof plannedCb.checked === 'boolean'
+    ? plannedCb.checked
+    : (typeof proj.legendPlannedCheckbox !== 'undefined' ? proj.legendPlannedCheckbox : true));
+
+  const legendActualFlag = !!(actualCb && typeof actualCb.checked === 'boolean'
+    ? actualCb.checked
+    : (typeof proj.legendActualCheckbox !== 'undefined' ? proj.legendActualCheckbox : true));
+
+  const legendForecastFlag = !!(forecastCb && typeof forecastCb.checked === 'boolean'
+    ? forecastCb.checked
+    : (typeof proj.legendForecastCheckbox !== 'undefined' ? proj.legendForecastCheckbox : true));
 
   // Baseline snapshot as CSV (date,baselinePct)
   let baselineCSV = '';
@@ -102,10 +128,10 @@ function buildMSPXML() {
       const dd = model.baseline.days[i];
       const v = model.baseline.planned[i];
       if (!dd) continue;
-      baselineCSV += dd + ',' + (v == null ? '' : v) + '\n';
+      baselineCSV += dd + ',' + (v == null ? '' : v) + '
+';
     }
   }
-  addProjAttr('Text8', 'BaselineHistory', baselineCSV);
 
   // History as CSV (date,actualPct)
   let actualCSV = '';
@@ -113,10 +139,10 @@ function buildMSPXML() {
     model.history.forEach(h => {
       if (!h || !h.date) return;
       const v = (h.actualPct != null ? h.actualPct : 0);
-      actualCSV += h.date + ',' + v + '\n';
+      actualCSV += h.date + ',' + v + '
+';
     });
   }
-  addProjAttr('Text9', 'ActualHistory', actualCSV);
 
   // DailyActuals as CSV (date,value)
   let dailyCSV = '';
@@ -124,63 +150,244 @@ function buildMSPXML() {
     Object.keys(model.dailyActuals).sort().forEach(dd => {
       const v = model.dailyActuals[dd];
       if (!dd) return;
-      dailyCSV += dd + ',' + (v == null ? '' : v) + '\n';
+      dailyCSV += dd + ',' + (v == null ? '' : v) + '
+';
     });
   }
-  addProjAttr('Text10', 'DailyActuals', dailyCSV);
 
-  xml += '  </ExtendedAttributes>\n';
+  // ---- Define custom fields (global definitions) ----
+  // NOTE: Top-level <ExtendedAttributes> MUST ONLY contain field definitions (no values).
+  const EXT_DEF = [
+    { n: 1,  fieldName: 'Text1',  alias: 'Startup' },
+    { n: 2,  fieldName: 'Text2',  alias: 'MarkerLabel' },
+    { n: 3,  fieldName: 'Text3',  alias: 'LabelToggle' },
+    { n: 4,  fieldName: 'Text4',  alias: 'LegendBaselineCheckbox' },
+    { n: 5,  fieldName: 'Text5',  alias: 'LegendPlannedCheckbox' },
+    { n: 6,  fieldName: 'Text6',  alias: 'LegendActualCheckbox' },
+    { n: 7,  fieldName: 'Text7',  alias: 'LegendForecastCheckbox' },
+    { n: 8,  fieldName: 'Text8',  alias: 'BaselineHistory' },
+    { n: 9,  fieldName: 'Text9',  alias: 'ActualHistory' },
+    { n: 10, fieldName: 'Text10', alias: 'DailyActuals' },
+    { n: 11, fieldName: 'Text11', alias: 'UnitsToDate' },
+    { n: 12, fieldName: 'Text12', alias: 'TotalUnits' },
+    { n: 13, fieldName: 'Text13', alias: 'UnitsLabel' },
+    { n: 14, fieldName: 'Text14', alias: 'SectionName' }
+  ];
 
-  // Tasks: one per scope
-  xml += '  <Tasks>\n';
+  // ---- XML ----
+  let xml = '';
+  xml += '<?xml version="1.0" encoding="UTF-8"?>
+';
+  xml += '<Project xmlns="http://schemas.microsoft.com/project">
+';
 
-  function addTaskAttr(fieldID, name, value) {
-    xml += '        <ExtendedAttribute>\n';
-    xml += '          <FieldID>' + fieldID + '</FieldID>\n';
-    xml += '          <Name>' + name + '</Name>\n';
-    xml += '          <Value><![CDATA[' + (value || '') + ']]></Value>\n';
-    xml += '        </ExtendedAttribute>\n';
+  // Required-ish core header fields (MSPDI / MS Project XML)
+  xml += '  <SaveVersion>14</SaveVersion>
+';
+  xml += '  <Name>' + escapeXml(proj.name || '') + '</Name>
+';
+  xml += '  <LastSaved>' + nowIsoNoTZ() + '</LastSaved>
+';
+  xml += '  <ScheduleFromStart>1</ScheduleFromStart>
+';
+  xml += '  <StartDate>' + toMspDate(projStart, '08:00:00') + '</StartDate>
+';
+  xml += '  <MinutesPerDay>480</MinutesPerDay>
+';
+  xml += '  <MinutesPerWeek>2400</MinutesPerWeek>
+';
+  xml += '  <DaysPerMonth>20</DaysPerMonth>
+';
+  xml += '  <DefaultStartTime>08:00:00</DefaultStartTime>
+';
+  xml += '  <DefaultFinishTime>17:00:00</DefaultFinishTime>
+';
+  xml += '  <CalendarUID>1</CalendarUID>
+';
+
+  // Global ExtendedAttribute field definitions
+  xml += '  <ExtendedAttributes>
+';
+  EXT_DEF.forEach(def => {
+    xml += '    <ExtendedAttribute>
+';
+    xml += '      <FieldID>' + fieldIdText(def.n) + '</FieldID>
+';
+    xml += '      <FieldName>' + def.fieldName + '</FieldName>
+';
+    xml += '      <Alias>' + escapeXml(def.alias) + '</Alias>
+';
+    xml += '    </ExtendedAttribute>
+';
+  });
+  xml += '  </ExtendedAttributes>
+';
+
+  // Base calendar definition (Standard 8-12 / 1-5)
+  xml += '  <Calendars>
+';
+  xml += '    <Calendar>
+';
+  xml += '      <UID>1</UID>
+';
+  xml += '      <Name>Standard</Name>
+';
+  xml += '      <IsBaseCalendar>1</IsBaseCalendar>
+';
+  xml += '      <BaseCalendarUID>-1</BaseCalendarUID>
+';
+  xml += '      <WeekDays>
+';
+  // Sunday (non-working)
+  xml += '        <WeekDay><DayType>1</DayType><DayWorking>0</DayWorking></WeekDay>
+';
+  // Monday-Friday (working 08-12, 13-17)
+  [2,3,4,5,6].forEach(dt => {
+    xml += '        <WeekDay>
+';
+    xml += '          <DayType>' + dt + '</DayType>
+';
+    xml += '          <DayWorking>1</DayWorking>
+';
+    xml += '          <WorkingTimes>
+';
+    xml += '            <WorkingTime><FromTime>08:00:00</FromTime><ToTime>12:00:00</ToTime></WorkingTime>
+';
+    xml += '            <WorkingTime><FromTime>13:00:00</FromTime><ToTime>17:00:00</ToTime></WorkingTime>
+';
+    xml += '          </WorkingTimes>
+';
+    xml += '        </WeekDay>
+';
+  });
+  // Saturday (non-working)
+  xml += '        <WeekDay><DayType>7</DayType><DayWorking>0</DayWorking></WeekDay>
+';
+  xml += '      </WeekDays>
+';
+  xml += '    </Calendar>
+';
+  xml += '  </Calendars>
+';
+
+  // Tasks
+  xml += '  <Tasks>
+';
+
+  function addTaskEA(fieldId, value) {
+    xml += '      <ExtendedAttribute>
+';
+    xml += '        <FieldID>' + fieldId + '</FieldID>
+';
+    xml += '        <Value><![CDATA[' + (value || '') + ']]></Value>
+';
+    xml += '      </ExtendedAttribute>
+';
   }
 
+  // Mandatory summary task UID=0 (store project-level custom values here)
+  xml += '    <Task>
+';
+  xml += '      <UID>0</UID>
+';
+  xml += '      <ID>0</ID>
+';
+  xml += '      <Name>Project Summary Task</Name>
+';
+  xml += '      <Summary>1</Summary>
+';
+  xml += '      <Start>' + toMspDate(projStart, '08:00:00') + '</Start>
+';
+  xml += '      <Finish>' + toMspDate(projStart, '17:00:00') + '</Finish>
+';
+  xml += '      <PercentComplete>0</PercentComplete>
+';
+  xml += '      <Cost>0</Cost>
+';
+  xml += '      <Duration>PT0H0M0S</Duration>
+';
+  addTaskEA(fieldIdText(1), proj.startup || '');
+  addTaskEA(fieldIdText(2), proj.markerLabel || 'Baseline Complete');
+  addTaskEA(fieldIdText(3), labelToggleFlag ? 'true' : 'false');
+  addTaskEA(fieldIdText(4), legendBaselineFlag ? 'true' : 'false');
+  addTaskEA(fieldIdText(5), legendPlannedFlag ? 'true' : 'false');
+  addTaskEA(fieldIdText(6), legendActualFlag ? 'true' : 'false');
+  addTaskEA(fieldIdText(7), legendForecastFlag ? 'true' : 'false');
+  addTaskEA(fieldIdText(8), baselineCSV);
+  addTaskEA(fieldIdText(9), actualCSV);
+  addTaskEA(fieldIdText(10), dailyCSV);
+  xml += '    </Task>
+';
+
+  // One task per scope (UIDs start at 1)
   (model.scopes || []).forEach((s, idx) => {
-    const label = s.label || ('Scope #' + (idx + 1));
-    const start = s.start || '';
-    const end = s.end || '';
-    const pct = d.clamp(isFinite(s.actualPct) ? Number(s.actualPct) || 0 : 0, 0, 100);
-    const cost = isFinite(s.cost) ? s.cost : 0;
+    const uid = idx + 1;
+    const label = s.label || ('Scope #' + uid);
 
-    xml += '    <Task>\n';
-    xml += '      <UID>' + (idx + 1) + '</UID>\n';
-    xml += '      <ID>' + (idx + 1) + '</ID>\n';
-    xml += '      <Name>' + escapeXml(label) + '</Name>\n';
+    const startDate = s.start || '';
+    const finishDate = s.end || '';
 
-    if (start) {
-      xml += '      <Start>' + start + 'T08:00:00</Start>\n';
-    }
-    if (end) {
-      xml += '      <Finish>' + end + 'T17:00:00</Finish>\n';
-    }
+    const start = startDate ? toMspDate(startDate, '08:00:00') : '';
+    const finish = finishDate ? toMspDate(finishDate, '17:00:00') : '';
 
-    xml += '      <PercentComplete>' + pct + '</PercentComplete>\n';
-    xml += '      <Cost>' + cost + '</Cost>\n';
+    const pct = toIntPct(s.actualPct);
+    const cost = toDec(s.cost);
 
-    // Task-level ExtendedAttributes for remaining PRGS scope fields
-    xml += '      <ExtendedAttributes>\n';
+    xml += '    <Task>
+';
+    xml += '      <UID>' + uid + '</UID>
+';
+    xml += '      <ID>' + uid + '</ID>
+';
+    xml += '      <Name>' + escapeXml(label) + '</Name>
+';
+
+    if (start) xml += '      <Start>' + start + '</Start>
+';
+    if (finish) xml += '      <Finish>' + finish + '</Finish>
+';
+
+    xml += '      <PercentComplete>' + pct + '</PercentComplete>
+';
+    xml += '      <Cost>' + cost + '</Cost>
+';
+    xml += '      <Duration>PT0H0M0S</Duration>
+';
+
+    // Task custom fields (ExtendedAttribute values)
     const unitsToDate = (s.unitsToDate != null ? String(s.unitsToDate) : '');
     const totalUnits = (s.totalUnits != null ? String(s.totalUnits) : '');
     const unitsLabel = s.unitsLabel || '';
+    const sectionName = (s.sectionName || '');
 
-    addTaskAttr('Text11', 'UnitsToDate', unitsToDate);
-    addTaskAttr('Text12', 'TotalUnits', totalUnits);
-    addTaskAttr('Text13', 'UnitsLabel', unitsLabel);
-    // Section grouping
-    addTaskAttr('Text14', 'SectionName', (s.sectionName || ''));
-    xml += '      </ExtendedAttributes>\n';
+    addTaskEA(fieldIdText(11), unitsToDate);
+    addTaskEA(fieldIdText(12), totalUnits);
+    addTaskEA(fieldIdText(13), unitsLabel);
+    addTaskEA(fieldIdText(14), sectionName);
 
-    xml += '    </Task>\n';
+    // Optional Predecessors: expect s.predecessors = [{uid:number,type?:number}]
+    if (Array.isArray(s.predecessors)) {
+      s.predecessors.forEach(p => {
+        const puid = (p && isFinite(p.uid)) ? Number(p.uid) : null;
+        if (!puid) return;
+        const type = (p && isFinite(p.type)) ? Number(p.type) : 1; // 1 = Finish-to-Start
+        xml += '      <PredecessorLink>
+';
+        xml += '        <PredecessorUID>' + puid + '</PredecessorUID>
+';
+        xml += '        <Type>' + type + '</Type>
+';
+        xml += '      </PredecessorLink>
+';
+      });
+    }
+
+    xml += '    </Task>
+';
   });
 
-  xml += '  </Tasks>\n';
+  xml += '  </Tasks>
+';
   xml += '</Project>';
   return xml;
 }
@@ -514,6 +721,7 @@ export function uploadCSVAndLoad(){
 
 export function loadFromXml(xmlText){
   const d = requireDeps();
+
   const parser = new DOMParser();
   const doc = parser.parseFromString(xmlText, 'application/xml');
   const perr = doc.getElementsByTagName('parsererror');
@@ -526,7 +734,46 @@ export function loadFromXml(xmlText){
   const nameEl = projEl.getElementsByTagName('Name')[0];
   const projectName = nameEl ? nameEl.textContent : '';
 
-  // Project-level ExtendedAttributes
+  // Build a FieldID -> Alias/FieldName map from global definitions
+  const fieldAliasById = {};
+  const extDefRoots = projEl.getElementsByTagName('ExtendedAttributes');
+  let extDefRoot = null;
+  for (let i = 0; i < extDefRoots.length; i++) {
+    if (extDefRoots[i].parentNode === projEl) { extDefRoot = extDefRoots[i]; break; }
+  }
+  if (extDefRoot) {
+    const defs = extDefRoot.getElementsByTagName('ExtendedAttribute');
+    for (let i = 0; i < defs.length; i++) {
+      const ea = defs[i];
+      if (ea.parentNode !== extDefRoot) continue;
+      const fidEl = ea.getElementsByTagName('FieldID')[0];
+      const aliasEl = ea.getElementsByTagName('Alias')[0];
+      const fnameEl = ea.getElementsByTagName('FieldName')[0];
+      if (!fidEl) continue;
+      const fid = (fidEl.textContent || '').trim();
+      const alias = (aliasEl ? aliasEl.textContent : '') || (fnameEl ? fnameEl.textContent : '');
+      if (fid) fieldAliasById[fid] = (alias || '').trim();
+    }
+  }
+
+  function readTaskExtendedAttributes(taskEl){
+    const out = {};
+    const eas = taskEl.getElementsByTagName('ExtendedAttribute');
+    for (let i = 0; i < eas.length; i++) {
+      const ea = eas[i];
+      if (ea.parentNode !== taskEl) continue; // only direct children
+      const fidEl = ea.getElementsByTagName('FieldID')[0];
+      const valEl = ea.getElementsByTagName('Value')[0];
+      if (!fidEl) continue;
+      const fid = (fidEl.textContent || '').trim();
+      const alias = fieldAliasById[fid] || fid;
+      const val = valEl ? (valEl.textContent || '') : '';
+      out[alias] = val;
+    }
+    return out;
+  }
+
+  // Defaults
   let startupVal = '';
   let markerLabelVal = '';
   let labelToggleFlag;
@@ -538,44 +785,11 @@ export function loadFromXml(xmlText){
   let actualHistoryStr = '';
   let dailyActualsStr = '';
 
-  const projExtRoots = projEl.getElementsByTagName('ExtendedAttributes');
-  let projExtRoot = null;
-  for (let i = 0; i < projExtRoots.length; i++) {
-    if (projExtRoots[i].parentNode === projEl) {
-      projExtRoot = projExtRoots[i];
-      break;
-    }
-  }
-  if (projExtRoot) {
-    const projExts = projExtRoot.getElementsByTagName('ExtendedAttribute');
-    for (let i = 0; i < projExts.length; i++) {
-      const ea = projExts[i];
-      const nEl = ea.getElementsByTagName('Name')[0];
-      const vEl = ea.getElementsByTagName('Value')[0];
-      if (!nEl || !vEl) continue;
-      const nm = nEl.textContent;
-      const val = vEl.textContent || '';
-      const trimmed = val.trim();
-      const boolVal = (trimmed === 'true');
-
-      if (nm === 'Startup') startupVal = trimmed;
-      if (nm === 'MarkerLabel') markerLabelVal = trimmed;
-      if (nm === 'LabelToggle') labelToggleFlag = boolVal;
-      if (nm === 'LegendBaselineCheckbox') legendBaselineFlag = boolVal;
-      if (nm === 'LegendPlannedCheckbox') legendPlannedFlag = boolVal;
-      if (nm === 'LegendActualCheckbox') legendActualFlag = boolVal;
-      if (nm === 'LegendForecastCheckbox') legendForecastFlag = boolVal;
-      if (nm === 'BaselineHistory') baselineHistoryStr = val;
-      if (nm === 'ActualHistory') actualHistoryStr = val;
-      if (nm === 'DailyActuals') dailyActualsStr = val;
-    }
-  }
-
   const newModel = {
     project: {
       name: projectName || '',
-      startup: startupVal || '',
-      markerLabel: markerLabelVal || 'Baseline Complete'
+      startup: '',
+      markerLabel: 'Baseline Complete'
     },
     scopes: [],
     history: [],
@@ -584,16 +798,102 @@ export function loadFromXml(xmlText){
     daysRelativeToPlan: null
   };
 
-  // Apply legend + label flags
+  // Tasks → scopes + project-level values from UID 0
+  const taskEls = projEl.getElementsByTagName('Task');
+  for (let i = 0; i < taskEls.length; i++) {
+    const t = taskEls[i];
+    const uidEl = t.getElementsByTagName('UID')[0];
+    const uid = uidEl ? (uidEl.textContent || '').trim() : '';
+
+    const attrs = readTaskExtendedAttributes(t);
+
+    if (uid === '0') {
+      // Summary task holds project-level custom values
+      if (typeof attrs.Startup !== 'undefined') startupVal = (attrs.Startup || '').trim();
+      if (typeof attrs.MarkerLabel !== 'undefined') markerLabelVal = (attrs.MarkerLabel || '').trim();
+      if (typeof attrs.LabelToggle !== 'undefined') labelToggleFlag = (String(attrs.LabelToggle).trim() === 'true');
+      if (typeof attrs.LegendBaselineCheckbox !== 'undefined') legendBaselineFlag = (String(attrs.LegendBaselineCheckbox).trim() === 'true');
+      if (typeof attrs.LegendPlannedCheckbox !== 'undefined') legendPlannedFlag = (String(attrs.LegendPlannedCheckbox).trim() === 'true');
+      if (typeof attrs.LegendActualCheckbox !== 'undefined') legendActualFlag = (String(attrs.LegendActualCheckbox).trim() === 'true');
+      if (typeof attrs.LegendForecastCheckbox !== 'undefined') legendForecastFlag = (String(attrs.LegendForecastCheckbox).trim() === 'true');
+      if (typeof attrs.BaselineHistory !== 'undefined') baselineHistoryStr = attrs.BaselineHistory || '';
+      if (typeof attrs.ActualHistory !== 'undefined') actualHistoryStr = attrs.ActualHistory || '';
+      if (typeof attrs.DailyActuals !== 'undefined') dailyActualsStr = attrs.DailyActuals || '';
+      continue;
+    }
+
+    // Normal scope tasks
+    const nmEl = t.getElementsByTagName('Name')[0];
+    const startEl = t.getElementsByTagName('Start')[0];
+    const finEl = t.getElementsByTagName('Finish')[0];
+    const pctEl = t.getElementsByTagName('PercentComplete')[0];
+    const costEl = t.getElementsByTagName('Cost')[0];
+
+    const label = nmEl ? nmEl.textContent : ('Task ' + (i + 1));
+    const startRaw = startEl ? (startEl.textContent || '') : '';
+    const finishRaw = finEl ? (finEl.textContent || '') : '';
+    const pctRaw = pctEl ? (pctEl.textContent || '0') : '0';
+
+    const cost = costEl ? (parseFloat(costEl.textContent || '0') || 0) : 0;
+
+    const start = startRaw && startRaw.length >= 10 ? startRaw.slice(0, 10) : '';
+    const end = finishRaw && finishRaw.length >= 10 ? finishRaw.slice(0, 10) : '';
+
+    const pct = d.clamp(parseFloat(pctRaw) || 0, 0, 100);
+
+    const unitsToDateStr = (attrs.UnitsToDate != null ? String(attrs.UnitsToDate).trim() : '');
+    const totalUnitsStr = (attrs.TotalUnits != null ? String(attrs.TotalUnits).trim() : '');
+    const unitsLabel = (attrs.UnitsLabel != null ? String(attrs.UnitsLabel).trim() : '');
+    const sectionName = (attrs.SectionName != null ? String(attrs.SectionName).trim() : '');
+
+    let totalUnitsNum = null;
+    if (totalUnitsStr !== '') {
+      const tuNum = parseFloat(totalUnitsStr);
+      if (!isNaN(tuNum)) totalUnitsNum = tuNum;
+    }
+
+    let unitsToDateNum = 0;
+    if (unitsToDateStr !== '') {
+      const utdNum = parseFloat(unitsToDateStr);
+      if (!isNaN(utdNum)) unitsToDateNum = utdNum;
+    }
+
+    const resolvedUnitsLabel = unitsLabel || ((totalUnitsNum && totalUnitsNum > 0) ? 'Feet' : '%');
+
+    const scope = {
+      label,
+      start,
+      end,
+      cost,
+      unitsToDate: unitsToDateNum,
+      totalUnits: (totalUnitsNum == null ? '' : totalUnitsNum),
+      unitsLabel: resolvedUnitsLabel,
+      sectionName: sectionName || '',
+      actualPct: 0
+    };
+
+    // Keep current behavior: if TotalUnits is present, compute % from units; otherwise use PercentComplete.
+    scope.actualPct = scope.totalUnits
+      ? (scope.unitsToDate && scope.totalUnits ? (scope.unitsToDate / scope.totalUnits * 100) : 0)
+      : pct;
+
+    newModel.scopes.push(scope);
+  }
+
+  // Apply project-level fields
+  newModel.project.startup = startupVal || '';
+  newModel.project.markerLabel = markerLabelVal || 'Baseline Complete';
+
   if (typeof labelToggleFlag !== 'undefined') newModel.project.labelToggle = labelToggleFlag;
   if (typeof legendBaselineFlag !== 'undefined') newModel.project.legendBaselineCheckbox = legendBaselineFlag;
   if (typeof legendPlannedFlag !== 'undefined') newModel.project.legendPlannedCheckbox = legendPlannedFlag;
   if (typeof legendActualFlag !== 'undefined') newModel.project.legendActualCheckbox = legendActualFlag;
   if (typeof legendForecastFlag !== 'undefined') newModel.project.legendForecastCheckbox = legendForecastFlag;
 
-  // Baseline from CSV
+  // BaselineHistory CSV → baseline
   if (baselineHistoryStr) {
-    const lines = baselineHistoryStr.split(/\r?\n/);
+    const lines = baselineHistoryStr.split(/?
+/);
     const rows = [];
     for (let line of lines) {
       if (!line) continue;
@@ -609,13 +909,17 @@ export function loadFromXml(xmlText){
       rows.push({ date: dd, val: val });
     }
     if (rows.length) {
-      newModel.baseline = { days: rows.map(r => r.date), planned: rows.map(r => (r.val == null ? null : d.clamp(r.val, 0, 100))) };
+      newModel.baseline = {
+        days: rows.map(r => r.date),
+        planned: rows.map(r => (r.val == null ? null : d.clamp(r.val, 0, 100)))
+      };
     }
   }
 
-  // History from CSV
+  // ActualHistory CSV → history
   if (actualHistoryStr) {
-    const lines = actualHistoryStr.split(/\r?\n/);
+    const lines = actualHistoryStr.split(/?
+/);
     const hist = [];
     for (let line of lines) {
       if (!line) continue;
@@ -629,9 +933,10 @@ export function loadFromXml(xmlText){
     if (hist.length) newModel.history = hist;
   }
 
-  // DailyActuals from CSV
+  // DailyActuals CSV → dailyActuals
   if (dailyActualsStr) {
-    const lines = dailyActualsStr.split(/\r?\n/);
+    const lines = dailyActualsStr.split(/?
+/);
     const da = {};
     for (let line of lines) {
       if (!line) continue;
@@ -644,84 +949,6 @@ export function loadFromXml(xmlText){
       if (!isNaN(num)) da[dd] = num;
     }
     newModel.dailyActuals = da;
-  }
-
-  // Tasks → scopes
-  const taskEls = projEl.getElementsByTagName('Task');
-  for (let i = 0; i < taskEls.length; i++) {
-    const t = taskEls[i];
-    const uidEl = t.getElementsByTagName('UID')[0];
-    if (uidEl && uidEl.textContent === '0') continue;
-
-    const nmEl = t.getElementsByTagName('Name')[0];
-    const startEl = t.getElementsByTagName('Start')[0];
-    const finEl = t.getElementsByTagName('Finish')[0];
-    const pctEl = t.getElementsByTagName('PercentComplete')[0];
-    const costEl = t.getElementsByTagName('Cost')[0];
-
-    const label = nmEl ? nmEl.textContent : ('Task ' + (i + 1));
-    const startRaw = startEl ? startEl.textContent : '';
-    const finishRaw = finEl ? finEl.textContent : '';
-    const pctRaw = pctEl ? pctEl.textContent : '0';
-
-    const cost = costEl ? (parseFloat(costEl.textContent || '0') || 0) : 0;
-
-    const start = startRaw && startRaw.length >= 10 ? startRaw.slice(0, 10) : '';
-    const end = finishRaw && finishRaw.length >= 10 ? finishRaw.slice(0, 10) : '';
-
-    const pct = d.clamp(parseFloat(pctRaw) || 0, 0, 100);
-
-    // Task ExtendedAttributes
-    let unitsToDate = '';
-    let totalUnits = '';
-    let unitsLabel = '';
-    let sectionName = '';
-
-    let tExtRoot = null;
-    const tExtRoots = t.getElementsByTagName('ExtendedAttributes');
-    for (let j = 0; j < tExtRoots.length; j++) {
-      if (tExtRoots[j].parentNode === t) { tExtRoot = tExtRoots[j]; break; }
-    }
-    if (tExtRoot) {
-      const tExts = tExtRoot.getElementsByTagName('ExtendedAttribute');
-      for (let j = 0; j < tExts.length; j++) {
-        const ea = tExts[j];
-        const nEl = ea.getElementsByTagName('Name')[0];
-        const vEl = ea.getElementsByTagName('Value')[0];
-        if (!nEl || !vEl) continue;
-        const nm = nEl.textContent;
-        const val = vEl.textContent || '';
-        if (nm === 'UnitsToDate') unitsToDate = val.trim();
-        if (nm === 'TotalUnits') totalUnits = val.trim();
-        if (nm === 'UnitsLabel') unitsLabel = val.trim();
-        if (nm === 'SectionName') sectionName = val.trim();
-      }
-    }
-
-    let totalUnitsNum = null;
-    if (totalUnits !== '') {
-      const tuNum = parseFloat(totalUnits);
-      if (!isNaN(tuNum)) totalUnitsNum = tuNum;
-    }
-
-    let unitsToDateNum = 0;
-    if (unitsToDate !== '') {
-      const utdNum = parseFloat(unitsToDate);
-      if (!isNaN(utdNum)) unitsToDateNum = utdNum;
-    }
-
-    if (!unitsLabel) unitsLabel = (totalUnitsNum && totalUnitsNum > 0) ? 'Feet' : '%';
-
-    const scope = {
-      label, start, end, cost,
-      unitsToDate: unitsToDateNum,
-      totalUnits: (totalUnitsNum == null ? '' : totalUnitsNum),
-      unitsLabel,
-      sectionName: sectionName || '',
-      actualPct: pct
-    };
-
-    newModel.scopes.push(scope);
   }
 
   setModel(newModel);
