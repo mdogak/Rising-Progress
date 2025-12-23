@@ -1,7 +1,7 @@
 /*
 © 2025 Rising Progress LLC. All rights reserved.
 */
-
+import { initToolbarClear } from './clear.js';
 import { getBaselineSeries, takeBaseline, renderDailyTable, initHistory } from './history.js';
 
 // Ensure legend text renders after files are loaded without needing a toggle
@@ -1830,10 +1830,6 @@ $('#projectStartup').addEventListener('change', computeAndRender);
 $('#startupLabelInput').addEventListener('input', computeAndRender);
 $('#labelToggle').addEventListener('change', computeAndRender);
 
-// Toolbar Save/Load/Clear with confirmations
-$('#toolbarClear').addEventListener('click', ()=>{ if(!confirm('Clear scope fields and history?')) return; const ps = calcEarliestStart(); model.scopes = model.scopes.map(s=> ({...s, start:'', end:'', cost:0, unitsToDate:0, totalUnits:'', actualPct:0 })); if(ps){ const psStr = fmtDate(ps); Object.keys(model.dailyActuals).forEach(k=>{ if(k>=psStr) delete model.dailyActuals[k]; }); model.history = model.history.filter(h=> h.date < psStr); } syncScopeRowsToModel(); computeAndRender(); sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model)); });
-
-
 // Baseline button behavior
 $('#baselineBtn').addEventListener('click', ()=>{
   const {days, plannedCum} = calcPlannedSeriesByDay();
@@ -2205,4 +2201,13 @@ document.addEventListener('DOMContentLoaded', () => {
   if (loadBtn) loadBtn.innerHTML = "📂 Load Project ▾";
   const ddItem = document.querySelector('#loadDropdown [data-act="open"]');
   if (ddItem) ddItem.textContent = "Open Project";
+});
+
+initToolbarClear({
+  model,
+  calcEarliestStart,
+  fmtDate,
+  syncScopeRowsToModel,
+  computeAndRender,
+  COOKIE_KEY
 });
