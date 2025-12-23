@@ -1152,3 +1152,17 @@ function applyToggleStatesFromExtendedAttributes(extAttrs) {
     }
   });
 }
+
+// Added: compute Duration from Start/Finish for Smartsheet compatibility
+function computeDurationFromDates(startISO, finishISO) {
+  try {
+    const s = new Date(startISO);
+    const f = new Date(finishISO);
+    if (isNaN(s) || isNaN(f) || f <= s) return "PT0H0M0S";
+    const ms = f - s;
+    const hours = Math.round(ms / 36e5); // simple hour delta
+    return `PT${hours}H0M0S`;
+  } catch (e) {
+    return "PT0H0M0S";
+  }
+}
