@@ -128,8 +128,7 @@ function buildMSPXML() {
       const dd = model.baseline.days[i];
       const v = model.baseline.planned[i];
       if (!dd) continue;
-      baselineCSV += dd + ',' + (v == null ? '' : v) + '
-';
+      baselineCSV += dd + ',' + (v == null ? '' : v) + '\n';
     }
   }
 
@@ -139,8 +138,7 @@ function buildMSPXML() {
     model.history.forEach(h => {
       if (!h || !h.date) return;
       const v = (h.actualPct != null ? h.actualPct : 0);
-      actualCSV += h.date + ',' + v + '
-';
+      actualCSV += h.date + ',' + v + '\n';
     });
   }
 
@@ -150,8 +148,7 @@ function buildMSPXML() {
     Object.keys(model.dailyActuals).sort().forEach(dd => {
       const v = model.dailyActuals[dd];
       if (!dd) return;
-      dailyCSV += dd + ',' + (v == null ? '' : v) + '
-';
+      dailyCSV += dd + ',' + (v == null ? '' : v) + '\n';
     });
   }
 
@@ -176,136 +173,92 @@ function buildMSPXML() {
 
   // ---- XML ----
   let xml = '';
-  xml += '<?xml version="1.0" encoding="UTF-8"?>
-';
-  xml += '<Project xmlns="http://schemas.microsoft.com/project">
-';
+  xml += '<?xml version="1.0" encoding="UTF-8"?>\n';
+  xml += '<Project xmlns="http://schemas.microsoft.com/project">\n';
 
   // Required-ish core header fields (MSPDI / MS Project XML)
-  xml += '  <SaveVersion>14</SaveVersion>
-';
+  xml += '  <SaveVersion>14</SaveVersion>\n';
   xml += '  <Name>' + escapeXml(proj.name || '') + '</Name>
 ';
   xml += '  <LastSaved>' + nowIsoNoTZ() + '</LastSaved>
 ';
-  xml += '  <ScheduleFromStart>1</ScheduleFromStart>
-';
+  xml += '  <ScheduleFromStart>1</ScheduleFromStart>\n';
   xml += '  <StartDate>' + toMspDate(projStart, '08:00:00') + '</StartDate>
 ';
-  xml += '  <MinutesPerDay>480</MinutesPerDay>
-';
-  xml += '  <MinutesPerWeek>2400</MinutesPerWeek>
-';
-  xml += '  <DaysPerMonth>20</DaysPerMonth>
-';
-  xml += '  <DefaultStartTime>08:00:00</DefaultStartTime>
-';
-  xml += '  <DefaultFinishTime>17:00:00</DefaultFinishTime>
-';
-  xml += '  <CalendarUID>1</CalendarUID>
-';
+  xml += '  <MinutesPerDay>480</MinutesPerDay>\n';
+  xml += '  <MinutesPerWeek>2400</MinutesPerWeek>\n';
+  xml += '  <DaysPerMonth>20</DaysPerMonth>\n';
+  xml += '  <DefaultStartTime>08:00:00</DefaultStartTime>\n';
+  xml += '  <DefaultFinishTime>17:00:00</DefaultFinishTime>\n';
+  xml += '  <CalendarUID>1</CalendarUID>\n';
 
   // Global ExtendedAttribute field definitions
-  xml += '  <ExtendedAttributes>
-';
+  xml += '  <ExtendedAttributes>\n';
   EXT_DEF.forEach(def => {
-    xml += '    <ExtendedAttribute>
-';
+    xml += '    <ExtendedAttribute>\n';
     xml += '      <FieldID>' + fieldIdText(def.n) + '</FieldID>
 ';
     xml += '      <FieldName>' + def.fieldName + '</FieldName>
 ';
     xml += '      <Alias>' + escapeXml(def.alias) + '</Alias>
 ';
-    xml += '    </ExtendedAttribute>
-';
+    xml += '    </ExtendedAttribute>\n';
   });
-  xml += '  </ExtendedAttributes>
-';
+  xml += '  </ExtendedAttributes>\n';
 
   // Base calendar definition (Standard 8-12 / 1-5)
-  xml += '  <Calendars>
-';
-  xml += '    <Calendar>
-';
-  xml += '      <UID>1</UID>
-';
-  xml += '      <Name>Standard</Name>
-';
-  xml += '      <IsBaseCalendar>1</IsBaseCalendar>
-';
-  xml += '      <BaseCalendarUID>-1</BaseCalendarUID>
-';
-  xml += '      <WeekDays>
-';
+  xml += '  <Calendars>\n';
+  xml += '    <Calendar>\n';
+  xml += '      <UID>1</UID>\n';
+  xml += '      <Name>Standard</Name>\n';
+  xml += '      <IsBaseCalendar>1</IsBaseCalendar>\n';
+  xml += '      <BaseCalendarUID>-1</BaseCalendarUID>\n';
+  xml += '      <WeekDays>\n';
   // Sunday (non-working)
-  xml += '        <WeekDay><DayType>1</DayType><DayWorking>0</DayWorking></WeekDay>
-';
+  xml += '        <WeekDay><DayType>1</DayType><DayWorking>0</DayWorking></WeekDay>\n';
   // Monday-Friday (working 08-12, 13-17)
   [2,3,4,5,6].forEach(dt => {
-    xml += '        <WeekDay>
-';
+    xml += '        <WeekDay>\n';
     xml += '          <DayType>' + dt + '</DayType>
 ';
-    xml += '          <DayWorking>1</DayWorking>
-';
-    xml += '          <WorkingTimes>
-';
-    xml += '            <WorkingTime><FromTime>08:00:00</FromTime><ToTime>12:00:00</ToTime></WorkingTime>
-';
-    xml += '            <WorkingTime><FromTime>13:00:00</FromTime><ToTime>17:00:00</ToTime></WorkingTime>
-';
-    xml += '          </WorkingTimes>
-';
-    xml += '        </WeekDay>
-';
+    xml += '          <DayWorking>1</DayWorking>\n';
+    xml += '          <WorkingTimes>\n';
+    xml += '            <WorkingTime><FromTime>08:00:00</FromTime><ToTime>12:00:00</ToTime></WorkingTime>\n';
+    xml += '            <WorkingTime><FromTime>13:00:00</FromTime><ToTime>17:00:00</ToTime></WorkingTime>\n';
+    xml += '          </WorkingTimes>\n';
+    xml += '        </WeekDay>\n';
   });
   // Saturday (non-working)
-  xml += '        <WeekDay><DayType>7</DayType><DayWorking>0</DayWorking></WeekDay>
-';
-  xml += '      </WeekDays>
-';
-  xml += '    </Calendar>
-';
-  xml += '  </Calendars>
-';
+  xml += '        <WeekDay><DayType>7</DayType><DayWorking>0</DayWorking></WeekDay>\n';
+  xml += '      </WeekDays>\n';
+  xml += '    </Calendar>\n';
+  xml += '  </Calendars>\n';
 
   // Tasks
-  xml += '  <Tasks>
-';
+  xml += '  <Tasks>\n';
 
   function addTaskEA(fieldId, value) {
-    xml += '      <ExtendedAttribute>
-';
+    xml += '      <ExtendedAttribute>\n';
     xml += '        <FieldID>' + fieldId + '</FieldID>
 ';
     xml += '        <Value><![CDATA[' + (value || '') + ']]></Value>
 ';
-    xml += '      </ExtendedAttribute>
-';
+    xml += '      </ExtendedAttribute>\n';
   }
 
   // Mandatory summary task UID=0 (store project-level custom values here)
-  xml += '    <Task>
-';
-  xml += '      <UID>0</UID>
-';
-  xml += '      <ID>0</ID>
-';
-  xml += '      <Name>Project Summary Task</Name>
-';
-  xml += '      <Summary>1</Summary>
-';
+  xml += '    <Task>\n';
+  xml += '      <UID>0</UID>\n';
+  xml += '      <ID>0</ID>\n';
+  xml += '      <Name>Project Summary Task</Name>\n';
+  xml += '      <Summary>1</Summary>\n';
   xml += '      <Start>' + toMspDate(projStart, '08:00:00') + '</Start>
 ';
   xml += '      <Finish>' + toMspDate(projStart, '17:00:00') + '</Finish>
 ';
-  xml += '      <PercentComplete>0</PercentComplete>
-';
-  xml += '      <Cost>0</Cost>
-';
-  xml += '      <Duration>PT0H0M0S</Duration>
-';
+  xml += '      <PercentComplete>0</PercentComplete>\n';
+  xml += '      <Cost>0</Cost>\n';
+  xml += '      <Duration>PT0H0M0S</Duration>\n';
   addTaskEA(fieldIdText(1), proj.startup || '');
   addTaskEA(fieldIdText(2), proj.markerLabel || 'Baseline Complete');
   addTaskEA(fieldIdText(3), labelToggleFlag ? 'true' : 'false');
@@ -316,8 +269,7 @@ function buildMSPXML() {
   addTaskEA(fieldIdText(8), baselineCSV);
   addTaskEA(fieldIdText(9), actualCSV);
   addTaskEA(fieldIdText(10), dailyCSV);
-  xml += '    </Task>
-';
+  xml += '    </Task>\n';
 
   // One task per scope (UIDs start at 1)
   (model.scopes || []).forEach((s, idx) => {
@@ -333,8 +285,7 @@ function buildMSPXML() {
     const pct = toIntPct(s.actualPct);
     const cost = toDec(s.cost);
 
-    xml += '    <Task>
-';
+    xml += '    <Task>\n';
     xml += '      <UID>' + uid + '</UID>
 ';
     xml += '      <ID>' + uid + '</ID>
@@ -351,8 +302,7 @@ function buildMSPXML() {
 ';
     xml += '      <Cost>' + cost + '</Cost>
 ';
-    xml += '      <Duration>PT0H0M0S</Duration>
-';
+    xml += '      <Duration>PT0H0M0S</Duration>\n';
 
     // Task custom fields (ExtendedAttribute values)
     const unitsToDate = (s.unitsToDate != null ? String(s.unitsToDate) : '');
@@ -371,23 +321,19 @@ function buildMSPXML() {
         const puid = (p && isFinite(p.uid)) ? Number(p.uid) : null;
         if (!puid) return;
         const type = (p && isFinite(p.type)) ? Number(p.type) : 1; // 1 = Finish-to-Start
-        xml += '      <PredecessorLink>
-';
+        xml += '      <PredecessorLink>\n';
         xml += '        <PredecessorUID>' + puid + '</PredecessorUID>
 ';
         xml += '        <Type>' + type + '</Type>
 ';
-        xml += '      </PredecessorLink>
-';
+        xml += '      </PredecessorLink>\n';
       });
     }
 
-    xml += '    </Task>
-';
+    xml += '    </Task>\n';
   });
 
-  xml += '  </Tasks>
-';
+  xml += '  </Tasks>\n';
   xml += '</Project>';
   return xml;
 }
@@ -892,7 +838,8 @@ export function loadFromXml(xmlText){
 
   // BaselineHistory CSV → baseline
   if (baselineHistoryStr) {
-    const lines = baselineHistoryStr.split(/?
+    const lines = baselineHistoryStr.split(/
+?
 /);
     const rows = [];
     for (let line of lines) {
@@ -918,7 +865,8 @@ export function loadFromXml(xmlText){
 
   // ActualHistory CSV → history
   if (actualHistoryStr) {
-    const lines = actualHistoryStr.split(/?
+    const lines = actualHistoryStr.split(/
+?
 /);
     const hist = [];
     for (let line of lines) {
@@ -935,7 +883,8 @@ export function loadFromXml(xmlText){
 
   // DailyActuals CSV → dailyActuals
   if (dailyActualsStr) {
-    const lines = dailyActualsStr.split(/?
+    const lines = dailyActualsStr.split(/
+?
 /);
     const da = {};
     for (let line of lines) {
