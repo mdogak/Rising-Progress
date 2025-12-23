@@ -815,9 +815,7 @@ export function loadFromXml(xmlText){
 
   // BaselineHistory CSV → baseline
   if (baselineHistoryStr) {
-    const lines = baselineHistoryStr.split(/
-?
-/);
+    const lines = baselineHistoryStr.split(/\r?\n/);
     const rows = [];
     for (let line of lines) {
       if (!line) continue;
@@ -842,9 +840,7 @@ export function loadFromXml(xmlText){
 
   // ActualHistory CSV → history
   if (actualHistoryStr) {
-    const lines = actualHistoryStr.split(/
-?
-/);
+    const lines = actualHistoryStr.split(/\r?\n/);
     const hist = [];
     for (let line of lines) {
       if (!line) continue;
@@ -860,9 +856,7 @@ export function loadFromXml(xmlText){
 
   // DailyActuals CSV → dailyActuals
   if (dailyActualsStr) {
-    const lines = dailyActualsStr.split(/
-?
-/);
+    const lines = dailyActualsStr.split(/\r?\n/);
     const da = {};
     for (let line of lines) {
       if (!line) continue;
