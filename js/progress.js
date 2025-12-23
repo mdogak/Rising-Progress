@@ -1787,6 +1787,7 @@ document.addEventListener('DOMContentLoaded', () => {
       syncScopeRowsToModel,
       computeAndRender,
       COOKIE_KEY
+      loadFromPresetCsv
     });
   } catch (e) {
     console.error('Failed to initialize clear module', e);
