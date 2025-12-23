@@ -1786,7 +1786,7 @@ document.addEventListener('DOMContentLoaded', () => {
       fmtDate,
       syncScopeRowsToModel,
       computeAndRender,
-      COOKIE_KEY
+      COOKIE_KEY,
       loadFromPresetCsv
     });
   } catch (e) {
