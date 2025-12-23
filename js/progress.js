@@ -1782,7 +1782,6 @@ window.COOKIE_KEY = COOKIE_KEY;
 document.addEventListener('DOMContentLoaded', () => {
   try {
     initToolbarClear({
-      model,
       calcEarliestStart,
       fmtDate,
       syncScopeRowsToModel,
