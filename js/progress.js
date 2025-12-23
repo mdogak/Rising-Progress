@@ -1,6 +1,7 @@
 /*
 © 2025 Rising Progress LLC. All rights reserved.
 */
+
 import { initToolbarClear } from './clear.js';
 import { getBaselineSeries, takeBaseline, renderDailyTable, initHistory } from './history.js';
 
@@ -1776,6 +1777,23 @@ function loadFromXml(xmlText){
 const COOKIE_KEY='progress_tracker_v3b';
 window.COOKIE_KEY = COOKIE_KEY;
 
+
+// Initialize Clear toolbar behavior (delegated to clear.js)
+document.addEventListener('DOMContentLoaded', () => {
+  try {
+    initToolbarClear({
+      model,
+      calcEarliestStart,
+      fmtDate,
+      syncScopeRowsToModel,
+      computeAndRender,
+      COOKIE_KEY
+    });
+  } catch (e) {
+    console.error('Failed to initialize clear module', e);
+  }
+});
+
 function hydrateFromSession(){
   try{
     if(!window.sessionStorage) return false;
@@ -2201,13 +2219,4 @@ document.addEventListener('DOMContentLoaded', () => {
   if (loadBtn) loadBtn.innerHTML = "📂 Load Project ▾";
   const ddItem = document.querySelector('#loadDropdown [data-act="open"]');
   if (ddItem) ddItem.textContent = "Open Project";
-});
-
-initToolbarClear({
-  model,
-  calcEarliestStart,
-  fmtDate,
-  syncScopeRowsToModel,
-  computeAndRender,
-  COOKIE_KEY
 });
