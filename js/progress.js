@@ -6,6 +6,7 @@ import { initToolbarClear } from './clear.js';
 import { getBaselineSeries, takeBaseline, renderDailyTable, initHistory } from './history.js';
 
 import { initSaveLoad, loadFromPresetCsv } from './save-load.js';
+import { initHistoryDatePrompt, armHistoryDatePrompt, maybePromptForHistoryDate } from './historyDate.js';
 // Ensure legend text renders after files are loaded without needing a toggle
 document.querySelectorAll('input[type="file"]').forEach(el=>{
   el.addEventListener('change', ()=>{
@@ -132,6 +133,12 @@ function onScopeChange(e){
   if(!realRow) return;
   const i = Number(realRow.dataset.index);
   const s = model.scopes[i];
+
+  // Arm the history date prompt only for user edits in the Progress column
+  try {
+    const isProgressChange = e && e.target && e.target.matches && e.target.matches('[data-k=\"progress\"]');
+    if (isProgressChange) armHistoryDatePrompt();
+  } catch(_) {}
 
   // Only warn when the user edits the Cost ($)/weighting field in the main Scopes table.
   const isCostChange = e && e.target && e.target.matches && e.target.matches('[data-k="cost"]');
@@ -1160,6 +1167,25 @@ initSaveLoad({
 // Initialize Clear toolbar behavior (delegated to clear.js)
 document.addEventListener('DOMContentLoaded', () => {
   try {
+    // Initialize HistoryDate prompt module (safe no-op until armed)
+    try {
+      initHistoryDatePrompt({
+        getHistoryDateInput: () => document.getElementById('historyDate'),
+        // A lightweight project identifier used only for prompt suppression scoping
+        getProjectKey: (m) => {
+          try {
+            const name = (m && m.project && m.project.name) ? String(m.project.name) : '';
+            const startup = (m && m.project && m.project.startup) ? String(m.project.startup) : '';
+            const count = (m && Array.isArray(m.scopes)) ? m.scopes.length : 0;
+            // Keep it stable but non-invasive: name|startup|count
+            return [name.trim(), startup.trim(), String(count)].join('|');
+          } catch (e) {
+            return '';
+          }
+        }
+      });
+    } catch (e) { /* noop */ }
+
     initToolbarClear({
       calcEarliestStart,
       fmtDate,
