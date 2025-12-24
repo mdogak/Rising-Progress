@@ -262,11 +262,8 @@ function buildMSPXML() {
   (model.scopes || []).forEach((s, idx) => {
     const uid = idx + 1;
     const label = s.label || ('Scope #' + uid);    const startDate = s.start || '';
-    const finishDate = s.end || '';
-    const finishDateShifted = finishDate ? shiftFinishDateForSmartsheet(finishDate) : '';
-
-    const start = startDate ? toMspDate(startDate, '08:00:00') : '';
-    const finish = finishDateShifted ? toMspDate(finishDateShifted, '17:00:00') : '';
+    const finishDate = s.end || '';    const start = startDate ? toMspDate(startDate, '08:00:00') : '';
+    const finish = finishDate ? toMspDate(finishDate, '17:00:00') : '';
 
     const pct = toIntPct(s.actualPct);
     const cost = toDec(s.cost);
@@ -1162,7 +1159,7 @@ function computeDurationFromDates(startISO, finishISO) {
   try {
     if (!startISO || !finishISO) return 'PT0H0M0S';
 
-    // Calendar-day math ignoring time of day:
+    // Weekday-only math ignoring time of day:
     // Use UTC midnight for date portions (YYYY-MM-DD).
     const sd = String(startISO).slice(0, 10);
     const fd = String(finishISO).slice(0, 10);
@@ -1178,10 +1175,18 @@ function computeDurationFromDates(startISO, finishISO) {
     if (!isFinite(sUTC) || !isFinite(fUTC) || fUTC <= sUTC) return 'PT0H0M0S';
 
     const msPerDay = 24 * 60 * 60 * 1000;
-    const days = Math.floor((fUTC - sUTC) / msPerDay);
-    if (!isFinite(days) || days <= 0) return 'PT0H0M0S';
 
-    const hours = days * 8; // Smartsheet-safe: calendar days × 8h
+    // Count weekdays (Mon–Fri) from Start through Finish (inclusive of Finish if it is a weekday).
+    // Do not normalize or shift weekend dates.
+    let workingDays = 0;
+    for (let t = sUTC; t <= fUTC; t += msPerDay) {
+      const dow = new Date(t).getUTCDay(); // 0=Sun ... 6=Sat
+      if (dow >= 1 && dow <= 5) workingDays++;
+    }
+
+    if (!isFinite(workingDays) || workingDays <= 0) return 'PT0H0M0S';
+
+    const hours = workingDays * 8;
     return `PT${hours}H0M0S`;
   } catch (e) {
     return 'PT0H0M0S';
