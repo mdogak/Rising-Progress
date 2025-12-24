@@ -400,18 +400,3 @@ export {
   maybePromptForHistoryDate,
   getSelectedHistoryDate
 };
-
-
-
-// DEBUG ONLY — safe temporary exposure
-window.__debugHistoryDate = {
-  notify(newVal, opts = {}) {
-    return notifyTotalActualChange(newVal, {
-      force: true,
-      ...opts
-    });
-  },
-  openModal() {
-    return openHistoryDateModal({ force: true });
-  }
-};
