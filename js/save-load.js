@@ -68,6 +68,23 @@ function buildMSPXML() {
     const t = timeStr || '08:00:00';
     return dateStr + 'T' + t;
   }
+  function shiftFinishDateForSmartsheet(dateStr){
+    // Smartsheet may collapse weekend finishes. Shift Sat/Sun → Monday for XML only.
+    if (!dateStr || String(dateStr).length < 10) return dateStr || '';
+    const dd = String(dateStr).slice(0, 10);
+    const dt = new Date(dd + 'T00:00:00Z');
+    if (isNaN(dt)) return dd;
+    const dow = dt.getUTCDay(); // 0=Sun ... 6=Sat
+    let add = 0;
+    if (dow === 6) add = 2; // Saturday → Monday
+    else if (dow === 0) add = 1; // Sunday → Monday
+    if (!add) return dd;
+    dt.setUTCDate(dt.getUTCDate() + add);
+    const y = dt.getUTCFullYear();
+    const m = String(dt.getUTCMonth() + 1).padStart(2, '0');
+    const d2 = String(dt.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${d2}`;
+  }
   function fieldIdText(n){
     // MSPDI local task custom field IDs: Text1 = 188743731, Text2 = 188743732, ...
     return 188743730 + Number(n);
@@ -177,7 +194,8 @@ function buildMSPXML() {
     { n: 11, fieldName: 'Text11', alias: 'UnitsToDate' },
     { n: 12, fieldName: 'Text12', alias: 'TotalUnits' },
     { n: 13, fieldName: 'Text13', alias: 'UnitsLabel' },
-    { n: 14, fieldName: 'Text14', alias: 'SectionName' }
+    { n: 14, fieldName: 'Text14', alias: 'SectionName' },
+    { n: 15, fieldName: 'Text15', alias: 'TrueFinish' }
   ];
 
   // ---- XML ----
@@ -243,13 +261,12 @@ function buildMSPXML() {
   // One task per scope (UIDs start at 1)
   (model.scopes || []).forEach((s, idx) => {
     const uid = idx + 1;
-    const label = s.label || ('Scope #' + uid);
-
-    const startDate = s.start || '';
+    const label = s.label || ('Scope #' + uid);    const startDate = s.start || '';
     const finishDate = s.end || '';
+    const finishDateShifted = finishDate ? shiftFinishDateForSmartsheet(finishDate) : '';
 
     const start = startDate ? toMspDate(startDate, '08:00:00') : '';
-    const finish = finishDate ? toMspDate(finishDate, '17:00:00') : '';
+    const finish = finishDateShifted ? toMspDate(finishDateShifted, '17:00:00') : '';
 
     const pct = toIntPct(s.actualPct);
     const cost = toDec(s.cost);
@@ -267,6 +284,8 @@ function buildMSPXML() {
   xmlLines.push('      <DurationFormat>7</DurationFormat>\n');
     }
     // Task custom fields (ExtendedAttribute values)
+    // Preserve true finish for round-trip loading (do not use shifted Finish)
+    addTaskEA(fieldIdText(15), finishDate);
     const unitsToDate = (s.unitsToDate != null ? String(s.unitsToDate) : '');
     const totalUnits = (s.totalUnits != null ? String(s.totalUnits) : '');
     const unitsLabel = s.unitsLabel || '';
@@ -740,8 +759,12 @@ export function loadFromXml(xmlText){
 
     const cost = costEl ? (parseFloat(costEl.textContent || '0') || 0) : 0;
 
-    const start = startRaw && startRaw.length >= 10 ? startRaw.slice(0, 10) : '';
-    const end = finishRaw && finishRaw.length >= 10 ? finishRaw.slice(0, 10) : '';
+        const start = startRaw && startRaw.length >= 10 ? startRaw.slice(0, 10) : '';
+    // Prefer the preserved true finish (TrueFinish) if present; otherwise fall back to <Finish>.
+    const trueFinishRaw = (attrs.TrueFinish != null ? String(attrs.TrueFinish).trim() : '');
+    const end = trueFinishRaw
+      ? trueFinishRaw.slice(0, 10)
+      : (finishRaw && finishRaw.length >= 10 ? finishRaw.slice(0, 10) : '');
 
     const pct = d.clamp(parseFloat(pctRaw) || 0, 0, 100);
 
@@ -1137,24 +1160,30 @@ function applyToggleStatesFromExtendedAttributes(extAttrs) {
 // Added: compute Duration from Start/Finish for Smartsheet compatibility
 function computeDurationFromDates(startISO, finishISO) {
   try {
-    if (!startISO || !finishISO) return "PT0H0M0S";
+    if (!startISO || !finishISO) return 'PT0H0M0S';
 
-    // Use DATE portion only (calendar-day math), and parse in UTC to avoid timezone drift.
+    // Calendar-day math ignoring time of day:
+    // Use UTC midnight for date portions (YYYY-MM-DD).
     const sd = String(startISO).slice(0, 10);
     const fd = String(finishISO).slice(0, 10);
-    if (sd.length < 10 || fd.length < 10) return "PT0H0M0S";
+    if (sd.length < 10 || fd.length < 10) return 'PT0H0M0S';
 
-    const s = new Date(sd + "T00:00:00Z");
-    const f = new Date(fd + "T00:00:00Z");
-    if (isNaN(s) || isNaN(f) || f <= s) return "PT0H0M0S";
+    const sParts = sd.split('-').map(n => parseInt(n, 10));
+    const fParts = fd.split('-').map(n => parseInt(n, 10));
+    if (sParts.length !== 3 || fParts.length !== 3) return 'PT0H0M0S';
+    if (sParts.some(n => !isFinite(n)) || fParts.some(n => !isFinite(n))) return 'PT0H0M0S';
+
+    const sUTC = Date.UTC(sParts[0], sParts[1] - 1, sParts[2]);
+    const fUTC = Date.UTC(fParts[0], fParts[1] - 1, fParts[2]);
+    if (!isFinite(sUTC) || !isFinite(fUTC) || fUTC <= sUTC) return 'PT0H0M0S';
 
     const msPerDay = 24 * 60 * 60 * 1000;
-    const days = Math.round((f - s) / msPerDay); // exact integer for midnight UTC dates
-    if (!isFinite(days) || days <= 0) return "PT0H0M0S";
+    const days = Math.floor((fUTC - sUTC) / msPerDay);
+    if (!isFinite(days) || days <= 0) return 'PT0H0M0S';
 
     const hours = days * 8; // Smartsheet-safe: calendar days × 8h
     return `PT${hours}H0M0S`;
   } catch (e) {
-    return "PT0H0M0S";
+    return 'PT0H0M0S';
   }
 }
