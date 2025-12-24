@@ -240,29 +240,6 @@ function buildMSPXML() {
   xmlLines.push('        <Value><![CDATA[' + (value || '') + ']]></Value>\n');
   xmlLines.push('      </ExtendedAttribute>\n');
   }
-
-  // Mandatory summary task UID=0 (store project-level custom values here)
-  xmlLines.push('    <Task>\n');
-  xmlLines.push('      <UID>0</UID>\n');
-  xmlLines.push('      <ID>0</ID>\n');
-  xmlLines.push('      <Name>Project Summary Task</Name>\n');
-  xmlLines.push('      <Summary>1</Summary>\n');
-  xmlLines.push('      <Start>' + toMspDate(projStart, '08:00:00') + '</Start>\n');
-  xmlLines.push('      <Finish>' + toMspDate(projStart, '17:00:00') + '</Finish>\n');
-  xmlLines.push('      <PercentComplete>0</PercentComplete>\n');
-  xmlLines.push('      <Cost>0</Cost>\n');
-  xmlLines.push('      <Duration>PT0H0M0S</Duration>\n');
-  addTaskEA(fieldIdText(1), proj.startup || '');
-  addTaskEA(fieldIdText(2), proj.markerLabel || 'Baseline Complete');
-  addTaskEA(fieldIdText(3), labelToggleFlag ? 'true' : 'false');
-  addTaskEA(fieldIdText(4), legendBaselineFlag ? 'true' : 'false');
-  addTaskEA(fieldIdText(5), legendPlannedFlag ? 'true' : 'false');
-  addTaskEA(fieldIdText(6), legendActualFlag ? 'true' : 'false');
-  addTaskEA(fieldIdText(7), legendForecastFlag ? 'true' : 'false');
-  addTaskEA(fieldIdText(8), baselineCSV);
-  addTaskEA(fieldIdText(9), actualCSV);
-  addTaskEA(fieldIdText(10), dailyCSV);
-  xmlLines.push('    </Task>\n');
   // One task per scope (UIDs start at 1)
   (model.scopes || []).forEach((s, idx) => {
     const uid = idx + 1;
@@ -284,7 +261,11 @@ function buildMSPXML() {
     if (finish) xmlLines.push('      <Finish>' + finish + '</Finish>\n');
   xmlLines.push('      <PercentComplete>' + pct + '</PercentComplete>\n');
   xmlLines.push('      <Cost>' + cost + '</Cost>\n');
-  xmlLines.push('      <Duration>PT0H0M0S</Duration>\n');
+    const duration = (start && finish) ? computeDurationFromDates(start, finish) : 'PT0H0M0S';
+  xmlLines.push('      <Duration>' + duration + '</Duration>\n');
+    if (duration !== 'PT0H0M0S') {
+  xmlLines.push('      <DurationFormat>7</DurationFormat>\n');
+    }
     // Task custom fields (ExtendedAttribute values)
     const unitsToDate = (s.unitsToDate != null ? String(s.unitsToDate) : '');
     const totalUnits = (s.totalUnits != null ? String(s.totalUnits) : '');
@@ -1156,11 +1137,22 @@ function applyToggleStatesFromExtendedAttributes(extAttrs) {
 // Added: compute Duration from Start/Finish for Smartsheet compatibility
 function computeDurationFromDates(startISO, finishISO) {
   try {
-    const s = new Date(startISO);
-    const f = new Date(finishISO);
+    if (!startISO || !finishISO) return "PT0H0M0S";
+
+    // Use DATE portion only (calendar-day math), and parse in UTC to avoid timezone drift.
+    const sd = String(startISO).slice(0, 10);
+    const fd = String(finishISO).slice(0, 10);
+    if (sd.length < 10 || fd.length < 10) return "PT0H0M0S";
+
+    const s = new Date(sd + "T00:00:00Z");
+    const f = new Date(fd + "T00:00:00Z");
     if (isNaN(s) || isNaN(f) || f <= s) return "PT0H0M0S";
-    const ms = f - s;
-    const hours = Math.round(ms / 36e5); // simple hour delta
+
+    const msPerDay = 24 * 60 * 60 * 1000;
+    const days = Math.round((f - s) / msPerDay); // exact integer for midnight UTC dates
+    if (!isFinite(days) || days <= 0) return "PT0H0M0S";
+
+    const hours = days * 8; // Smartsheet-safe: calendar days × 8h
     return `PT${hours}H0M0S`;
   } catch (e) {
     return "PT0H0M0S";
