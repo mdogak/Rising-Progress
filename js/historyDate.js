@@ -21,7 +21,7 @@ let _overlay = null;
 const LS_LAST_SELECTED_DATE = 'rp_historyDate_lastSelected';
 const LS_LAST_SELECTED_DAY  = 'rp_historyDate_lastSelectedDay';
 const LS_LAST_PROJECT_KEY   = 'rp_historyDate_lastProjectKey';
-const LS_LAST_PROJECT_SIGNATURE = 'rp_historyDate_projectSignature';
+const LS_ACTIVE_PROJECT_KEY = 'rp_historyDate_activeProjectKey';
 const LS_LAST_PROMPT_TS      = 'rp_historyDate_lastPromptTs';
 const SS_SELECTED_THIS_SESSION = 'rp_historyDate_selectedThisSession';
 
@@ -40,19 +40,6 @@ function _fmtISO(d){
   try { return d.toISOString().slice(0,10); } catch(e){ return ''; }
 }
 
-
-
-function _getProjectLoadSignature(model){
-  try {
-    return JSON.stringify({
-      scopes: model?.scopes?.length || 0,
-      sections: model?.sections?.length || 0,
-      history: model?.history?.length || 0
-    });
-  } catch(e){
-    return '';
-  }
-}
 
 function _isEightHoursPassed(){
   const ts = _safeLocalStorageGet(LS_LAST_PROMPT_TS);
@@ -147,20 +134,18 @@ function maybePromptForHistoryDate({ totalActual, model } = {}){
   const projectKey = (typeof _getProjectKey === 'function') ? (_getProjectKey(model) || '') : '';
   const todayISO = _todayISO();
 
-  // Detect fresh project load via structural signature (counts-based)
-  const sig = _getProjectLoadSignature(model);
-  const lastSig = _safeLocalStorageGet(LS_LAST_PROJECT_SIGNATURE);
-  const isNewProjectLoad = sig && sig !== lastSig;
+  // Detect new project identity via stable project key (latched)
+  const activeProjectKey = _safeLocalStorageGet(LS_ACTIVE_PROJECT_KEY);
+  const isNewProjectIdentity = projectKey && projectKey !== activeProjectKey;
 
-  if (isNewProjectLoad) {
+  if (isNewProjectIdentity) {
     try { sessionStorage.removeItem(SS_SELECTED_THIS_SESSION); } catch(e){}
     try { localStorage.removeItem(LS_LAST_SELECTED_DAY); } catch(e){}
     try { localStorage.removeItem(LS_LAST_PROMPT_TS); } catch(e){}
-    _safeLocalStorageSet(LS_LAST_PROJECT_SIGNATURE, sig);
+    _safeLocalStorageSet(LS_ACTIVE_PROJECT_KEY, projectKey);
   }
 
   const lastDay = _safeLocalStorageGet(LS_LAST_SELECTED_DAY);
-
   const lastProject = _safeLocalStorageGet(LS_LAST_PROJECT_KEY);
   const selectedThisSession = _safeSessionStorageGet(SS_SELECTED_THIS_SESSION);
 
@@ -427,6 +412,7 @@ function _selectDate(isoDate, { projectKey, dayISO } = {}){
   if (projectKey != null) _safeLocalStorageSet(LS_LAST_PROJECT_KEY, String(projectKey || ''));
 
   _safeSessionStorageSet(SS_SELECTED_THIS_SESSION, '1');
+  if (projectKey) _safeLocalStorageSet(LS_ACTIVE_PROJECT_KEY, String(projectKey));
 
   _closeModal({ setDate: true });
 }
