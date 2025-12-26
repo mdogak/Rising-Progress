@@ -17,6 +17,7 @@ let _getProjectKey = () => '';
 
 let _modal = null;
 let _overlay = null;
+let _currentProjectKey = '';
 
 const LS_LAST_SELECTED_DATE = 'rp_historyDate_lastSelected';
 const LS_LAST_SELECTED_DAY  = 'rp_historyDate_lastSelectedDay';
@@ -47,6 +48,27 @@ function _isEightHoursPassed(){
   const diff = Date.now() - Number(ts);
   return diff >= (8 * 60 * 60 * 1000);
 }
+
+function _deriveProjectKey(model){
+  // Primary: injected getter
+  let k = '';
+  try {
+    k = (typeof _getProjectKey === 'function') ? (_getProjectKey(model) || '') : '';
+  } catch(e){ k = ''; }
+
+  // Fallbacks: common model fields (no refactor; defensive only)
+  if (!k && model) {
+    try { k = model.projectKey || k; } catch(e){}
+    try { k = model.projectName || k; } catch(e){}
+    try { k = model.name || k; } catch(e){}
+    try { k = model.title || k; } catch(e){}
+  }
+
+  // Normalize unnamed projects to a stable sentinel to allow suppression
+  if (!k) k = '__NO_PROJECT__';
+  return String(k);
+}
+
 function _todayISO(){
   const now = new Date();
   const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -131,9 +153,7 @@ function maybePromptForHistoryDate({ totalActual, model } = {}){
   // Avoid duplicate instances
   if (_modal) return;
 
-  let projectKey = (typeof _getProjectKey === 'function') ? (_getProjectKey(model) || '') : '';
-  // Normalize unnamed projects to a stable sentinel to allow suppression
-  if (!projectKey) projectKey = '__NO_PROJECT__';
+    const projectKey = _deriveProjectKey(model);
   const todayISO = _todayISO();
 
   // Detect new project identity via stable project key (latched)
@@ -305,6 +325,7 @@ function _getLastUsedDateISO(){
 
 function _openModal({ model, projectKey, todayISO } = {}){
   _ensureStyles();
+  _currentProjectKey = String(projectKey || '');
 
   // Overlay (click ignored)
   _overlay = document.createElement('div');
@@ -421,6 +442,21 @@ function _selectDate(isoDate, { projectKey, dayISO } = {}){
 }
 
 function _closeModal({ setDate } = {}){
+  // Treat explicit dismissal (X / ESC) as a suppression for this session and 8-hour window.
+  // Suppression is cleared when a new project identity is detected.
+  if (setDate === false) {
+    const todayISO = _todayISO();
+    _safeSessionStorageSet(SS_SELECTED_THIS_SESSION, '1');
+    _safeLocalStorageSet(LS_LAST_SELECTED_DAY, String(todayISO));
+    _safeLocalStorageSet(LS_LAST_PROMPT_TS, String(Date.now()));
+
+    // Latch dismissal to the current project identity so the next edit doesn't look "new"
+    if (_currentProjectKey) {
+      _safeLocalStorageSet(LS_LAST_PROJECT_KEY, String(_currentProjectKey));
+      _safeLocalStorageSet(LS_ACTIVE_PROJECT_KEY, String(_currentProjectKey));
+    }
+  }
+
   try {
     if (_modal && _modal.parentNode) _modal.parentNode.removeChild(_modal);
   } catch(e){}
@@ -431,6 +467,7 @@ function _closeModal({ setDate } = {}){
   _modal = null;
   _overlay = null;
 }
+
 
 // Optional safe getter for current chosen history date
 function getSelectedHistoryDate(){
