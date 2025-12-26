@@ -21,6 +21,7 @@ let _currentProjectKey = '';
 
 const LS_LAST_SELECTED_DATE = 'rp_historyDate_lastSelected';
 const LS_LAST_SELECTED_DAY  = 'rp_historyDate_lastSelectedDay';
+const LS_LAST_PROJECT_KEY   = 'rp_historyDate_lastProjectKey';
 const LS_ACTIVE_PROJECT_KEY = 'rp_historyDate_activeProjectKey';
 const LS_LAST_PROMPT_TS      = 'rp_historyDate_lastPromptTs';
 const SS_SELECTED_THIS_SESSION = 'rp_historyDate_selectedThisSession';
@@ -160,15 +161,14 @@ function maybePromptForHistoryDate({ totalActual, model } = {}){
   const isNewProjectIdentity = projectKey !== activeProjectKey;
 
   if (isNewProjectIdentity) {
-    // New project identity detected (including unnamed -> named)
+    // Project name changed → allow prompting again on the next qualifying totalActual change.
+    // Only clear *session-level* suppression; keep day/8-hour logic intact.
     try { sessionStorage.removeItem(SS_SELECTED_THIS_SESSION); } catch(e){}
-    try { localStorage.removeItem(LS_LAST_SELECTED_DAY); } catch(e){}
-    try { localStorage.removeItem(LS_LAST_PROMPT_TS); } catch(e){}
     _safeLocalStorageSet(LS_ACTIVE_PROJECT_KEY, projectKey);
   }
 
   const lastDay = _safeLocalStorageGet(LS_LAST_SELECTED_DAY);
-  const lastProject = _safeLocalStorageGet();
+  const lastProject = _safeLocalStorageGet(LS_LAST_PROJECT_KEY);
   const selectedThisSession = _safeSessionStorageGet(SS_SELECTED_THIS_SESSION);
 
   const isNewDay = !lastDay || lastDay !== todayISO;
@@ -432,7 +432,7 @@ function _selectDate(isoDate, { projectKey, dayISO } = {}){
   const todayISO = dayISO || _todayISO();
   if (isoDate) _safeLocalStorageSet(LS_LAST_SELECTED_DATE, String(isoDate));
   _safeLocalStorageSet(LS_LAST_SELECTED_DAY, String(todayISO));
-  if (projectKey != null) _safeLocalStorageSet(, String(projectKey || ''));
+  if (projectKey != null) _safeLocalStorageSet(LS_LAST_PROJECT_KEY, String(projectKey || ''));
 
   _safeSessionStorageSet(SS_SELECTED_THIS_SESSION, '1');
   if (projectKey) _safeLocalStorageSet(LS_ACTIVE_PROJECT_KEY, String(projectKey));
@@ -451,7 +451,7 @@ function _closeModal({ setDate } = {}){
 
     // Latch dismissal to the current project identity so the next edit doesn't look "new"
     if (_currentProjectKey) {
-      _safeLocalStorageSet(, String(_currentProjectKey));
+      _safeLocalStorageSet(LS_LAST_PROJECT_KEY, String(_currentProjectKey));
       _safeLocalStorageSet(LS_ACTIVE_PROJECT_KEY, String(_currentProjectKey));
     }
   }
