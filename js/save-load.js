@@ -8,6 +8,21 @@ let __saveLoadInitialized = false;
 let __saveLoadDomBound = false;
 let __saveLoadAutoBound = false;
 
+// Refresh helper for dropdown preset loads.
+// Ensures a clean session boundary *before* any preset data loads/renders (prevents lingering modal/session state).
+function refreshWithPreset(presetKey){
+  try{
+    const url = new URL(window.location.href);
+    url.searchParams.set('preset', String(presetKey || ''));
+    url.searchParams.set('redirected', '1');
+    window.location.replace(url.toString());
+  }catch(e){
+    // If URL parsing fails for any reason, fallback to a hard reload.
+    window.location.reload();
+  }
+}
+
+
 function requireDeps(){
   if(!deps) throw new Error('save-load.js not initialized. Call initSaveLoad(deps) first.');
   return deps;
@@ -1066,20 +1081,11 @@ function initLoadDropdown(){
       const act = item.dataset.act;
 
       if (act === 'open') {
+        // Manual file loads should NOT refresh.
         uploadCSVAndLoad();
       } else {
-        let file = '';
-        if (act === 'default') file = 'Project_Files/default_progress_all.prgs';
-        if (act === 'pipeline') file = 'Project_Files/Pipeline_progress_all.prgs';
-        if (act === 'mech') file = 'Project_Files/Mech_Facility_progress_all.prgs';
-        if (act === 'ie') file = 'Project_Files/I&E_Facility_progress_all.prgs';
-
-        if (file) {
-          fetch(file)
-            .then(r => r.text())
-            .then(t => loadFromPresetCsv(t))
-            .catch(err => alert('Failed to load preset CSV: ' + err.message));
-        }
+        // Dropdown presets: force a clean reload BEFORE loading any preset data (prevents lingering session state).
+        refreshWithPreset(act);
       }
 
       closeDropdown();
@@ -1100,18 +1106,35 @@ function initAutoLoadDefault(){
     try {
       const url = new URL(window.location.href);
       const wasRedirected = url.searchParams.get('redirected') === '1';
+      const preset = (url.searchParams.get('preset') || '').trim();
 
       const hydrated = (typeof d.hydrateFromSession === 'function') ? d.hydrateFromSession() : false;
 
-      if (!hydrated && !wasRedirected) {
+      // If a dropdown preset was selected, load it on this fresh page (no partial render before reload).
+      if (!hydrated && preset) {
+        let file = '';
+        if (preset === 'default') file = 'Project_Files/default_progress_all.prgs';
+        if (preset === 'pipeline') file = 'Project_Files/Pipeline_progress_all.prgs';
+        if (preset === 'mech') file = 'Project_Files/Mech_Facility_progress_all.prgs';
+        if (preset === 'ie') file = 'Project_Files/I&E_Facility_progress_all.prgs';
+
+        if (file) {
+          fetch(file)
+            .then(r => r.text())
+            .then(t => loadFromPresetCsv(t))
+            .catch(err => console.error('Failed to auto-load preset CSV:', err));
+        }
+      } else if (!hydrated && !wasRedirected) {
+        // Default auto-load (first visit / no session restore / no forced preset).
         fetch('Project_Files/default_progress_all.prgs')
           .then(r => r.text())
           .then(t => loadFromPresetCsv(t))
           .catch(err => console.error('Failed to auto-load default CSV:', err));
       }
 
-      if (wasRedirected) {
+      if (wasRedirected || preset) {
         url.searchParams.delete('redirected');
+        url.searchParams.delete('preset');
         window.history.replaceState({}, '', url.toString());
       }
     } catch (e) {
