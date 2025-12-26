@@ -83,6 +83,11 @@ function initHistoryDatePrompt({ getHistoryDateInput, getProjectKey } = {}){
 
 function armHistoryDatePrompt(){
   _armed = true;
+
+  // Prime baseline so first non-zero user edit can trigger
+  if (_lastTotalActual === null) {
+    _lastTotalActual = 0;
+  }
 }
 
 /**
@@ -95,21 +100,24 @@ function maybePromptForHistoryDate({ totalActual, model } = {}){
 
   if (typeof totalActual !== 'number' || !isFinite(totalActual)) return;
 
-  const prev = (typeof _lastTotalActual === 'number') ? _lastTotalActual : null;
+  const prev = (typeof _lastTotalActual === 'number') ? _lastTotalActual : 0;
 
-  if (prev === null) {
+  // Must be a real aggregate change
+  if (Math.abs(totalActual - prev) <= 1e-6) {
+    _armed = false;
+    return;
+  }
+
+  // Only prompt on first change that produces NON-ZERO aggregate
+  if (prev <= 0 && totalActual <= 0) {
     _lastTotalActual = totalActual;
     _armed = false;
     return;
   }
 
-  // consume arm only after confirming a real change
+  // consume arm after confirming real, non-zero change
   _armed = false;
-
   _lastTotalActual = totalActual;
-
-  // Must be an actual aggregate change (not just a re-render)
-  if (Math.abs(totalActual - prev) <= 1e-6) return;
 
   // Avoid duplicate instances
   if (_modal) return;
@@ -307,19 +315,19 @@ function _openModal({ model, projectKey, todayISO } = {}){
         <div class="rp-hd-option">
           <button type="button" class="rp-hd-btn" data-opt="today">Today</button>
           <div class="rp-hd-right">
-            <span class="rp-hd-date">(Today) – <span class="rp-hd-date-val">${_fmtMMDDYYYY(todayD)}</span></span>
+            <span class="rp-hd-date"><span class="rp-hd-date-val">${_fmtMMDDYYYY(todayD)}</span></span>
           </div>
         </div>
         <div class="rp-hd-option">
           <button type="button" class="rp-hd-btn" data-opt="yesterday">Yesterday</button>
           <div class="rp-hd-right">
-            <span class="rp-hd-date">(Yesterday) – <span class="rp-hd-date-val">${_fmtMMDDYYYY(yestD)}</span></span>
+            <span class="rp-hd-date"><span class="rp-hd-date-val">${_fmtMMDDYYYY(yestD)}</span></span>
           </div>
         </div>
         <div class="rp-hd-option">
           <button type="button" class="rp-hd-btn" data-opt="custom">Custom</button>
           <div class="rp-hd-right">
-            <span>(Custom) –</span>
+            
             <input class="rp-hd-date-input" type="date" id="rpHistoryDatePicker" value="${defaultISO}">
           </div>
         </div>
