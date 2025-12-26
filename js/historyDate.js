@@ -160,12 +160,15 @@ function maybePromptForHistoryDate({ totalActual, model } = {}){
   const activeProjectKey = _safeLocalStorageGet(LS_ACTIVE_PROJECT_KEY);
   const isNewProjectIdentity = projectKey !== activeProjectKey;
 
-  if (isNewProjectIdentity) {
-    // Project name changed → allow prompting again on the next qualifying totalActual change.
-    // Only clear *session-level* suppression; keep day/8-hour logic intact.
-    try { sessionStorage.removeItem(SS_SELECTED_THIS_SESSION); } catch(e){}
-    _safeLocalStorageSet(LS_ACTIVE_PROJECT_KEY, projectKey);
-  }
+if (isNewProjectIdentity) {
+  // Project name changed → allow prompting again
+  try { sessionStorage.removeItem(SS_SELECTED_THIS_SESSION); } catch(e){}
+
+  // CRITICAL: clear project-specific suppression latch
+  try { localStorage.removeItem(LS_LAST_PROJECT_KEY); } catch(e){}
+
+  _safeLocalStorageSet(LS_ACTIVE_PROJECT_KEY, projectKey);
+}
 
   const lastDay = _safeLocalStorageGet(LS_LAST_SELECTED_DAY);
   const lastProject = _safeLocalStorageGet(LS_LAST_PROJECT_KEY);
