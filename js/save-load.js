@@ -1122,7 +1122,13 @@ function initAutoLoadDefault(){
       const wasRedirected = url.searchParams.get('redirected') === '1';
       const preset = (url.searchParams.get('preset') || '').trim();
 
-      const hydrated = (typeof d.hydrateFromSession === 'function') ? d.hydrateFromSession() : false;
+      let hydrated = false;
+
+      // If a preset was requested via URL (Load dropdown redirect), it MUST win over any session restore.
+      // Otherwise, a prior Open File (stored in session) will override the preset after refresh.
+      if (!preset) {
+        hydrated = (typeof d.hydrateFromSession === 'function') ? d.hydrateFromSession() : false;
+      }
 
       // If a dropdown preset was selected, load it on this fresh page (no partial render before reload).
       if (!hydrated && preset) {
