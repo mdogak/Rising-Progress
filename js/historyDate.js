@@ -142,9 +142,11 @@ function maybePromptForHistoryDate({ totalActual, model } = {}){
   const isNewProject = (projectKey && lastProject && projectKey !== lastProject) || (!!projectKey && !lastProject);
   const eightHoursPassed = _isEightHoursPassed();
 
-  // If project changed, clear session-level suppression
+  // If project changed, clear all suppression so next change can prompt
   if (isNewProject) {
     try { sessionStorage.removeItem(SS_SELECTED_THIS_SESSION); } catch(e){}
+    try { localStorage.removeItem(LS_LAST_SELECTED_DAY); } catch(e){}
+    try { localStorage.removeItem(LS_LAST_PROMPT_TS); } catch(e){}
   }
 
   // Show only when change occurred AND (new day OR new session OR new project OR 8h elapsed)
@@ -405,6 +407,14 @@ function _selectDate(isoDate, { projectKey, dayISO } = {}){
 }
 
 function _closeModal({ setDate } = {}){
+  // Treat explicit dismissal (X / ESC) as a suppression for this session/day
+  if (setDate === false) {
+    const todayISO = _todayISO();
+    _safeSessionStorageSet(SS_SELECTED_THIS_SESSION, '1');
+    _safeLocalStorageSet(LS_LAST_SELECTED_DAY, String(todayISO));
+    _safeLocalStorageSet(LS_LAST_PROMPT_TS, String(Date.now()));
+  }
+
   try {
     if (_modal && _modal.parentNode) _modal.parentNode.removeChild(_modal);
   } catch(e){}
