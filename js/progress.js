@@ -320,15 +320,24 @@ function calcScopePlannedPctToDate(s){
   const dStart = parseDate(s.start);
   const dEnd   = parseDate(s.end);
   if (!dStart || !dEnd || isNaN(dStart.getTime()) || isNaN(dEnd.getTime())) return 0;
-  const t = getEffectiveToday();
+
+  // historyDate is the ONLY reference date for planned progress (no system-date fallback)
+  const hdEl = document.getElementById('historyDate');
+  const t = (hdEl && hdEl.value) ? parseDate(hdEl.value) : null;
   if (!t || isNaN(t.getTime())) return 0;
+
+  // Invalid range: end before start => treat as 100%
+  if (dEnd < dStart) return 100;
+
   if (t < dStart) return 0;
   if (t > dEnd) return 100;
-  if (t.getTime() === dStart.getTime()) return 0;
-  const den = daysBetween(dStart, dEnd);
-  const num = daysBetween(dStart, t);
-  if (den <= 0) return 100;
-  const pct = (num / den) * 100;
+
+  const durationDays = daysBetween(dStart, dEnd);   // inclusive
+  const elapsedDays  = daysBetween(dStart, t);      // inclusive
+
+  if (durationDays <= 0) return 100;
+
+  const pct = (elapsedDays / durationDays) * 100;
   return clamp(pct, 0, 100);
 }
 function updatePlannedCell(row, s){
