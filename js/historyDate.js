@@ -21,6 +21,7 @@ let _overlay = null;
 const LS_LAST_SELECTED_DATE = 'rp_historyDate_lastSelected';
 const LS_LAST_SELECTED_DAY  = 'rp_historyDate_lastSelectedDay';
 const LS_LAST_PROJECT_KEY   = 'rp_historyDate_lastProjectKey';
+const LS_LAST_PROJECT_SIGNATURE = 'rp_historyDate_projectSignature';
 const LS_LAST_PROMPT_TS      = 'rp_historyDate_lastPromptTs';
 const SS_SELECTED_THIS_SESSION = 'rp_historyDate_selectedThisSession';
 
@@ -39,6 +40,19 @@ function _fmtISO(d){
   try { return d.toISOString().slice(0,10); } catch(e){ return ''; }
 }
 
+
+
+function _getProjectLoadSignature(model){
+  try {
+    return JSON.stringify({
+      scopes: model?.scopes?.length || 0,
+      sections: model?.sections?.length || 0,
+      history: model?.history?.length || 0
+    });
+  } catch(e){
+    return '';
+  }
+}
 
 function _isEightHoursPassed(){
   const ts = _safeLocalStorageGet(LS_LAST_PROMPT_TS);
@@ -133,7 +147,20 @@ function maybePromptForHistoryDate({ totalActual, model } = {}){
   const projectKey = (typeof _getProjectKey === 'function') ? (_getProjectKey(model) || '') : '';
   const todayISO = _todayISO();
 
+  // Detect fresh project load via structural signature (counts-based)
+  const sig = _getProjectLoadSignature(model);
+  const lastSig = _safeLocalStorageGet(LS_LAST_PROJECT_SIGNATURE);
+  const isNewProjectLoad = sig && sig !== lastSig;
+
+  if (isNewProjectLoad) {
+    try { sessionStorage.removeItem(SS_SELECTED_THIS_SESSION); } catch(e){}
+    try { localStorage.removeItem(LS_LAST_SELECTED_DAY); } catch(e){}
+    try { localStorage.removeItem(LS_LAST_PROMPT_TS); } catch(e){}
+    _safeLocalStorageSet(LS_LAST_PROJECT_SIGNATURE, sig);
+  }
+
   const lastDay = _safeLocalStorageGet(LS_LAST_SELECTED_DAY);
+
   const lastProject = _safeLocalStorageGet(LS_LAST_PROJECT_KEY);
   const selectedThisSession = _safeSessionStorageGet(SS_SELECTED_THIS_SESSION);
 
@@ -142,11 +169,9 @@ function maybePromptForHistoryDate({ totalActual, model } = {}){
   const isNewProject = (projectKey && lastProject && projectKey !== lastProject) || (!!projectKey && !lastProject);
   const eightHoursPassed = _isEightHoursPassed();
 
-  // If project changed, clear all suppression so next change can prompt
+  // If project changed, clear session-level suppression
   if (isNewProject) {
     try { sessionStorage.removeItem(SS_SELECTED_THIS_SESSION); } catch(e){}
-    try { localStorage.removeItem(LS_LAST_SELECTED_DAY); } catch(e){}
-    try { localStorage.removeItem(LS_LAST_PROMPT_TS); } catch(e){}
   }
 
   // Show only when change occurred AND (new day OR new session OR new project OR 8h elapsed)
@@ -407,14 +432,6 @@ function _selectDate(isoDate, { projectKey, dayISO } = {}){
 }
 
 function _closeModal({ setDate } = {}){
-  // Treat explicit dismissal (X / ESC) as a suppression for this session/day
-  if (setDate === false) {
-    const todayISO = _todayISO();
-    _safeSessionStorageSet(SS_SELECTED_THIS_SESSION, '1');
-    _safeLocalStorageSet(LS_LAST_SELECTED_DAY, String(todayISO));
-    _safeLocalStorageSet(LS_LAST_PROMPT_TS, String(Date.now()));
-  }
-
   try {
     if (_modal && _modal.parentNode) _modal.parentNode.removeChild(_modal);
   } catch(e){}
