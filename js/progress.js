@@ -758,9 +758,6 @@ function computeAndRender(){
     }
  });
   const totalActual = calcTotalActualProgress(); $('#totalActual').textContent = totalActual.toFixed(1)+'%'; updateHistoryDate(totalActual);
-  console.log('[HistoryDate] maybePromptForHistoryDate totalActual=', totalActual);
-  try{ maybePromptForHistoryDate({ totalActual, model }); }catch(e){ console.warn('[HistoryDate] maybePromptForHistoryDate threw', e); }
-
   const plan = calcPlannedSeriesByDay(); const days = plan.days || []; const plannedCum = plan.plannedCum || plan.planned || []; const actualCum = calcActualSeriesByDay(days); const baselineCum = getBaselineSeries(days, plannedCum);
   renderDailyTable(days, baselineCum, plannedCum, actualCum, { computeAndRender });
   drawChart(days, baselineCum, plannedCum, actualCum);
