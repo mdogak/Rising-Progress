@@ -1350,6 +1350,3 @@ document.addEventListener('DOMContentLoaded', () => {
   const ddItem = document.querySelector('#loadDropdown [data-act="open"]');
   if (ddItem) ddItem.textContent = "Open Project";
 });
-
-
-console.info('HISTORY DATE PROMPT SELF-TEST: module wired');
