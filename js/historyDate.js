@@ -131,7 +131,9 @@ function maybePromptForHistoryDate({ totalActual, model } = {}){
   // Avoid duplicate instances
   if (_modal) return;
 
-  const projectKey = (typeof _getProjectKey === 'function') ? (_getProjectKey(model) || '') : '';
+  let projectKey = (typeof _getProjectKey === 'function') ? (_getProjectKey(model) || '') : '';
+  // Normalize unnamed projects to a stable sentinel to allow suppression
+  if (!projectKey) projectKey = '__NO_PROJECT__';
   const todayISO = _todayISO();
 
   // Detect new project identity via stable project key (latched)
