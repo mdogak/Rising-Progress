@@ -35,7 +35,7 @@ html, body {
     132px   /* End */
     120px   /* Cost / % Weight */
     100px   /* Total Units */
-    130px   /* % or Units to Date */
+    100px   /* % or Units to Date */
     80px    /* Units */
     100px   /* Planned */
     80px    /* Actions */;border:1px solid var(--border);border-radius:16px;padding:16px;box-shadow:0 6px 18px rgba(2,6,23,.06)}
@@ -51,7 +51,7 @@ html, body {
     132px   /* End */
     120px   /* Cost / % Weight */
     100px   /* Total Units */
-    130px   /* % or Units to Date */
+    100px   /* % or Units to Date */
     80px    /* Units */
     100px   /* Planned */
     80px    /* Actions */;  /* Actions */
@@ -85,14 +85,14 @@ html, body {
     132px   /* End */
     120px   /* Cost / % Weight */
     100px   /* Total Units */
-    130px   /* % or Units to Date */
+    100px   /* % or Units to Date */
     80px    /* Units */
     100px   /* Planned */
     80px    /* Actions */;gap:16px}
     .row .iconbtn{padding:4px 8px;border-radius:8px}
     .row .iconbtn.add{background:#ecfeff;border:1px solid #cffafe}
     .row .iconbtn.del{background:#fff1f2;border:1px solid #fee2e2}
-    .actions{display:flex;gap:6px;justify-content:center}
+    .actions{display:flex;gap:6px;justify-content:center;align-items:center;position:relative}
     .btn-primary{background:var(--ok)!important;color:#fff!important;font-weight:700;border-color:#16a34a}
     .chart-header{display:flex;justify-content:space-between;gap:16px;align-items:end;margin-bottom:8px}
     .chart-header .left,.chart-header .right{display:flex;gap:8px;align-items:end}
@@ -106,7 +106,7 @@ html, body {
     132px   /* End */
     120px   /* Cost / % Weight */
     100px   /* Total Units */
-    130px   /* % or Units to Date */
+    100px   /* % or Units to Date */
     80px    /* Units */
     100px   /* Planned */
     80px    /* Actions */;grid-auto-rows:auto} }
@@ -505,10 +505,14 @@ html, body {
 /* Completed scope row highlighting */
 .scope-complete {
   background: #f1f5f9 !important;
-  opacity: 0.55;
-  transition: opacity 0.2s ease, background 0.2s ease;
+  transition: background 0.2s ease;
 }
-.scope-complete:hover {
+
+/* Fade completed row EXCEPT the actions cell (dropdown lives here) */
+.scope-complete > :not(.actions) {
+  opacity: 0.55;
+}
+.scope-complete:hover > :not(.actions) {
   opacity: 0.75;
 }
 
@@ -530,3 +534,180 @@ html, body {
   overflow: visible;
 }
 
+/* ===== Scope row drag handle + contextual menu ===== */
+.scope-cell{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  min-width:0;
+}
+.scope-cell input{ flex:1 1 auto; min-width:0; }
+
+.drag-handle{
+  cursor:grab;
+  user-select:none;
+  opacity:0.65;
+  padding:2px 4px;
+  border-radius:6px;
+}
+.drag-handle:active{ cursor:grabbing; }
+
+.row.drag-over{ position:relative; }
+.row.drag-over::before{
+  content:"";
+  position:absolute;
+  left:0;
+  right:0;
+  top:0;
+  border-top:2px dashed rgba(37,99,235,.45);
+  pointer-events:none;
+}
+.row-menu{
+  position:absolute;
+  right:0;
+  top:calc(100% + 6px);
+  min-width:180px;
+  background:#ffffff;
+  border:1px solid var(--border);
+  border-radius:12px;
+  box-shadow:0 8px 20px rgba(2,6,23,.12);
+  padding:6px;
+  z-index:2000;
+}
+.row-menu-item{
+  width:100%;
+  text-align:left;
+  padding:8px 10px;
+  border-radius:10px;
+  border:1px solid transparent;
+  background:transparent;
+}
+.row-menu-item:hover{
+  background:#f8fafc;
+  border-color:#e2e8f0;
+}
+
+/* ===== Section headers (explicit) ===== */
+.section-row{
+  display:grid;
+  gap:16px;
+  grid-template-columns:
+    180px   /* Scope */
+    132px   /* Start */
+    132px   /* End */
+    120px   /* Cost / % Weight */
+    100px   /* Total Units */
+    100px   /* % or Units to Date */
+    80px    /* Units */
+    100px   /* Planned */
+    80px;   /* Actions */
+  gap:16px;
+  align-items:center;
+  padding:0;
+  border-radius:12px;
+  border:1px solid var(--border);
+  font-weight:700;
+  margin-top:8px;
+}
+
+.section-row .section-scope{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  min-width:0;
+}
+
+.section-row .section-title{
+  font-weight:700;
+  border:1px solid transparent;
+  background:transparent;
+  padding:4px 6px;
+  border-radius:10px;
+}
+
+.section-row .section-title:focus{
+  background:#ffffff;
+  border-color:var(--border);
+}
+
+.section-row .section-handle{
+  cursor:grab;
+  user-select:none;
+  opacity:0.65;
+}
+
+.section-row.drag-over{ position:relative; }
+.section-row.drag-over::before{
+  content:"";
+  position:absolute;
+  left:0;
+  right:0;
+  top:0;
+  border-top:2px dashed rgba(37,99,235,.45);
+  pointer-events:none;
+}
+.row .iconbtn.up,
+.row .iconbtn.down{
+  background:#eef2ff;
+  border:1px solid #e0e7ff;
+}
+
+.row .iconbtn.addSection{
+  background:#eff6ff;
+  border:1px solid #dbeafe;
+  font-weight:700;
+}
+
+
+/* Align row action buttons (hamburger) and section remove button */
+.iconbtn.menu,
+.iconbtn.section-remove{
+  width:34px;
+  height:34px;
+  padding:0;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  line-height:1;
+}
+
+/* Align drag handles for scope rows and section rows */
+.drag-handle,
+.section-handle{
+  width:34px;
+  height:34px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  line-height:1;
+}
+
+
+/* Right-justify section values */
+.section-row .section-weight,
+.section-row .section-pct{
+  text-align:right;
+  justify-self:end;
+}
+
+
+
+/* === Override dropdown menu styling inside completed rows === */
+.scope-complete .row-menu{
+  opacity: 1 !important;
+  background: #ffffff !important;
+  color: var(--text) !important;
+}
+.scope-complete .row-menu-item{
+  opacity: 1 !important;
+  color: var(--text) !important;
+}
+.scope-complete .row-menu-item:hover{
+  background:#f8fafc !important;
+}
+
+/* === Ensure dropdown menus are fully opaque even in completed rows === */
+.scope-complete .row-menu,
+.scope-complete .row-menu * {
+  opacity: 1 !important;
+}

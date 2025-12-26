@@ -325,7 +325,9 @@
     });
   });
 </script>
+<script src="js/sections.js"></script>
 <script type="module" src="js/progress.js"></script>
+<script type="module" src="js/clear.js"></script>
 <script src="js/issues.js"></script>
 <script type="module" src="js/image.js"></script>
 
@@ -340,8 +342,8 @@ document.addEventListener("DOMContentLoaded", () => {
   if (!SHOW_BETA_BADGE) return;
   const badge = document.createElement("div");
   badge.id = "betaBadge";
-  badge.textContent = "BETA USER TESTING MODE";
-  badge.title = "This tool is currently in beta for user testing.";
+  badge.textContent = "BETA TESTING - SHARE FEEDBACK";
+  badge.title = "Click here to provide feedback for this tool as it is in beta for user testing.";
   document.body.appendChild(badge);
 });
 </script>
@@ -355,9 +357,77 @@ document.addEventListener("DOMContentLoaded", () => {
   © 2025 Rising Progress LLC. All rights reserved. ·
   <a href="terms.html" style="color:#6b7280; text-decoration:underline;">
     Terms &amp; Conditions
+  </a> ·
+  <a href="#" id="feedbackFooterLink" style="color:#6b7280; text-decoration:underline;">
+    Tell us what you think
   </a>
 </footer>
   
+
+<!-- Feedback Modal -->
+<div id="feedbackOverlay" style="
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.5);
+  z-index:10000;
+  align-items:center;
+  justify-content:center;
+">
+  <div style="
+    background:#fff;
+    width:90%;
+    max-width:900px;
+    height:90%;
+    border-radius:12px;
+    overflow:hidden;
+    box-shadow:0 20px 50px rgba(0,0,0,0.3);
+    position:relative;
+  ">
+    <button id="closeFeedback" style="
+      position:absolute;
+      top:10px;
+      right:14px;
+      font-size:20px;
+      background:none;
+      border:none;
+      cursor:pointer;
+    ">✕</button>
+    <iframe
+      src="https://forms.gle/CZvAm5e8qzG5WTFMA"
+      style="width:100%;height:100%;border:none;">
+    </iframe>
+  </div>
+</div>
+
+<script>
+function openFeedback() {
+  document.getElementById("feedbackOverlay").style.display = "flex";
+}
+function closeFeedback() {
+  document.getElementById("feedbackOverlay").style.display = "none";
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const badge = document.getElementById("betaBadge");
+  if (badge) {
+    badge.style.cursor = "pointer";
+    badge.addEventListener("click", openFeedback);
+  }
+
+  const footerLink = document.getElementById("feedbackFooterLink");
+  if (footerLink) {
+    footerLink.addEventListener("click", (e) => {
+      e.preventDefault();
+      openFeedback();
+    });
+  }
+
+  const closeBtn = document.getElementById("closeFeedback");
+  if (closeBtn) closeBtn.addEventListener("click", closeFeedback);
+});
+</script>
+
 </body>
 </html>
 </div>
