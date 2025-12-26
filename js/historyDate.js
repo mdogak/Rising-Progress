@@ -160,19 +160,25 @@ function maybePromptForHistoryDate({ totalActual, model } = {}){
   const activeProjectKey = _safeLocalStorageGet(LS_ACTIVE_PROJECT_KEY);
   const isNewProjectIdentity = projectKey !== activeProjectKey;
 
-if (isNewProjectIdentity) {
-  // Project name changed → allow prompting again
-  try { sessionStorage.removeItem(SS_SELECTED_THIS_SESSION); } catch(e){}
-
-  // CRITICAL: clear project-specific suppression latch
-  try { localStorage.removeItem(LS_LAST_PROJECT_KEY); } catch(e){}
-
-  _safeLocalStorageSet(LS_ACTIVE_PROJECT_KEY, projectKey);
-}
+  if (isNewProjectIdentity) {
+    // New project identity detected (including unnamed -> named)
+    try { sessionStorage.removeItem(SS_SELECTED_THIS_SESSION); } catch(e){}
+    try { localStorage.removeItem(LS_LAST_SELECTED_DAY); } catch(e){}
+    try { localStorage.removeItem(LS_LAST_PROMPT_TS); } catch(e){}
+    _safeLocalStorageSet(LS_ACTIVE_PROJECT_KEY, projectKey);
+  }
 
   const lastDay = _safeLocalStorageGet(LS_LAST_SELECTED_DAY);
   const lastProject = _safeLocalStorageGet(LS_LAST_PROJECT_KEY);
-  const selectedThisSession = _safeSessionStorageGet(SS_SELECTED_THIS_SESSION);
+  const selectedThisSessionRaw = _safeSessionStorageGet(SS_SELECTED_THIS_SESSION);
+
+  // Session suppression is stored as the projectKey (new behavior) or '1' (legacy).
+  // If the stored projectKey doesn't match the current project, treat it as not selected this session.
+  let selectedThisSession = selectedThisSessionRaw;
+  if (selectedThisSessionRaw && selectedThisSessionRaw !== '1' && selectedThisSessionRaw !== projectKey) {
+    try { sessionStorage.removeItem(SS_SELECTED_THIS_SESSION); } catch(e){}
+    selectedThisSession = null;
+  }
 
   const isNewDay = !lastDay || lastDay !== todayISO;
   const isNewSession = !selectedThisSession; // key is written only after selection
@@ -437,7 +443,7 @@ function _selectDate(isoDate, { projectKey, dayISO } = {}){
   _safeLocalStorageSet(LS_LAST_SELECTED_DAY, String(todayISO));
   if (projectKey != null) _safeLocalStorageSet(LS_LAST_PROJECT_KEY, String(projectKey || ''));
 
-  _safeSessionStorageSet(SS_SELECTED_THIS_SESSION, '1');
+  _safeSessionStorageSet(SS_SELECTED_THIS_SESSION, String(projectKey || '1'));
   if (projectKey) _safeLocalStorageSet(LS_ACTIVE_PROJECT_KEY, String(projectKey));
 
   _closeModal({ setDate: true });
@@ -448,7 +454,7 @@ function _closeModal({ setDate } = {}){
   // Suppression is cleared when a new project identity is detected.
   if (setDate === false) {
     const todayISO = _todayISO();
-    _safeSessionStorageSet(SS_SELECTED_THIS_SESSION, '1');
+    _safeSessionStorageSet(SS_SELECTED_THIS_SESSION, String(_currentProjectKey || '1'));
     _safeLocalStorageSet(LS_LAST_SELECTED_DAY, String(todayISO));
     _safeLocalStorageSet(LS_LAST_PROMPT_TS, String(Date.now()));
 
