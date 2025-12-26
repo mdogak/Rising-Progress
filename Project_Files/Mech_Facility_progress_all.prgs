@@ -11,7 +11,7 @@ legendForecastCheckbox,true
 
 #SECTION:SCOPES
 label,start,end,cost,progressValue,totalUnits,unitsLabel,sectionName
-Mobilization,2022-04-21,2022-05-16,50000,0,,%,
+Mobilization,2022-04-21,2022-05-16,50000,0,,%,Civil-Structural
 Grading,2022-04-22,2022-04-29,100000,0,,%,Civil-Structural
 Foundations,2022-04-25,2022-07-28,550000,0,,Qty,Civil-Structural
 Install Structural Steel/Supports,2022-06-29,2022-08-12,200000,0,,Qty,Civil-Structural
