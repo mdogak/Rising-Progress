@@ -8,9 +8,23 @@ let __saveLoadInitialized = false;
 let __saveLoadDomBound = false;
 let __saveLoadAutoBound = false;
 
+
+// Clear project-scoped History Date suppression keys.
+// These keys persist in localStorage across page refreshes, so we must explicitly remove them
+// when a *different* project is loaded via the Load dropdown.
+function clearHistoryDateProjectSuppression(){
+  try {
+    localStorage.removeItem('rp_historyDate_lastProjectKey');
+    localStorage.removeItem('rp_historyDate_activeProjectKey');
+  } catch(e){}
+}
+
 // Refresh helper for dropdown preset loads.
 // Ensures a clean session boundary *before* any preset data loads/renders (prevents lingering modal/session state).
 function refreshWithPreset(presetKey){
+  // Explicitly signal "new project" to History Date logic
+  clearHistoryDateProjectSuppression();
+
   try{
     const url = new URL(window.location.href);
     url.searchParams.set('preset', String(presetKey || ''));
