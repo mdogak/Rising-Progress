@@ -138,9 +138,10 @@ function maybePromptForHistoryDate({ totalActual, model } = {}){
 
   // Detect new project identity via stable project key (latched)
   const activeProjectKey = _safeLocalStorageGet(LS_ACTIVE_PROJECT_KEY);
-  const isNewProjectIdentity = projectKey && projectKey !== activeProjectKey;
+  const isNewProjectIdentity = projectKey !== activeProjectKey;
 
   if (isNewProjectIdentity) {
+    // New project identity detected (including unnamed -> named)
     try { sessionStorage.removeItem(SS_SELECTED_THIS_SESSION); } catch(e){}
     try { localStorage.removeItem(LS_LAST_SELECTED_DAY); } catch(e){}
     try { localStorage.removeItem(LS_LAST_PROMPT_TS); } catch(e){}
