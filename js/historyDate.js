@@ -21,8 +21,8 @@ let _overlay = null;
 const LS_LAST_SELECTED_DATE = 'rp_historyDate_lastSelected';
 const LS_LAST_SELECTED_DAY  = 'rp_historyDate_lastSelectedDay';
 const LS_LAST_PROJECT_KEY   = 'rp_historyDate_lastProjectKey';
+const LS_LAST_PROMPT_TS      = 'rp_historyDate_lastPromptTs';
 const SS_SELECTED_THIS_SESSION = 'rp_historyDate_selectedThisSession';
-const SS_CURRENT_PROJECT_KEY = 'rp_historyDate_currentProjectKey';
 
 function _fmtMMDDYYYY(d){
   try {
@@ -39,6 +39,13 @@ function _fmtISO(d){
   try { return d.toISOString().slice(0,10); } catch(e){ return ''; }
 }
 
+
+function _isEightHoursPassed(){
+  const ts = _safeLocalStorageGet(LS_LAST_PROMPT_TS);
+  if(!ts) return true;
+  const diff = Date.now() - Number(ts);
+  return diff >= (8 * 60 * 60 * 1000);
+}
 function _todayISO(){
   const now = new Date();
   const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -91,21 +98,6 @@ function armHistoryDatePrompt(){
   }
 }
 
-
-function resetHistoryDateForNewProject(projectKey){
-  // When a different project is loaded in the same tab/session,
-  // we want the first qualifying progress change to re-prompt.
-  try { sessionStorage.removeItem(SS_SELECTED_THIS_SESSION); } catch(e){}
-  try {
-    if (projectKey) _safeSessionStorageSet(SS_CURRENT_PROJECT_KEY, String(projectKey));
-    else if (window.sessionStorage) sessionStorage.removeItem(SS_CURRENT_PROJECT_KEY);
-  } catch(e){}
-
-  // Reset aggregate tracking so prior project's totals don't suppress the new one
-  _lastTotalActual = null;
-  _armed = false;
-}
-
 /**
  * Called after totalActual has been computed/rendered.
  * Triggers only if armed and totalActual changed, and suppression rules allow it.
@@ -139,14 +131,6 @@ function maybePromptForHistoryDate({ totalActual, model } = {}){
   if (_modal) return;
 
   const projectKey = (typeof _getProjectKey === 'function') ? (_getProjectKey(model) || '') : '';
-  // If project changes within the same browser session, clear session suppression and reset totals
-  const sessionProject = _safeSessionStorageGet(SS_CURRENT_PROJECT_KEY);
-  if (projectKey && projectKey !== sessionProject) {
-    _safeSessionStorageSet(SS_CURRENT_PROJECT_KEY, String(projectKey));
-    try { sessionStorage.removeItem(SS_SELECTED_THIS_SESSION); } catch(e){}
-    _lastTotalActual = null;
-    _armed = false;
-  }
   const todayISO = _todayISO();
 
   const lastDay = _safeLocalStorageGet(LS_LAST_SELECTED_DAY);
@@ -156,9 +140,15 @@ function maybePromptForHistoryDate({ totalActual, model } = {}){
   const isNewDay = !lastDay || lastDay !== todayISO;
   const isNewSession = !selectedThisSession; // key is written only after selection
   const isNewProject = (projectKey && lastProject && projectKey !== lastProject) || (!!projectKey && !lastProject);
+  const eightHoursPassed = _isEightHoursPassed();
 
-  // Show only when change occurred AND (new day OR new session OR new project)
-  if (!(isNewDay || isNewSession || isNewProject)) return;
+  // If project changed, clear session-level suppression
+  if (isNewProject) {
+    try { sessionStorage.removeItem(SS_SELECTED_THIS_SESSION); } catch(e){}
+  }
+
+  // Show only when change occurred AND (new day OR new session OR new project OR 8h elapsed)
+  if (!(isNewDay || isNewSession || isNewProject || eightHoursPassed)) return;
 
   _openModal({ model, projectKey, todayISO });
 }
@@ -386,6 +376,8 @@ function _openModal({ model, projectKey, todayISO } = {}){
     else if (btnCustom) btnCustom.focus();
   } catch(e){}
 
+  _safeLocalStorageSet(LS_LAST_PROMPT_TS, String(Date.now()));
+
   document.body.appendChild(_overlay);
   document.body.appendChild(_modal);
 }
@@ -436,6 +428,5 @@ export {
   initHistoryDatePrompt,
   armHistoryDatePrompt,
   maybePromptForHistoryDate,
-  getSelectedHistoryDate,
-  resetHistoryDateForNewProject
+  getSelectedHistoryDate
 };
