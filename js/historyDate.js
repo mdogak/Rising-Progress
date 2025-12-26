@@ -93,17 +93,23 @@ function maybePromptForHistoryDate({ totalActual, model } = {}){
   if(!_inited) initHistoryDatePrompt();
   if(!_armed) return;
 
-  // Consume the arm so we only consider the next compute pass tied to the edit
-  _armed = false;
-
   if (typeof totalActual !== 'number' || !isFinite(totalActual)) return;
 
   const prev = (typeof _lastTotalActual === 'number') ? _lastTotalActual : null;
+
+  if (prev === null) {
+    _lastTotalActual = totalActual;
+    _armed = false;
+    return;
+  }
+
+  // consume arm only after confirming a real change
+  _armed = false;
+
   _lastTotalActual = totalActual;
 
   // Must be an actual aggregate change (not just a re-render)
-  if (prev !== null && Math.abs(totalActual - prev) <= 1e-6) return;
-  if (prev === null) return; // don't prompt on first-ever compute
+  if (Math.abs(totalActual - prev) <= 1e-6) return;
 
   // Avoid duplicate instances
   if (_modal) return;
@@ -301,24 +307,24 @@ function _openModal({ model, projectKey, todayISO } = {}){
         <div class="rp-hd-option">
           <button type="button" class="rp-hd-btn" data-opt="today">Today</button>
           <div class="rp-hd-right">
-            <span class="rp-hd-pill"><span class="rp-hd-date">(Today) – <span class="rp-hd-date-val">${_fmtMMDDYYYY(todayD)}</span></span></span>
+            <span class="rp-hd-date">(Today) – <span class="rp-hd-date-val">${_fmtMMDDYYYY(todayD)}</span></span>
           </div>
         </div>
         <div class="rp-hd-option">
           <button type="button" class="rp-hd-btn" data-opt="yesterday">Yesterday</button>
           <div class="rp-hd-right">
-            <span class="rp-hd-pill"><span class="rp-hd-date">(Yesterday) – <span class="rp-hd-date-val">${_fmtMMDDYYYY(yestD)}</span></span></span>
+            <span class="rp-hd-date">(Yesterday) – <span class="rp-hd-date-val">${_fmtMMDDYYYY(yestD)}</span></span>
           </div>
         </div>
         <div class="rp-hd-option">
           <button type="button" class="rp-hd-btn" data-opt="custom">Custom</button>
           <div class="rp-hd-right">
-            <span class="rp-hd-pill">(Custom) –</span>
+            <span>(Custom) –</span>
             <input class="rp-hd-date-input" type="date" id="rpHistoryDatePicker" value="${defaultISO}">
           </div>
         </div>
       </div>
-      <div class="rp-hd-foot">Click the green button for ‘Add to History’ once updates for this date are complete.</div>
+      <div class="rp-hd-foot">Click the green button for <strong style="color:#16a34a;">Add to History</strong> once updates for this date are complete.</div>
     </div>
   `;
 
