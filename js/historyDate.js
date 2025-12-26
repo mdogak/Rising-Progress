@@ -64,9 +64,27 @@ function _deriveProjectKey(model){
     try { k = model.title || k; } catch(e){}
   }
 
-  // Normalize unnamed projects to a stable sentinel to allow suppression
-  if (!k) k = '__NO_PROJECT__';
-  return String(k);
+// Fallback: read from common UI label locations when the model/getter isn't populated yet.
+// (Uses the existing project "name" concept; no new identity system.)
+if (!k) {
+  try {
+    const el =
+      document.getElementById('projectName') ||
+      document.getElementById('projectNameLabel') ||
+      document.getElementById('projectTitle') ||
+      document.querySelector('[data-project-name]') ||
+      document.querySelector('.project-name') ||
+      document.querySelector('.projectName');
+    if (el) {
+      const t = (el.getAttribute && el.getAttribute('data-project-name')) || el.textContent || '';
+      k = String(t || '').trim();
+    }
+  } catch(e){}
+}
+
+// Normalize unnamed projects to a stable sentinel to allow suppression
+if (!k) k = '__NO_PROJECT__';
+return String(k);
 }
 
 function _todayISO(){
@@ -153,7 +171,7 @@ function maybePromptForHistoryDate({ totalActual, model } = {}){
   // Avoid duplicate instances
   if (_modal) return;
 
-    const projectKey = _deriveProjectKey(model);
+  const projectKey = _deriveProjectKey(model);
   const todayISO = _todayISO();
 
   // Detect new project identity via stable project key (latched)
@@ -161,10 +179,9 @@ function maybePromptForHistoryDate({ totalActual, model } = {}){
   const isNewProjectIdentity = projectKey !== activeProjectKey;
 
   if (isNewProjectIdentity) {
-    // New project identity detected (including unnamed -> named)
+    // Project name changed → allow prompting again on the next qualifying totalActual change.
+    // Clear *session-level* suppression only; preserve day + 8-hour suppression logic.
     try { sessionStorage.removeItem(SS_SELECTED_THIS_SESSION); } catch(e){}
-    try { localStorage.removeItem(LS_LAST_SELECTED_DAY); } catch(e){}
-    try { localStorage.removeItem(LS_LAST_PROMPT_TS); } catch(e){}
     _safeLocalStorageSet(LS_ACTIVE_PROJECT_KEY, projectKey);
   }
 
