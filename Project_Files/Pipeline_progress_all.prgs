@@ -3,28 +3,33 @@ key,value
 name,Pipeline
 startup,2026-01-12
 markerLabel,Plan Complete
+labelToggle,true
+legendBaselineCheckbox,true
+legendPlannedCheckbox,true
+legendActualCheckbox,true
+legendForecastCheckbox,true
 
 #SECTION:SCOPES
-label,start,end,cost,progressValue,totalUnits,unitsLabel
-Mobilization,2025-08-25,2025-09-13,4.4,100,,%
-Mats/Clear/Grade ROW,2025-09-05,2025-09-23,9.9,143288,143288,Feet
-String Pipe,2025-09-11,2025-10-02,2.7,143288,143288,Feet
-Weld Pipe,2025-09-22,2025-10-29,9.5,143288,143288,Feet
-Coat Pipe,2025-09-24,2025-11-09,2,143288,143288,Feet
-Trenching,2025-09-25,2025-11-11,29.8,143288,143288,Feet
-Bores,2025-10-07,2025-11-24,20.8,60,,%
-Lower-In/Backfill,2025-09-30,2025-11-15,1.6,124862,143288,Feet
-Tie-Ins,2025-10-06,2025-12-06,4.6,75,,%
-Clean Up ROW,2025-11-17,2026-01-26,3.6,66199.99,143288,Feet
-Site - Concrete Civil,2025-10-10,2025-10-30,0.6,50,,%
-Site - Pipe prefab,2025-10-30,2025-11-12,1.3,75,,%
-Site - Hot Taps,2025-11-12,2025-12-05,0.4,60,,%
-Site - Pipe Install,2025-11-13,2025-12-02,0.4,0,,%
-Site - Paint,2026-01-10,2026-02-02,0.3,0,,%
-Final Bolt Up,2026-01-09,2026-01-12,0.3,0,,%
-Hydrotest,2025-12-06,2026-01-09,6.6,0,,%
-Seeding,2026-01-27,2026-02-09,0.6,0,,%
-Demobilization,2026-02-03,2026-02-05,0.6,0,,%
+label,start,end,cost,progressValue,totalUnits,unitsLabel,sectionName
+Mobilization,2025-08-25,2025-09-13,4.4,100,,%,Pipeline
+Mats/Clear/Grade ROW,2025-09-05,2025-09-23,9.9,143288,143288,Feet,Pipeline
+String Pipe,2025-09-11,2025-10-02,2.7,143288,143288,Feet,Pipeline
+Weld Pipe,2025-09-22,2025-10-29,9.5,143288,143288,Feet,Pipeline
+Coat Pipe,2025-09-24,2025-11-09,2,143288,143288,Feet,Pipeline
+Trenching,2025-09-25,2025-11-11,29.8,143288,143288,Feet,Pipeline
+Bores,2025-10-07,2025-11-24,20.8,60,,%,Pipeline
+Lower-In/Backfill,2025-09-30,2025-11-15,1.6,124862,143288,Feet,Pipeline
+Tie-Ins,2025-10-06,2025-12-06,4.6,75,,%,Pipeline
+Hydrotest,2025-12-06,2026-01-09,6.6,0,,%,Pipeline
+Site - Concrete Civil,2025-10-10,2025-10-30,0.6,50,,%,Site-Facility
+Site - Pipe prefab,2025-10-30,2025-11-12,1.3,75,,%,Site-Facility
+Site - Hot Taps,2025-11-12,2025-12-05,0.4,60,,%,Site-Facility
+Site - Pipe Install,2025-11-13,2025-12-02,0.4,0,,%,Site-Facility
+Site - Paint,2026-01-10,2026-02-02,0.3,0,,%,Site-Facility
+Final Bolt Up,2026-01-09,2026-01-12,0.3,0,,%,Site-Facility
+Seeding,2026-01-27,2026-02-09,0.6,0,,%,Non Critical
+Clean Up ROW,2025-11-17,2026-01-26,3.6,66199.99,143288,Feet,Non Critical
+Demobilization,2026-02-03,2026-02-05,0.6,0,,%,Non Critical
 
 #SECTION:DAILY_ACTUALS
 date,value

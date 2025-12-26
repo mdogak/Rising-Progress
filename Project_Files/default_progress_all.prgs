@@ -3,23 +3,28 @@ key,value
 name,
 startup,
 markerLabel,Original Complete
+labelToggle,true
+legendBaselineCheckbox,true
+legendPlannedCheckbox,true
+legendActualCheckbox,true
+legendForecastCheckbox,true
 
 #SECTION:SCOPES
-label,start,end,cost,progressValue,totalUnits,unitsLabel,percentComplete
-Scope #1,2025-11-15,2025-11-22,100,0,,%,0.0
-Scope #2,,,0,0,,%,0.0
-Scope #3,,,0,0,,%,0.0
-Scope #4,,,0,0,,%,0.0
-Scope #5,,,0,0,,%,0.0
+label,start,end,cost,progressValue,totalUnits,unitsLabel,sectionName
+Scope #1,2026-01-01,2026-01-31,100,0,,%,Section #1
+Scope #2,,,0,0,,%,Section #1
+Scope #3,,,0,0,,%,Section #1
+Scope #4,,,0,0,,%,Section #1
+Scope #5,,,0,0,,%,Section #1
 
 #SECTION:DAILY_ACTUALS
-date,actualPct
+date,value
 
 #SECTION:HISTORY
 date,actualPct
 
 #SECTION:BASELINE
-date,baseline_planned
+date,baselinePct
 2025-11-14,0
 2025-11-15,12.5
 2025-11-16,25
@@ -30,14 +35,3 @@ date,baseline_planned
 2025-11-21,87.5
 2025-11-22,100
 
-#SECTION:DAILY_SERIES
-date,baseline_cumulative,planned_cumulative,actual_cumulative
-2025-11-14,0.0,0.0,0.0
-2025-11-15,12.5,12.5,
-2025-11-16,25.0,25.0,
-2025-11-17,37.5,37.5,
-2025-11-18,50.0,50.0,
-2025-11-19,62.5,62.5,
-2025-11-20,75.0,75.0,
-2025-11-21,87.5,87.5,
-2025-11-22,100.0,100.0,
