@@ -6,6 +6,11 @@ import { initToolbarClear } from './clear.js';
 import { getBaselineSeries, takeBaseline, renderDailyTable, initHistory } from './history.js';
 
 import { initSaveLoad, loadFromPresetCsv } from './save-load.js';
+import {
+  initHistoryDatePrompt,
+  armHistoryDatePrompt,
+  maybePromptForHistoryDate
+} from './historyDate.js';
 // Ensure legend text renders after files are loaded without needing a toggle
 document.querySelectorAll('input[type="file"]').forEach(el=>{
   el.addEventListener('change', ()=>{
@@ -179,6 +184,7 @@ function onScopeChange(e){
     s.actualPct = clamp(inputs.progressVal,0,100);
   }
   updatePlannedCell(realRow, s);
+  armHistoryDatePrompt();
   computeAndRender();
   sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
   // SECOND PASS ensure post-load compute
@@ -758,6 +764,7 @@ function computeAndRender(){
     }
  });
   const totalActual = calcTotalActualProgress(); $('#totalActual').textContent = totalActual.toFixed(1)+'%'; updateHistoryDate(totalActual);
+  maybePromptForHistoryDate({ totalActual, model });
   const plan = calcPlannedSeriesByDay(); const days = plan.days || []; const plannedCum = plan.plannedCum || plan.planned || []; const actualCum = calcActualSeriesByDay(days); const baselineCum = getBaselineSeries(days, plannedCum);
   renderDailyTable(days, baselineCum, plannedCum, actualCum, { computeAndRender });
   drawChart(days, baselineCum, plannedCum, actualCum);
@@ -1343,3 +1350,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const ddItem = document.querySelector('#loadDropdown [data-act="open"]');
   if (ddItem) ddItem.textContent = "Open Project";
 });
+
+
+console.info('HISTORY DATE PROMPT SELF-TEST: module wired');
