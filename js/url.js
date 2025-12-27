@@ -1,6 +1,6 @@
 /*
  © 2025 Rising Progress LLC. All rights reserved.
- URL-based PRGS loader + Open File trigger (observer-based)
+ URL-based PRGS loader + Open Project trigger (event-dispatch)
 */
 import { loadFromPrgsText } from './save-load.js';
 
@@ -33,7 +33,8 @@ function parsePrgsParam(raw){
 
 /**
  * One-shot ?file=open handler
- * Uses MutationObserver to wait for toolbar Open button to exist
+ * Triggers the SAME delegated click handler used by
+ * <div data-act="open">Open Project</div>
  */
 function maybeTriggerOpenFile(params){
   if (params.get('file') !== 'open') return false;
@@ -41,7 +42,7 @@ function maybeTriggerOpenFile(params){
   // Do not mix with other loaders
   if (params.has('prgs') || params.has('preset')) return false;
 
-  let triggered = false;
+  let fired = false;
 
   const cleanupUrl = () => {
     try{
@@ -51,34 +52,35 @@ function maybeTriggerOpenFile(params){
     }catch(e){}
   };
 
-  const tryTrigger = () => {
-    if (triggered) return true;
+  const tryDispatch = () => {
+    if (fired) return true;
 
-    const openBtn =
-      document.getElementById('toolbarOpen') ||
-      document.querySelector('[data-action="open"], button[title*="Open" i]');
+    const openItem = document.querySelector('[data-act="open"]');
+    if (!openItem) return false;
 
-    if (openBtn) {
-      triggered = true;
-      try{
-        openBtn.click();
-      }catch(e){
-        console.warn('[RP][URL] Failed to click Open button:', e);
-      }
-      cleanupUrl();
-      return true;
+    fired = true;
+
+    // Dispatch a trusted click event so delegated handlers fire
+    try{
+      openItem.dispatchEvent(new MouseEvent('click', {
+        bubbles: true,
+        cancelable: true,
+        view: window
+      }));
+    }catch(e){
+      console.warn('[RP][URL] Failed to dispatch open action:', e);
     }
-    return false;
+
+    cleanupUrl();
+    return true;
   };
 
-  // Try immediately (in case toolbar already exists)
-  if (tryTrigger()) return true;
+  // Try immediately
+  if (tryDispatch()) return true;
 
-  // Observe DOM for toolbar insertion
+  // Observe DOM until menu item appears
   const observer = new MutationObserver(() => {
-    if (tryTrigger()) {
-      observer.disconnect();
-    }
+    if (tryDispatch()) observer.disconnect();
   });
 
   observer.observe(document.documentElement, {
@@ -88,9 +90,9 @@ function maybeTriggerOpenFile(params){
 
   // Safety timeout
   setTimeout(() => {
-    if (!triggered) {
+    if (!fired) {
       observer.disconnect();
-      console.warn('[RP][URL] Open File button never appeared');
+      console.warn('[RP][URL] Open Project action never appeared');
       cleanupUrl();
     }
   }, 8000);
@@ -102,7 +104,7 @@ export function initUrlLoader(){
   try{
     const params = new URLSearchParams(window.location.search || '');
 
-    // Handle one-shot Open File trigger
+    // Handle one-shot Open Project trigger
     maybeTriggerOpenFile(params);
 
     const raw = (params.get('prgs') || '').trim();
