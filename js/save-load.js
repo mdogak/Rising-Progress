@@ -22,16 +22,17 @@ function clearHistoryDateProjectSuppression(){
 // Refresh helper for dropdown preset loads.
 // Ensures a clean session boundary *before* any preset data loads/renders (prevents lingering modal/session state).
 function refreshWithPreset(presetKey){
-  // Explicitly signal "new project" to History Date logic
+  // Back-compat helper (used by older code paths): refresh page to load a preset.
+  // Ensure URL-based loader params are cleared so presets can take over.
   clearHistoryDateProjectSuppression();
 
   try{
     const url = new URL(window.location.href);
+    url.searchParams.delete('prgs');
+    url.searchParams.delete('redirected');
     url.searchParams.set('preset', String(presetKey || ''));
-    url.searchParams.set('redirected', '1');
     window.location.replace(url.toString());
   }catch(e){
-    // If URL parsing fails for any reason, fallback to a hard reload.
     window.location.reload();
   }
 }
@@ -1061,8 +1062,36 @@ function initLoadDropdown(){
         // Manual file loads should NOT refresh.
         uploadCSVAndLoad();
       } else {
-        // Dropdown presets: force a clean reload BEFORE loading any preset data (prevents lingering session state).
-        refreshWithPreset(act);
+        // Dropdown presets: load in-place (no refresh), update URL to show preset, and clear URL-loader params.
+        (async ()=>{
+          try{
+            // Signal "new project" to History Date logic
+            clearHistoryDateProjectSuppression();
+
+            // Update URL: keep preset visible; remove prgs/redirected so it can't take precedence.
+            const url = new URL(window.location.href);
+            url.searchParams.delete('prgs');
+            url.searchParams.delete('redirected');
+            url.searchParams.set('preset', String(act || ''));
+            window.history.replaceState({}, '', url.toString());
+
+            // Load preset file (same as auto-load mapping)
+            let file = '';
+            if (act === 'default') file = 'Project_Files/default_progress_all.prgs';
+            if (act === 'pipeline') file = 'Project_Files/Pipeline_progress_all.prgs';
+            if (act === 'mech') file = 'Project_Files/Mech_Facility_progress_all.prgs';
+            if (act === 'ie') file = 'Project_Files/I&E_Facility_progress_all.prgs';
+
+            if (!file) return;
+
+            const r = await fetch(file, { cache:'no-store' });
+            const t = await r.text();
+            loadFromPresetCsv(t);
+          }catch(err){
+            console.error('Failed to load preset:', err);
+            alert('Failed to load preset project.');
+          }
+        })();
       }
 
       closeDropdown();
@@ -1119,9 +1148,8 @@ function initAutoLoadDefault(){
           .catch(err => console.error('Failed to auto-load default CSV:', err));
       }
 
-      if (wasRedirected || preset) {
+      if (wasRedirected) {
         url.searchParams.delete('redirected');
-        url.searchParams.delete('preset');
         window.history.replaceState({}, '', url.toString());
       }
     } catch (e) {

@@ -53,7 +53,7 @@ export function initUrlLoader(){
         try { target = decodeURIComponent(target); } catch(e){}
 
         const res = await fetch(target, { cache:'no-store' });
-        if(!res.ok) throw new Error('HTTP ' + res.status);
+        if(!res.ok) throw new Error(`HTTP ${res.status}`);
 
         const text = await res.text();
         if(!text || !text.trim()) throw new Error('Empty PRGS content');
@@ -64,12 +64,18 @@ export function initUrlLoader(){
         // Load exactly as if user used Open File
         loadFromPrgsText(text);
 
+        // One-time use: remove prgs= from the URL after a successful load
+        try{
+          const u = new URL(window.location.href);
+          u.searchParams.delete('prgs');
+          window.history.replaceState({}, '', u.toString());
+        }catch(e){}
         // Hydration flag prevents preset/session/default from overriding this load
         window.__RP_URL_HYDRATED = true;
         return true;
       }catch(err){
         console.warn('[RP][URL] Failed to load PRGS from URL:', err);
-        toast('Failed to load project from URL');
+        toast(parsed.mode==='url' ? 'Project URL blocked by browser security (CORS)' : 'Failed to load project');
         return false;
       }
     })();
