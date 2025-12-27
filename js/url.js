@@ -1,6 +1,6 @@
 /*
  © 2025 Rising Progress LLC. All rights reserved.
- URL-based PRGS loader + user-activated Open File dialog (dismissable)
+ URL-based PRGS loader + user-activated Open action dialog (dismissable)
 */
 import { loadFromPrgsText } from './save-load.js';
 
@@ -85,7 +85,7 @@ function showOpenFilePrompt(){
   const cleanup = () => {
     try{
       const url = new URL(window.location.href);
-      url.searchParams.delete('file');
+      url.searchParams.delete('open');
       window.history.replaceState({}, '', url.toString());
     }catch(e){}
     overlay.remove();
@@ -116,11 +116,11 @@ function showOpenFilePrompt(){
 }
 
 /**
- * One-shot ?file=open handler
+ * One-shot ?open=file handler
  * Waits for default project to load, then shows prompt
  */
-function maybePromptForOpenFile(params){
-  if (params.get('file') !== 'open') return false;
+function maybePromptForOpenAction(params){
+  if (params.get('open') !== 'file') return false;
   if (params.has('prgs') || params.has('preset')) return false;
 
   const isDefaultLoaded = () =>
@@ -144,8 +144,8 @@ export function initUrlLoader(){
   try{
     const params = new URLSearchParams(window.location.search || '');
 
-    // Prompt user for Open File after default load
-    maybePromptForOpenFile(params);
+    // Prompt user for Open actions after default load
+    maybePromptForOpenAction(params);
 
     const raw = (params.get('prgs') || '').trim();
     const force = params.get('force') === 'true';
