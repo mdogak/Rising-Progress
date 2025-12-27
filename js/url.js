@@ -1,6 +1,6 @@
 /*
  © 2025 Rising Progress LLC. All rights reserved.
- URL-based PRGS loader + Open File trigger
+ URL-based PRGS loader + Open File trigger (deferred)
 */
 import { loadFromPrgsText } from './save-load.js';
 
@@ -31,28 +31,51 @@ function parsePrgsParam(raw){
   return null;
 }
 
+/**
+ * One-shot ?file=open handler
+ * Waits for the file input to exist before triggering click
+ */
 function maybeTriggerOpenFile(params){
   if (params.get('file') !== 'open') return false;
 
   // Do not mix with other loaders
   if (params.has('prgs') || params.has('preset')) return false;
 
-  const fileInput = document.querySelector('input[type="file"]');
-  if(!fileInput){
-    console.warn('[RP][URL] File input not found for open action');
-    return false;
-  }
+  const MAX_WAIT_MS = 3000;
+  const INTERVAL_MS = 50;
+  let waited = 0;
 
-  // Trigger native file picker
-  fileInput.click();
+  const tryOpen = () => {
+    const fileInput = document.querySelector('input[type="file"]');
+    if (fileInput) {
+      try{
+        fileInput.click();
+      }catch(e){
+        console.warn('[RP][URL] Failed to trigger file dialog:', e);
+      }
 
-  // Remove parameter immediately (one-time use)
-  try{
-    const url = new URL(window.location.href);
-    url.searchParams.delete('file');
-    window.history.replaceState({}, '', url.toString());
-  }catch(e){}
+      // Remove parameter immediately (one-time use)
+      try{
+        const url = new URL(window.location.href);
+        url.searchParams.delete('file');
+        window.history.replaceState({}, '', url.toString());
+      }catch(e){}
 
+      return true;
+    }
+
+    waited += INTERVAL_MS;
+    if (waited >= MAX_WAIT_MS) {
+      console.warn('[RP][URL] File input not found within wait window');
+      return false;
+    }
+
+    setTimeout(tryOpen, INTERVAL_MS);
+    return true;
+  };
+
+  // Start deferred search
+  tryOpen();
   return true;
 }
 
@@ -60,9 +83,9 @@ export function initUrlLoader(){
   try{
     const params = new URLSearchParams(window.location.search || '');
 
-    // Handle one-shot Open File trigger
+    // Handle one-shot Open File trigger (deferred)
     if (maybeTriggerOpenFile(params)) {
-      return;
+      // Do not return — allow normal init to continue
     }
 
     const raw = (params.get('prgs') || '').trim();
