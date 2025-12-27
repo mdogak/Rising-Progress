@@ -27,7 +27,10 @@ function refreshWithPreset(presetKey){
 
   try{
     const url = new URL(window.location.href);
+    
+    url.searchParams.delete('prgs');
     url.searchParams.set('preset', String(presetKey || ''));
+    
     url.searchParams.set('redirected', '1');
     window.location.replace(url.toString());
   }catch(e){
@@ -1059,7 +1062,14 @@ function initLoadDropdown(){
 
       if (act === 'open') {
         // Manual file loads should NOT refresh.
+        
+        try {
+          const url = new URL(window.location.href);
+          url.searchParams.delete('prgs');
+          window.history.replaceState({}, '', url.toString());
+        } catch(e){}
         uploadCSVAndLoad();
+    
       } else {
         // Dropdown presets: force a clean reload BEFORE loading any preset data (prevents lingering session state).
         refreshWithPreset(act);

@@ -34,7 +34,14 @@ function parsePrgsParam(raw){
 export function initUrlLoader(){
   try{
     const params = new URLSearchParams(window.location.search || '');
+    
     const raw = (params.get('prgs') || '').trim();
+
+    // One-shot per session: if already loaded once, never re-run
+    if (raw && sessionStorage.getItem('rp_prgs_loaded') === '1') {
+      return;
+    }
+    
     if(!raw) return;
 
     const parsed = parsePrgsParam(raw);
@@ -65,7 +72,10 @@ export function initUrlLoader(){
         loadFromPrgsText(text);
 
         // Hydration flag prevents preset/session/default from overriding this load
+        
         window.__RP_URL_HYDRATED = true;
+        try { sessionStorage.setItem('rp_prgs_loaded', '1'); } catch(e){}
+    
         return true;
       }catch(err){
         console.warn('[RP][URL] Failed to load PRGS from URL:', err);
