@@ -1,6 +1,6 @@
 /*
  © 2025 Rising Progress LLC. All rights reserved.
- URL-based PRGS loader + Open Project trigger (post-default-load)
+ URL-based PRGS loader + user-activated Open File dialog (dismissable)
 */
 import { loadFromPrgsText } from './save-load.js';
 
@@ -23,72 +23,117 @@ function parsePrgsParam(raw){
 }
 
 /**
- * One-shot ?file=open handler
- * WAITS until the default project has finished loading
- * (model exists + scopes populated), then triggers Open Project.
+ * Injects a minimal modal that requires a REAL user click
+ * to launch the Open Project action.
  */
-function maybeTriggerOpenFileAfterDefaultLoad(params){
-  if (params.get('file') !== 'open') return false;
+function showOpenFilePrompt(){
+  if (document.getElementById('rp-openfile-overlay')) return;
 
-  // Do not mix with other loaders
-  if (params.has('prgs') || params.has('preset')) return false;
+  const overlay = document.createElement('div');
+  overlay.id = 'rp-openfile-overlay';
+  overlay.style.cssText = `
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+  `;
 
-  let fired = false;
+  const box = document.createElement('div');
+  box.style.cssText = `
+    position: relative;
+    background: #fff;
+    padding: 22px 24px 20px;
+    border-radius: 8px;
+    max-width: 320px;
+    width: 90%;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+    text-align: center;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  `;
 
-  const cleanupUrl = () => {
+  const close = document.createElement('div');
+  close.textContent = '×';
+  close.style.cssText = `
+    position: absolute;
+    top: 6px;
+    right: 10px;
+    font-size: 20px;
+    cursor: pointer;
+    color: #666;
+  `;
+
+  const msg = document.createElement('div');
+  msg.textContent = 'Would you like to open a project file?';
+  msg.style.marginBottom = '14px';
+  msg.style.fontSize = '15px';
+
+  const btn = document.createElement('button');
+  btn.textContent = 'Open File';
+  btn.style.cssText = `
+    padding: 8px 14px;
+    font-size: 14px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    background: #2563eb;
+    color: #fff;
+  `;
+
+  const cleanup = () => {
     try{
       const url = new URL(window.location.href);
       url.searchParams.delete('file');
       window.history.replaceState({}, '', url.toString());
     }catch(e){}
+    overlay.remove();
   };
 
-  const isDefaultLoaded = () => {
-    return (
-      typeof window.model === 'object' &&
-      Array.isArray(window.model.scopes) &&
-      window.model.scopes.length > 0
-    );
-  };
-
-  const tryDispatch = () => {
-    if (fired) return true;
-    if (!isDefaultLoaded()) return false;
-
+  btn.addEventListener('click', () => {
     const openItem = document.querySelector('[data-act="open"]');
-    if (!openItem) return false;
-
-    fired = true;
-    try {
+    if (openItem) {
       openItem.dispatchEvent(new MouseEvent('click', {
         bubbles: true,
         cancelable: true,
         view: window
       }));
-    } catch(e) {
-      console.warn('[RP][URL] Failed to dispatch open action:', e);
     }
+    cleanup();
+  });
 
-    cleanupUrl();
-    return true;
-  };
+  close.addEventListener('click', cleanup);
+  overlay.addEventListener('click', (e)=>{
+    if (e.target === overlay) cleanup();
+  });
 
-  // Poll lightly until default project is ready
-  const MAX_WAIT_MS = 8000;
-  const INTERVAL_MS = 50;
-  let waited = 0;
+  box.appendChild(close);
+  box.appendChild(msg);
+  box.appendChild(btn);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+}
+
+/**
+ * One-shot ?file=open handler
+ * Waits for default project to load, then shows prompt
+ */
+function maybePromptForOpenFile(params){
+  if (params.get('file') !== 'open') return false;
+  if (params.has('prgs') || params.has('preset')) return false;
+
+  const isDefaultLoaded = () =>
+    typeof window.model === 'object' &&
+    Array.isArray(window.model.scopes) &&
+    window.model.scopes.length > 0;
 
   const tick = () => {
-    if (tryDispatch()) return;
-
-    waited += INTERVAL_MS;
-    if (waited >= MAX_WAIT_MS) {
-      console.warn('[RP][URL] Default project never finished loading');
-      cleanupUrl();
+    if (!isDefaultLoaded()) {
+      setTimeout(tick, 50);
       return;
     }
-
-    setTimeout(tick, INTERVAL_MS);
+    showOpenFilePrompt();
   };
 
   tick();
@@ -99,18 +144,14 @@ export function initUrlLoader(){
   try{
     const params = new URLSearchParams(window.location.search || '');
 
-    // Defer Open Project until AFTER default load completes
-    maybeTriggerOpenFileAfterDefaultLoad(params);
+    // Prompt user for Open File after default load
+    maybePromptForOpenFile(params);
 
     const raw = (params.get('prgs') || '').trim();
     const force = params.get('force') === 'true';
 
-    // One-shot per session UNLESS force=true
-    if (raw && !force && sessionStorage.getItem('rp_prgs_loaded') === '1') {
-      return;
-    }
+    if (raw && !force && sessionStorage.getItem('rp_prgs_loaded') === '1') return;
 
-    // force=true explicitly clears prior session state
     if (force) {
       try { sessionStorage.clear(); } catch(e){}
     }
@@ -118,10 +159,7 @@ export function initUrlLoader(){
     if(!raw) return;
 
     const parsed = parsePrgsParam(raw);
-    if(!parsed){
-      console.warn('[RP][URL] Invalid prgs= value (expected rel: or url:):', raw);
-      return;
-    }
+    if(!parsed) return;
 
     window.__RP_URL_LOAD_PROMISE = (async ()=>{
       try{
@@ -140,21 +178,17 @@ export function initUrlLoader(){
         window.__RP_URL_HYDRATED = true;
         try { sessionStorage.setItem('rp_prgs_loaded', '1'); } catch(e){}
 
-        try {
-          if (force) {
+        if (force) {
+          try {
             const url = new URL(window.location.href);
             url.searchParams.delete('force');
             window.history.replaceState({}, '', url.toString());
-          }
-        } catch(e){}
-
+          } catch(e){}
+        }
         return true;
-      }catch(err){
-        console.warn('[RP][URL] Failed to load PRGS from URL:', err);
+      }catch(e){
         return false;
       }
     })();
-  }catch(e){
-    console.warn('[RP][URL] initUrlLoader failed:', e);
-  }
+  }catch(e){}
 }
