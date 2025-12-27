@@ -1079,14 +1079,8 @@ function initAutoLoadDefault(){
   const d = requireDeps();
   if (__saveLoadAutoBound) return;
   __saveLoadAutoBound = true;
-  document.addEventListener('DOMContentLoaded', async () => {
-    try {
-      // URL-based PRGS load takes absolute precedence. Wait for it (if present) to avoid races.
-      try { if (window.__RP_URL_LOAD_PROMISE) await window.__RP_URL_LOAD_PROMISE; } catch(e){}
-      if (window.__RP_URL_HYDRATED) return;
-
-      const url = new URL(window.location.href);
-      const wasRedirected = url.searchParams.get('redirected') === '1';
+  // Auto-load on DOMContentLoaded removed: app now starts blank unless user or URL loads
+const wasRedirected = url.searchParams.get('redirected') === '1';
       const preset = (url.searchParams.get('preset') || '').trim();
 
       let hydrated = false;
@@ -1202,3 +1196,6 @@ function computeDurationFromDates(startISO, finishISO) {
     return 'PT0H0M0S';
   }
 }
+
+
+// NOTE: Default PRGS auto-loading intentionally removed.
