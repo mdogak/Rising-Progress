@@ -1,6 +1,6 @@
 /*
  © 2025 Rising Progress LLC. All rights reserved.
- URL-based PRGS loader + Open File trigger (button-driven)
+ URL-based PRGS loader + Open File trigger (observer-based)
 */
 import { loadFromPrgsText } from './save-load.js';
 
@@ -33,7 +33,7 @@ function parsePrgsParam(raw){
 
 /**
  * One-shot ?file=open handler
- * Triggers the SAME code path as clicking the Open File button
+ * Uses MutationObserver to wait for toolbar Open button to exist
  */
 function maybeTriggerOpenFile(params){
   if (params.get('file') !== 'open') return false;
@@ -41,43 +41,60 @@ function maybeTriggerOpenFile(params){
   // Do not mix with other loaders
   if (params.has('prgs') || params.has('preset')) return false;
 
-  const MAX_WAIT_MS = 4000;
-  const INTERVAL_MS = 50;
-  let waited = 0;
+  let triggered = false;
+
+  const cleanupUrl = () => {
+    try{
+      const url = new URL(window.location.href);
+      url.searchParams.delete('file');
+      window.history.replaceState({}, '', url.toString());
+    }catch(e){}
+  };
 
   const tryTrigger = () => {
-    // Prefer clicking the actual Open button (this creates the file input)
+    if (triggered) return true;
+
     const openBtn =
       document.getElementById('toolbarOpen') ||
       document.querySelector('[data-action="open"], button[title*="Open" i]');
 
     if (openBtn) {
+      triggered = true;
       try{
         openBtn.click();
       }catch(e){
         console.warn('[RP][URL] Failed to click Open button:', e);
       }
-
-      // Remove parameter immediately (one-time use)
-      try{
-        const url = new URL(window.location.href);
-        url.searchParams.delete('file');
-        window.history.replaceState({}, '', url.toString());
-      }catch(e){}
-
-      return;
+      cleanupUrl();
+      return true;
     }
-
-    waited += INTERVAL_MS;
-    if (waited >= MAX_WAIT_MS) {
-      console.warn('[RP][URL] Open File button not found within wait window');
-      return;
-    }
-
-    setTimeout(tryTrigger, INTERVAL_MS);
+    return false;
   };
 
-  tryTrigger();
+  // Try immediately (in case toolbar already exists)
+  if (tryTrigger()) return true;
+
+  // Observe DOM for toolbar insertion
+  const observer = new MutationObserver(() => {
+    if (tryTrigger()) {
+      observer.disconnect();
+    }
+  });
+
+  observer.observe(document.documentElement, {
+    childList: true,
+    subtree: true
+  });
+
+  // Safety timeout
+  setTimeout(() => {
+    if (!triggered) {
+      observer.disconnect();
+      console.warn('[RP][URL] Open File button never appeared');
+      cleanupUrl();
+    }
+  }, 8000);
+
   return true;
 }
 
