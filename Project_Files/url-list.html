@@ -46,11 +46,7 @@ li {
 document.getElementById('generate').addEventListener('click', function () {
     const text = document.getElementById('input').value;
 
-    /*
-      Match .prgs paths allowing special characters.
-      This captures any non-whitespace sequence ending in .prgs,
-      including characters like &, parentheses, etc.
-    */
+    // Match any non-whitespace path ending in .prgs (supports special characters like &)
     const regex = /([^\s]+\.prgs)/gi;
     const matches = text.match(regex) || [];
 
@@ -70,6 +66,11 @@ document.getElementById('generate').addEventListener('click', function () {
         });
     });
 
+    function encodeFilename(name) {
+        // Only replace & with %26 as required
+        return name.replace(/&/g, '%26');
+    }
+
     function renderTree(node, parentPath = '') {
         const ul = document.createElement('ul');
         Object.keys(node).sort((a, b) => a.localeCompare(b)).forEach(key => {
@@ -77,7 +78,12 @@ document.getElementById('generate').addEventListener('click', function () {
             if (node[key] === null) {
                 const a = document.createElement('a');
                 a.textContent = key;
-                a.href = '/progress.html?prgs=rel:Project_Files/' + parentPath + key + '&force=true';
+
+                const encodedPath =
+                    parentPath.split('/').map(encodeFilename).join('/') +
+                    encodeFilename(key);
+
+                a.href = '/progress.html?prgs=rel:Project_Files/' + encodedPath + '&force=true';
                 li.appendChild(a);
             } else {
                 li.textContent = key;
