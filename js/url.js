@@ -1,21 +1,12 @@
 /*
  © 2025 Rising Progress LLC. All rights reserved.
- URL-based PRGS loader + Open Project trigger (event-dispatch)
+ URL-based PRGS loader + Open Project trigger (post-default-load)
 */
 import { loadFromPrgsText } from './save-load.js';
 
-function toast(msg){
-  try{
-    const t = document.getElementById('toast');
-    if(!t) return;
-    t.textContent = msg;
-    t.classList.add('show');
-    if (window._toastTimer) clearTimeout(window._toastTimer);
-    window._toastTimer = setTimeout(()=>{ try{ t.classList.remove('show'); }catch(e){} }, 1800);
-  }catch(e){}
-}
-
-// Clear project-scoped History Date suppression keys (treat URL load as "new project").
+/**
+ * Clear project-scoped History Date suppression keys
+ */
 function clearHistoryDateProjectSuppression(){
   try {
     localStorage.removeItem('rp_historyDate_lastProjectKey');
@@ -33,10 +24,10 @@ function parsePrgsParam(raw){
 
 /**
  * One-shot ?file=open handler
- * Triggers the SAME delegated click handler used by
- * <div data-act="open">Open Project</div>
+ * WAITS until the default project has finished loading
+ * (model exists + scopes populated), then triggers Open Project.
  */
-function maybeTriggerOpenFile(params){
+function maybeTriggerOpenFileAfterDefaultLoad(params){
   if (params.get('file') !== 'open') return false;
 
   // Do not mix with other loaders
@@ -52,22 +43,29 @@ function maybeTriggerOpenFile(params){
     }catch(e){}
   };
 
+  const isDefaultLoaded = () => {
+    return (
+      typeof window.model === 'object' &&
+      Array.isArray(window.model.scopes) &&
+      window.model.scopes.length > 0
+    );
+  };
+
   const tryDispatch = () => {
     if (fired) return true;
+    if (!isDefaultLoaded()) return false;
 
     const openItem = document.querySelector('[data-act="open"]');
     if (!openItem) return false;
 
     fired = true;
-
-    // Dispatch a trusted click event so delegated handlers fire
-    try{
+    try {
       openItem.dispatchEvent(new MouseEvent('click', {
         bubbles: true,
         cancelable: true,
         view: window
       }));
-    }catch(e){
+    } catch(e) {
       console.warn('[RP][URL] Failed to dispatch open action:', e);
     }
 
@@ -75,28 +73,25 @@ function maybeTriggerOpenFile(params){
     return true;
   };
 
-  // Try immediately
-  if (tryDispatch()) return true;
+  // Poll lightly until default project is ready
+  const MAX_WAIT_MS = 8000;
+  const INTERVAL_MS = 50;
+  let waited = 0;
 
-  // Observe DOM until menu item appears
-  const observer = new MutationObserver(() => {
-    if (tryDispatch()) observer.disconnect();
-  });
+  const tick = () => {
+    if (tryDispatch()) return;
 
-  observer.observe(document.documentElement, {
-    childList: true,
-    subtree: true
-  });
-
-  // Safety timeout
-  setTimeout(() => {
-    if (!fired) {
-      observer.disconnect();
-      console.warn('[RP][URL] Open Project action never appeared');
+    waited += INTERVAL_MS;
+    if (waited >= MAX_WAIT_MS) {
+      console.warn('[RP][URL] Default project never finished loading');
       cleanupUrl();
+      return;
     }
-  }, 8000);
 
+    setTimeout(tick, INTERVAL_MS);
+  };
+
+  tick();
   return true;
 }
 
@@ -104,8 +99,8 @@ export function initUrlLoader(){
   try{
     const params = new URLSearchParams(window.location.search || '');
 
-    // Handle one-shot Open Project trigger
-    maybeTriggerOpenFile(params);
+    // Defer Open Project until AFTER default load completes
+    maybeTriggerOpenFileAfterDefaultLoad(params);
 
     const raw = (params.get('prgs') || '').trim();
     const force = params.get('force') === 'true';
@@ -156,7 +151,6 @@ export function initUrlLoader(){
         return true;
       }catch(err){
         console.warn('[RP][URL] Failed to load PRGS from URL:', err);
-        toast('Failed to load project from URL');
         return false;
       }
     })();
