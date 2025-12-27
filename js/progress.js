@@ -6,6 +6,7 @@ import { initToolbarClear } from './clear.js';
 import { getBaselineSeries, takeBaseline, renderDailyTable, initHistory } from './history.js';
 
 import { initSaveLoad, loadFromPresetCsv } from './save-load.js';
+import { initUrlLoader } from './url.js';
 import {
   initHistoryDatePrompt,
   armHistoryDatePrompt,
@@ -1171,6 +1172,8 @@ initSaveLoad({
   }
 });
 
+// URL-based PRGS loader (must run after save/load wiring)
+initUrlLoader();
 
 
 // Initialize Clear toolbar behavior (delegated to clear.js)

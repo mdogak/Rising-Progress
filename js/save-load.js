@@ -581,59 +581,11 @@ export function uploadCSVAndLoad(){
           return;
         }
 
-        const rows = parseCSV(text);
-        let section = '';
-        const fresh = { project:{name:'',startup:'', markerLabel:'Baseline Complete'}, scopes:[], history:[], dailyActuals:{}, baseline:null, daysRelativeToPlan:null };
-        let scopeHeaders = [];
-        let baselineRows = [];
+                // PRGS (CSV-with-sections) load path
+        loadFromPrgsText(text);
+        return;
 
-        for(let r of rows){
-          if(r.length===1 && r[0].startsWith('#SECTION:')){ section = r[0].slice('#SECTION:'.length).trim(); continue; }
-          if(r.length===0 || (r.length===1 && r[0]==='')) continue;
-
-          if(section==='PROJECT'){
-            if(r[0]==='key') { continue; }
-            if(r[0]==='name') fresh.project.name = r[1]||'';
-            if(r[0]==='startup') fresh.project.startup = r[1]||'';
-            if(r[0]==='markerLabel') fresh.project.markerLabel = r[1]||'Baseline Complete';
-            if(r[0]==='labelToggle') fresh.project.labelToggle = (r[1]==='true');
-            if(r[0]==='legendBaselineCheckbox') fresh.project.legendBaselineCheckbox = (r[1]==='true');
-            if(r[0]==='legendPlannedCheckbox') fresh.project.legendPlannedCheckbox = (r[1]==='true');
-            if(r[0]==='legendActualCheckbox') fresh.project.legendActualCheckbox = (r[1]==='true');
-            if(r[0]==='legendForecastCheckbox') fresh.project.legendForecastCheckbox = (r[1]==='true');
-          } else if(section==='SCOPES'){
-            if(!scopeHeaders.length){ scopeHeaders = r; continue; }
-            const idx = (name)=> scopeHeaders.indexOf(name);
-            const s = {
-              label: r[idx('label')]||'',
-              start: r[idx('start')]||'',
-              end: r[idx('end')]||'',
-              cost: parseFloat(r[idx('cost')]||'0')||0,
-              unitsToDate: parseFloat(r[idx('progressValue')]||'0')||0,
-              totalUnits: (r[idx('totalUnits')]===undefined||r[idx('totalUnits')]==='')? '' : (parseFloat(r[idx('totalUnits')])||0),
-              unitsLabel: r[idx('unitsLabel')]||'%',
-              sectionName: (idx('sectionName')>=0 ? (r[idx('sectionName')]||'') : ''),
-              actualPct: 0
-            };
-            s.actualPct = s.totalUnits? (s.unitsToDate && s.totalUnits? (s.unitsToDate/s.totalUnits*100) : 0) : (s.unitsToDate||0);
-            fresh.scopes.push(s);
-          } else if(section==='DAILY_ACTUALS'){
-            if(r[0]==='date') continue;
-            const dd = r[0]; const a = r[1];
-            if(dd){ fresh.dailyActuals[dd] = a===''? undefined : d.clamp(parseFloat(a)||0,0,100); }
-          } else if(section==='HISTORY'){
-            if(r[0]==='date') continue;
-            if(r[0]) fresh.history.push({date:r[0], actualPct: parseFloat(r[1]||'0')||0});
-          } else if(section==='BASELINE'){
-            if(r[0]==='date') continue;
-            baselineRows.push({date:r[0], val: (r[1]===''? null : parseFloat(r[1]||'0'))});
-          }
-        }
-        if(baselineRows.length){
-          fresh.baseline = { days: baselineRows.map(r=>r.date), planned: baselineRows.map(r=> (r.val==null? null : d.clamp(r.val,0,100))) };
-        }
-
-        setModel(fresh);
+setModel(fresh);
 
         // Rehydrate UI fields
         document.getElementById('projectName').value = fresh.project.name||'';
@@ -937,13 +889,15 @@ export function loadFromXml(xmlText){
 }
 
 // === Embedded CSV loader for presets ===
-export function loadFromPresetCsv(text){
+
+export function loadFromPrgsText(text){
   const d = requireDeps();
   resetModelForLoad();
 
+  // Parse PRGS (CSV-with-sections) exactly like file uploads / preset loads.
   const rows = parseCSV(text);
   let section = '';
-  let localModel = { project:{name:'',startup:'', markerLabel:'Baseline Complete'}, scopes:[], history:[], dailyActuals:{}, baseline:null, daysRelativeToPlan:null };
+  const fresh = { project:{name:'',startup:'', markerLabel:'Baseline Complete'}, scopes:[], history:[], dailyActuals:{}, baseline:null, daysRelativeToPlan:null };
 
   let scopeHeaders = [];
   let baselineRows = [];
@@ -954,14 +908,14 @@ export function loadFromPresetCsv(text){
 
     if(section==='PROJECT'){
       if(r[0]==='key') { continue; }
-      if(r[0]==='name') localModel.project.name = r[1]||'';
-      if(r[0]==='startup') localModel.project.startup = r[1]||'';
-      if(r[0]==='markerLabel') localModel.project.markerLabel = r[1]||'Baseline Complete';
-      if(r[0]==='labelToggle') localModel.project.labelToggle = (r[1]==='true');
-      if(r[0]==='legendBaselineCheckbox') localModel.project.legendBaselineCheckbox = (r[1]==='true');
-      if(r[0]==='legendPlannedCheckbox') localModel.project.legendPlannedCheckbox = (r[1]==='true');
-      if(r[0]==='legendActualCheckbox') localModel.project.legendActualCheckbox = (r[1]==='true');
-      if(r[0]==='legendForecastCheckbox') localModel.project.legendForecastCheckbox = (r[1]==='true');
+      if(r[0]==='name') fresh.project.name = r[1]||'';
+      if(r[0]==='startup') fresh.project.startup = r[1]||'';
+      if(r[0]==='markerLabel') fresh.project.markerLabel = r[1]||'Baseline Complete';
+      if(r[0]==='labelToggle') fresh.project.labelToggle = (r[1]==='true');
+      if(r[0]==='legendBaselineCheckbox') fresh.project.legendBaselineCheckbox = (r[1]==='true');
+      if(r[0]==='legendPlannedCheckbox') fresh.project.legendPlannedCheckbox = (r[1]==='true');
+      if(r[0]==='legendActualCheckbox') fresh.project.legendActualCheckbox = (r[1]==='true');
+      if(r[0]==='legendForecastCheckbox') fresh.project.legendForecastCheckbox = (r[1]==='true');
     } else if(section==='SCOPES'){
       if(!scopeHeaders.length){ scopeHeaders = r; continue; }
       const idx = (name)=> scopeHeaders.indexOf(name);
@@ -977,35 +931,37 @@ export function loadFromPresetCsv(text){
         actualPct: 0
       };
       s.actualPct = s.totalUnits? (s.unitsToDate && s.totalUnits? (s.unitsToDate/s.totalUnits*100) : 0) : (s.unitsToDate||0);
-      localModel.scopes.push(s);
+      fresh.scopes.push(s);
     } else if(section==='DAILY_ACTUALS'){
       if(r[0]==='date') continue;
       const dd = r[0]; const a = r[1];
-      if(dd){ localModel.dailyActuals[dd] = a===''? undefined : d.clamp(parseFloat(a)||0,0,100); }
+      if(dd){ fresh.dailyActuals[dd] = a===''? undefined : d.clamp(parseFloat(a)||0,0,100); }
     } else if(section==='HISTORY'){
       if(r[0]==='date') continue;
-      if(r[0]) localModel.history.push({date:r[0], actualPct: parseFloat(r[1]||'0')||0});
+      if(r[0]) fresh.history.push({date:r[0], actualPct: parseFloat(r[1]||'0')||0});
     } else if(section==='BASELINE'){
       if(r[0]==='date') continue;
       baselineRows.push({date:r[0], val: (r[1]===''? null : parseFloat(r[1]||'0'))});
     }
   }
+
   if(baselineRows.length){
-    localModel.baseline = {
-      days: baselineRows.map(r=>r.date),
-      planned: baselineRows.map(r=> (r.val==null? null : d.clamp(r.val,0,100)))
-    };
+    fresh.baseline = { days: baselineRows.map(r=>r.date), planned: baselineRows.map(r=> (r.val==null? null : d.clamp(r.val,0,100))) };
   }
 
-  setModel(localModel);
+  setModel(fresh);
 
-  document.getElementById('projectName').value = localModel.project.name||'';
-  document.getElementById('projectStartup').value = localModel.project.startup||'';
-  document.getElementById('startupLabelInput').value = localModel.project.markerLabel || 'Baseline Complete';
+  // Rehydrate UI fields
+  const nameEl = document.getElementById('projectName');
+  const startupEl = document.getElementById('projectStartup');
+  const labelEl = document.getElementById('startupLabelInput');
+  if(nameEl) nameEl.value = fresh.project.name||'';
+  if(startupEl) startupEl.value = fresh.project.startup||'';
+  if(labelEl) labelEl.value = fresh.project.markerLabel || 'Baseline Complete';
 
-  // Apply loaded project toggle states (PRGS preset)
+  // Apply loaded project toggle states (PRGS)
   (function(){
-    const proj = localModel.project || {};
+    const proj = fresh.project || {};
     const labelToggleEl = document.getElementById('labelToggle');
     if (labelToggleEl && typeof proj.labelToggle !== 'undefined') {
       labelToggleEl.checked = !!proj.labelToggle;
@@ -1018,11 +974,18 @@ export function loadFromPresetCsv(text){
     setLegendState(patch);
   })();
 
-  if(window.Sections && typeof window.Sections.ensureSectionNameField === 'function'){ window.Sections.ensureSectionNameField(localModel); }
+  if(window.Sections && typeof window.Sections.ensureSectionNameField === 'function'){ window.Sections.ensureSectionNameField(fresh); }
   d.syncScopeRowsToModel();
   d.computeAndRender();
-  if (window.sessionStorage) sessionStorage.setItem(d.COOKIE_KEY, JSON.stringify(localModel));
+  if (window.sessionStorage) sessionStorage.setItem(d.COOKIE_KEY, JSON.stringify(fresh));
+  return true;
 }
+
+export function loadFromPresetCsv(text){
+  // Preset data uses the same PRGS section format.
+  return loadFromPrgsText(text);
+}
+
 
 /*****************
  * UI wiring
@@ -1116,8 +1079,12 @@ function initAutoLoadDefault(){
   const d = requireDeps();
   if (__saveLoadAutoBound) return;
   __saveLoadAutoBound = true;
-  document.addEventListener('DOMContentLoaded', () => {
+  document.addEventListener('DOMContentLoaded', async () => {
     try {
+      // URL-based PRGS load takes absolute precedence. Wait for it (if present) to avoid races.
+      try { if (window.__RP_URL_LOAD_PROMISE) await window.__RP_URL_LOAD_PROMISE; } catch(e){}
+      if (window.__RP_URL_HYDRATED) return;
+
       const url = new URL(window.location.href);
       const wasRedirected = url.searchParams.get('redirected') === '1';
       const preset = (url.searchParams.get('preset') || '').trim();
