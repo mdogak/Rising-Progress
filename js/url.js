@@ -1,6 +1,6 @@
 /*
  © 2025 Rising Progress LLC. All rights reserved.
- URL-based PRGS loader + Open File trigger (deferred)
+ URL-based PRGS loader + Open File trigger (button-driven)
 */
 import { loadFromPrgsText } from './save-load.js';
 
@@ -33,7 +33,7 @@ function parsePrgsParam(raw){
 
 /**
  * One-shot ?file=open handler
- * Waits for the file input to exist before triggering click
+ * Triggers the SAME code path as clicking the Open File button
  */
 function maybeTriggerOpenFile(params){
   if (params.get('file') !== 'open') return false;
@@ -41,17 +41,21 @@ function maybeTriggerOpenFile(params){
   // Do not mix with other loaders
   if (params.has('prgs') || params.has('preset')) return false;
 
-  const MAX_WAIT_MS = 3000;
+  const MAX_WAIT_MS = 4000;
   const INTERVAL_MS = 50;
   let waited = 0;
 
-  const tryOpen = () => {
-    const fileInput = document.querySelector('input[type="file"]');
-    if (fileInput) {
+  const tryTrigger = () => {
+    // Prefer clicking the actual Open button (this creates the file input)
+    const openBtn =
+      document.getElementById('toolbarOpen') ||
+      document.querySelector('[data-action="open"], button[title*="Open" i]');
+
+    if (openBtn) {
       try{
-        fileInput.click();
+        openBtn.click();
       }catch(e){
-        console.warn('[RP][URL] Failed to trigger file dialog:', e);
+        console.warn('[RP][URL] Failed to click Open button:', e);
       }
 
       // Remove parameter immediately (one-time use)
@@ -61,21 +65,19 @@ function maybeTriggerOpenFile(params){
         window.history.replaceState({}, '', url.toString());
       }catch(e){}
 
-      return true;
+      return;
     }
 
     waited += INTERVAL_MS;
     if (waited >= MAX_WAIT_MS) {
-      console.warn('[RP][URL] File input not found within wait window');
-      return false;
+      console.warn('[RP][URL] Open File button not found within wait window');
+      return;
     }
 
-    setTimeout(tryOpen, INTERVAL_MS);
-    return true;
+    setTimeout(tryTrigger, INTERVAL_MS);
   };
 
-  // Start deferred search
-  tryOpen();
+  tryTrigger();
   return true;
 }
 
@@ -83,10 +85,8 @@ export function initUrlLoader(){
   try{
     const params = new URLSearchParams(window.location.search || '');
 
-    // Handle one-shot Open File trigger (deferred)
-    if (maybeTriggerOpenFile(params)) {
-      // Do not return — allow normal init to continue
-    }
+    // Handle one-shot Open File trigger
+    maybeTriggerOpenFile(params);
 
     const raw = (params.get('prgs') || '').trim();
     const force = params.get('force') === 'true';
