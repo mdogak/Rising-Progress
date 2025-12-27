@@ -36,10 +36,16 @@ export function initUrlLoader(){
     const params = new URLSearchParams(window.location.search || '');
     
     const raw = (params.get('prgs') || '').trim();
+    const force = params.get('force') === 'true';
 
-    // One-shot per session: if already loaded once, never re-run
-    if (raw && sessionStorage.getItem('rp_prgs_loaded') === '1') {
+    // One-shot per session UNLESS force=true
+    if (raw && !force && sessionStorage.getItem('rp_prgs_loaded') === '1') {
       return;
+    }
+
+    // force=true explicitly clears prior session state
+    if (force) {
+      try { sessionStorage.clear(); } catch(e){}
     }
     
     if(!raw) return;
@@ -75,6 +81,15 @@ export function initUrlLoader(){
         
         window.__RP_URL_HYDRATED = true;
         try { sessionStorage.setItem('rp_prgs_loaded', '1'); } catch(e){}
+
+        // Remove force=true after successful load (preserve prgs in history)
+        try {
+          if (force) {
+            const url = new URL(window.location.href);
+            url.searchParams.delete('force');
+            window.history.replaceState({}, '', url.toString());
+          }
+        } catch(e){}
     
         return true;
       }catch(err){
