@@ -1,0 +1,46 @@
+#SECTION:PROJECT
+key,value
+name,Data Center
+startup,
+markerLabel,Plan Complete
+labelToggle,true
+legendBaselineCheckbox,true
+legendPlannedCheckbox,true
+legendActualCheckbox,true
+legendForecastCheckbox,true
+
+#SECTION:SCOPES
+label,start,end,cost,progressValue,totalUnits,unitsLabel,sectionName
+Mobilization,,,1,0,,%,Site&Civil
+Survey & Layout,,,1,0,,%,Site&Civil
+Clearing & Rough Grading,,,4,0,,CY,Site&Civil
+Underground Utilities (Storm/Sanitary/Water),,,4,0,,LF,Site&Civil
+Site Concrete & Paving,,,5,0,,SF,Site&Civil
+Foundations & Slab-on-Grade,,,6,0,,CY,Building
+Structural Steel Erection,,,6,0,,Tons,Building
+Building Envelope (Roof/Walls/Doors),,,5,0,,%,Building
+Interior Buildout (Rooms/Finishes),,,4,0,,%,Building
+Fire Protection System Install,,,4,0,,%,Building
+Utility Power Interconnect,,,6,0,,%,Electrical
+Substation & Transformers,,,8,0,,Each,Electrical
+Generators & Fuel System,,,6,0,,Each,Electrical
+Switchgear / UPS / Battery Rooms,,,5,0,,%,IT
+Rack Installation,,,8,0,,Qty,IT
+Busway / PDU / Panel Distribution,,,4,0,,%,IT
+Structured Cabling (Copper/Fiber),,,4,0,,LF,IT
+Network / Server Hardware Staging,,,4,0,,Qty,IT
+Chilled Water Plant / Cooling Equipment,,,6,0,,%,Mech
+HVAC Distribution & Controls,,,4,0,,%,Mech
+Integrated Testing & Commissioning,,,3,0,,%,Closeout
+Punchlist / As-Builts / Training,,,1,0,,%,Closeout
+Demobilization,,,1,0,,%,Closeout
+
+#SECTION:DAILY_ACTUALS
+date,value
+
+#SECTION:HISTORY
+date,actualPct
+
+#SECTION:BASELINE
+date,baselinePct
+
