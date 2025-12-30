@@ -1362,8 +1362,14 @@ document.addEventListener('DOMContentLoaded', () => {
   if (loadBtn) loadBtn.innerHTML = "📂 Load Project ▾";
   const ddItem = document.querySelector('#loadDropdown [data-act="open"]');
   if (ddItem) ddItem.textContent = "Open Project";
+  // Add Project Loader entry at the bottom of the Load Project dropdown
+  const dd = document.getElementById('loadDropdown');
+  if (dd && !dd.querySelector('[data-act="loader"]')) {
+    const item = document.createElement('div');
+    item.setAttribute('data-act', 'loader');
+    item.style.cssText = 'padding:8px; cursor:pointer;';
+    item.textContent = 'Project Loader';
+    item.addEventListener('click', ()=>{ try{ openProjectLoader(); }catch(e){} });
+    dd.appendChild(item);
+  }
 });
-
-
-// Expose Project Loader opener (used by Load Project dropdown)
-window.openProjectLoader = openProjectLoader;

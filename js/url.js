@@ -145,8 +145,8 @@ export function initUrlLoader(){
   try{
     const params = new URLSearchParams(window.location.search || '');
 
-    // One-shot loader modal opener
-    if (params.get('open') === 'loader') {
+    // ?open=loader opens the Project Loader modal (only when not also loading a project)
+    if (params.get('open') === 'loader' && !params.has('prgs') && !params.has('preset')) {
       openProjectLoader();
       return;
     }
