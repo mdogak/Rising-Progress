@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<!-- © 2025 Rising Progress LLC. All rights reserved. -->
+<div id="rp-loader-root"></div>
+
+<style>
+:root{
+  --tile-size: 180px;
+  --tile-gap: 22px;
+}
+
+.rp-loader-overlay{
+  position:fixed; inset:0;
+  background:rgba(0,0,0,0.5);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:10000;
+}
+
+.rp-loader-modal{
+  background:#fff;
+  border-radius:14px;
+  padding:26px 28px 30px;
+  max-height:90vh;
+  overflow-y:auto;
+  box-shadow:0 20px 60px rgba(0,0,0,.35);
+}
+
+.rp-loader-header{
+  text-align:center;
+  margin-bottom:28px;
+}
+
+.rp-loader-header img{
+  height:46px;
+  vertical-align:middle;
+}
+
+.rp-loader-header span{
+  font-size:22px;
+  font-weight:600;
+  margin-left:10px;
+  color:#0f172a;
+}
+
+.rp-loader-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(var(--tile-size),1fr));
+  gap:var(--tile-gap);
+  justify-items:center;
+}
+
+.rp-tile{
+  width:var(--tile-size);
+  cursor:pointer;
+  text-align:center;
+}
+
+.rp-tile-box{
+  width:100%;
+  height:var(--tile-size);
+  border-radius:14px;
+  overflow:hidden;
+  border:1px solid #d1d5db;
+  box-shadow:0 4px 10px rgba(0,0,0,.15);
+  transition:.15s ease;
+  background:#fff;
+}
+
+.rp-tile:hover .rp-tile-box{
+  transform:translateY(-2px);
+  box-shadow:0 8px 18px rgba(0,0,0,.25);
+}
+
+.rp-tile img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+
+.rp-tile-title{
+  margin-top:8px;
+  font-weight:500;
+  color:#2563eb;
+}
+
+.rp-section{
+  margin-top:34px;
+  margin-bottom:12px;
+  text-align:center;
+}
+
+.rp-section h3{
+  margin:0;
+}
+
+.rp-section small{
+  color:#64748b;
+}
+
+.rp-close{
+  position:absolute;
+  top:14px; right:18px;
+  font-size:22px;
+  cursor:pointer;
+  color:#64748b;
+}
+</style>
+
+<script>
+window.RP_LOADER_TILES = [
+  { id:'open', title:'Open File', image:'Project_Files/images/openfile.jpg', action:'openFile' },
+  { id:'pipeline', title:'Pipeline Example', image:'Project_Files/images/pipeline.jpg', url:'progress.html?prgs=rel:Project_Files/Pipeline_progress_all.prgs&force=true' },
+
+  { section:'Templates' },
+
+  { id:'blank', title:'Blank Template', image:'Project_Files/images/blank.jpg', url:'progress.html?prgs=rel:Project_Files/default_progress_all.prgs&force=true' },
+  { id:'dc', title:'Data Center Template', image:'Project_Files/images/datacenter.jpg', url:'progress.html?prgs=rel:Project_Files/Data_Center_progress_all.prgs&force=true' },
+  { id:'mech', title:'Mechanical Facility Template', image:'Project_Files/images/mechfacility.jpg', url:'progress.html?prgs=rel:Project_Files/Mech_Facility_progress_all.prgs&force=true' },
+  { id:'well', title:'Well Connect Template', image:'Project_Files/images/wellconnect.jpg', url:'progress.html?prgs=rel:Project_Files/Well_Connect_progress_all.prgs&force=true' },
+  { id:'elec', title:'Electrical Installation Template', image:'Project_Files/images/electrical.jpg', url:'progress.html?prgs=rel:Project_Files/I%26E_Facility_progress_all.prgs&force=true' }
+];
+</script>
