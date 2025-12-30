@@ -8,17 +8,17 @@
   { "id":"open", "title":"Open File", "imagePath":"Project_Files/images/openfile.jpg", "action":"openFile" },
   { "id":"pipeline", "title":"Pipeline Example", "imagePath":"Project_Files/images/pipeline.jpg", "action":"url", "url":"progress.html?prgs=rel:Project_Files/Pipeline_progress_all.prgs&force=true" },
 
-  { "id":"blank", "title":"Blank Template", "imagePath":"Project_Files/images/blank.jpg", "action":"url", "url":"progress.html?prgs=rel:Project_Files/default_progress_all.prgs&force=true" },
+  { "id":"blank", "title":"Blank<br>Template", "imagePath":"Project_Files/images/blank.jpg", "action":"url", "url":"progress.html?prgs=rel:Project_Files/default_progress_all.prgs&force=true" },
   { "id":"dc", "title":"Data Center Template", "imagePath":"Project_Files/images/datacenter.jpg", "action":"url", "url":"progress.html?prgs=rel:Project_Files/Data_Center_progress_all.prgs&force=true" },
   { "id":"mech", "title":"Mechanical Facility Template", "imagePath":"Project_Files/images/mechfacility.jpg", "action":"url", "url":"progress.html?prgs=rel:Project_Files/Mech_Facility_progress_all.prgs&force=true" },
   { "id":"well", "title":"Well Connect Template", "imagePath":"Project_Files/images/wellconnect.jpg", "action":"url", "url":"progress.html?prgs=rel:Project_Files/Well_Connect_progress_all.prgs&force=true" },
-  { "id":"elec", "title":"Electrical Installation Template", "imagePath":"Project_Files/images/electrical.jpg", "action":"url", "url":"progress.html?prgs=rel:Project_Files/I%26E_Facility_progress_all.prgs&force=true" }
+  { "id":"elec", "title":"Electrical Facility Template", "imagePath":"Project_Files/images/electrical.jpg", "action":"url", "url":"progress.html?prgs=rel:Project_Files/I%26E_Facility_progress_all.prgs&force=true" }
 ]
 </script>
 
 <style>
 :root{
-  --tile-size: 150px; /* single tile size constant */
+  --tile-size: 175px; /* single tile size constant */
   --tile-gap: 22px;
 }
 
@@ -75,17 +75,26 @@
 
 .rp-section h3{
   margin:0;
-  letter-spacing:.08em;
+  letter-spacing:.12em;
   font-size:18px;
-  font-weight:700;
+  font-weight:800;
   color:#ea580c;
+}
+.rp-section h3::after{
+  content:'';
+  display:block;
+  width:54px;
+  height:3px;
+  margin:8px auto 0;
+  background:#2563eb;
+  border-radius:2px;
 }
 
 .rp-section small{
   display:block;
-  margin-top:6px;
+  margin-top:4px;
   color:#64748b;
-  font-size:14px;
+  font-size:12px;
 }
 
 .rp-grid{
@@ -93,7 +102,6 @@
   grid-template-columns:repeat(auto-fit, minmax(var(--tile-size), 1fr));
   gap:var(--tile-gap);
   justify-items:start;
-  justify-content:start;
   align-items:start;
 }
 
