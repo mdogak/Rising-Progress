@@ -1,21 +1,12 @@
 /*
  © 2025 Rising Progress LLC. All rights reserved.
- URL-based PRGS loader
+ URL-based PRGS loader + user-activated Open action dialog (dismissable)
 */
 import { loadFromPrgsText } from './save-load.js';
 
-function toast(msg){
-  try{
-    const t = document.getElementById('toast');
-    if(!t) return;
-    t.textContent = msg;
-    t.classList.add('show');
-    if (window._toastTimer) clearTimeout(window._toastTimer);
-    window._toastTimer = setTimeout(()=>{ try{ t.classList.remove('show'); }catch(e){} }, 1800);
-  }catch(e){}
-}
-
-// Clear project-scoped History Date suppression keys (treat URL load as "new project").
+/**
+ * Clear project-scoped History Date suppression keys
+ */
 function clearHistoryDateProjectSuppression(){
   try {
     localStorage.removeItem('rp_historyDate_lastProjectKey');
@@ -31,38 +22,148 @@ function parsePrgsParam(raw){
   return null;
 }
 
+/**
+ * Injects a minimal modal that requires a REAL user click
+ * to launch the Open Project action.
+ */
+function showOpenFilePrompt(){
+  if (document.getElementById('rp-openfile-overlay')) return;
+
+  const overlay = document.createElement('div');
+  overlay.id = 'rp-openfile-overlay';
+  overlay.style.cssText = `
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+  `;
+
+  const box = document.createElement('div');
+  box.style.cssText = `
+    position: relative;
+    background: #fff;
+    padding: 22px 24px 20px;
+    border-radius: 8px;
+    max-width: 320px;
+    width: 90%;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+    text-align: center;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  `;
+
+  const close = document.createElement('div');
+  close.textContent = '×';
+  close.style.cssText = `
+    position: absolute;
+    top: 6px;
+    right: 10px;
+    font-size: 20px;
+    cursor: pointer;
+    color: #666;
+  `;
+
+  const msg = document.createElement('div');
+  msg.textContent = 'Would you like to open a project file?';
+  msg.style.marginBottom = '14px';
+  msg.style.fontSize = '15px';
+
+  const btn = document.createElement('button');
+  btn.textContent = 'Open File';
+  btn.style.cssText = `
+    padding: 8px 14px;
+    font-size: 14px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    background: #2563eb;
+    color: #fff;
+  `;
+
+  const cleanup = () => {
+    try{
+      const url = new URL(window.location.href);
+      url.searchParams.delete('open');
+      window.history.replaceState({}, '', url.toString());
+    }catch(e){}
+    overlay.remove();
+  };
+
+  btn.addEventListener('click', () => {
+    const openItem = document.querySelector('[data-act="open"]');
+    if (openItem) {
+      openItem.dispatchEvent(new MouseEvent('click', {
+        bubbles: true,
+        cancelable: true,
+        view: window
+      }));
+    }
+    cleanup();
+  });
+
+  close.addEventListener('click', cleanup);
+  overlay.addEventListener('click', (e)=>{
+    if (e.target === overlay) cleanup();
+  });
+
+  box.appendChild(close);
+  box.appendChild(msg);
+  box.appendChild(btn);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+}
+
+/**
+ * One-shot ?open=file handler
+ * Waits for default project to load, then shows prompt
+ */
+function maybePromptForOpenAction(params){
+  if (params.get('open') !== 'file') return false;
+  if (params.has('prgs') || params.has('preset')) return false;
+
+  const isDefaultLoaded = () =>
+    typeof window.model === 'object' &&
+    Array.isArray(window.model.scopes) &&
+    window.model.scopes.length > 0;
+
+  const tick = () => {
+    if (!isDefaultLoaded()) {
+      setTimeout(tick, 50);
+      return;
+    }
+    showOpenFilePrompt();
+  };
+
+  tick();
+  return true;
+}
+
 export function initUrlLoader(){
   try{
     const params = new URLSearchParams(window.location.search || '');
-    
+
+    // Prompt user for Open actions after default load
+    maybePromptForOpenAction(params);
+
     const raw = (params.get('prgs') || '').trim();
     const force = params.get('force') === 'true';
 
-    // One-shot per session UNLESS force=true
-    if (raw && !force && sessionStorage.getItem('rp_prgs_loaded') === '1') {
-      return;
-    }
+    if (raw && !force && sessionStorage.getItem('rp_prgs_loaded') === '1') return;
 
-    // force=true explicitly clears prior session state
     if (force) {
       try { sessionStorage.clear(); } catch(e){}
     }
-    
+
     if(!raw) return;
 
     const parsed = parsePrgsParam(raw);
-    if(!parsed){
-      console.warn('[RP][URL] Invalid prgs= value (expected rel: or url:):', raw);
-      // Don't block app; allow default loading to proceed
-      return;
-    }
+    if(!parsed) return;
 
-    // Expose a promise so save-load auto-load can await us (race-free precedence)
     window.__RP_URL_LOAD_PROMISE = (async ()=>{
       try{
         let target = parsed.target;
-
-        // Allow encoded or unencoded values
         try { target = decodeURIComponent(target); } catch(e){}
 
         const res = await fetch(target, { cache:'no-store' });
@@ -71,34 +172,23 @@ export function initUrlLoader(){
         const text = await res.text();
         if(!text || !text.trim()) throw new Error('Empty PRGS content');
 
-        // Treat URL load as a new project load (clear History Date suppression keys)
         clearHistoryDateProjectSuppression();
-
-        // Load exactly as if user used Open File
         loadFromPrgsText(text);
 
-        // Hydration flag prevents preset/session/default from overriding this load
-        
         window.__RP_URL_HYDRATED = true;
         try { sessionStorage.setItem('rp_prgs_loaded', '1'); } catch(e){}
 
-        // Remove force=true after successful load (preserve prgs in history)
-        try {
-          if (force) {
+        if (force) {
+          try {
             const url = new URL(window.location.href);
             url.searchParams.delete('force');
             window.history.replaceState({}, '', url.toString());
-          }
-        } catch(e){}
-    
+          } catch(e){}
+        }
         return true;
-      }catch(err){
-        console.warn('[RP][URL] Failed to load PRGS from URL:', err);
-        toast('Failed to load project from URL');
+      }catch(e){
         return false;
       }
     })();
-  }catch(e){
-    console.warn('[RP][URL] initUrlLoader failed:', e);
-  }
+  }catch(e){}
 }

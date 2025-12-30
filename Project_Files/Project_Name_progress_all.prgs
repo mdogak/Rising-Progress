@@ -1,0 +1,42 @@
+#SECTION:PROJECT
+key,value
+name,Project Name
+startup,
+markerLabel,Plan Complete
+labelToggle,true
+legendBaselineCheckbox,true
+legendPlannedCheckbox,true
+legendActualCheckbox,true
+legendForecastCheckbox,true
+
+#SECTION:SCOPES
+label,start,end,cost,progressValue,totalUnits,unitsLabel,sectionName
+Mobilization,,,0,0,,%,Pipeline
+Mats/Clear/Grade ROW,,,0,0,,Feet,Pipeline
+String Pipe,,,0,0,,Feet,Pipeline
+Weld Pipe,,,0,0,,Feet,Pipeline
+Coat Pipe,,,0,0,,Feet,Pipeline
+Trenching,,,0,0,,Feet,Pipeline
+Bores,,,0,0,,%,Pipeline
+Lower-In/Backfill,,,0,0,,Feet,Pipeline
+Tie-Ins,,,0,0,,%,Pipeline
+Hydrotest,,,0,0,,%,Pipeline
+Site - Concrete Civil,,,0,0,,%,Site-Facility
+Site - Pipe prefab,,,0,0,,%,Site-Facility
+Site - Hot Taps,,,0,0,,%,Site-Facility
+Site - Pipe Install,,,0,0,,%,Site-Facility
+Site - Paint,,,0,0,,%,Site-Facility
+Final Bolt Up,,,0,0,,%,Site-Facility
+Seeding,,,0,0,,%,Non Critical
+Clean Up ROW,,,0,0,,Feet,Non Critical
+Demobilization,,,0,0,,%,Non Critical
+
+#SECTION:DAILY_ACTUALS
+date,value
+
+#SECTION:HISTORY
+date,actualPct
+
+#SECTION:BASELINE
+date,baselinePct
+
