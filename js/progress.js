@@ -7,6 +7,7 @@ import { getBaselineSeries, takeBaseline, renderDailyTable, initHistory } from '
 
 import { initSaveLoad, loadFromPresetCsv } from './save-load.js';
 import { initUrlLoader } from './url.js';
+import { openProjectLoader } from './loader.js';
 import {
   initHistoryDatePrompt,
   armHistoryDatePrompt,
@@ -1362,3 +1363,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const ddItem = document.querySelector('#loadDropdown [data-act="open"]');
   if (ddItem) ddItem.textContent = "Open Project";
 });
+
+
+// Expose Project Loader opener (used by Load Project dropdown)
+window.openProjectLoader = openProjectLoader;
