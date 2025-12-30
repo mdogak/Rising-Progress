@@ -45,7 +45,7 @@ export function openProjectLoader(){
 
     const header = document.createElement('div');
     header.className = 'rp-loader-header';
-    header.innerHTML = '<div class="rp-loader-brand"><img src="risingprogress.png" alt="Rising Progress"><span>Rising Progress</span></div>';
+    header.innerHTML = '<div class="rp-loader-brand"><img src="risingprogress.png" alt="Rising Progress"></div>';
 
     modal.appendChild(close);
     modal.appendChild(header);
