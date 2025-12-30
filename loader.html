@@ -18,7 +18,7 @@
 
 <style>
 :root{
-  --tile-size: 175px; /* single tile size constant */
+  --tile-size: 150px; /* single tile size constant */
   --tile-gap: 22px;
 }
 
@@ -76,15 +76,16 @@
 .rp-section h3{
   margin:0;
   letter-spacing:.08em;
-  font-size:13px;
-  color:#0f172a;
+  font-size:18px;
+  font-weight:700;
+  color:#ea580c;
 }
 
 .rp-section small{
   display:block;
-  margin-top:4px;
+  margin-top:6px;
   color:#64748b;
-  font-size:12px;
+  font-size:14px;
 }
 
 .rp-grid{
@@ -92,6 +93,7 @@
   grid-template-columns:repeat(auto-fit, minmax(var(--tile-size), 1fr));
   gap:var(--tile-gap);
   justify-items:start;
+  justify-content:start;
   align-items:start;
 }
 
