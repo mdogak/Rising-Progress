@@ -54,6 +54,11 @@ export function openProjectLoader(){
     const primaryGrid = document.createElement('div');
     primaryGrid.className = 'rp-grid';
     const primaryTiles = tiles.slice(0,2);
+    // Insert spacer so Pipeline Example aligns to column 2
+    const spacer = document.createElement('div');
+    spacer.style.width = 'var(--tile-size)';
+    spacer.style.height = '1px';
+    primaryGrid.appendChild(spacer);
     primaryTiles.forEach(t => primaryGrid.appendChild(buildTile(t, { primary:true })) );
     modal.appendChild(primaryGrid);
 
