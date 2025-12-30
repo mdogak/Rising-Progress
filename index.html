@@ -175,7 +175,7 @@
     function fadeAndGo() {
         skip.style.display = "none";
         main.classList.add("slide-away");
-        setTimeout(() => { window.location.href = "progress.html"; }, 1000);
+        setTimeout(() => { window.location.href = "progress.html?open=loader"; }, 1000);
     }
 
     setTimeout(fadeAndGo, TIME_FADEOUT);
