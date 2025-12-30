@@ -60,7 +60,7 @@ export function openProjectLoader(){
     // Templates section
     const sec = document.createElement('div');
     sec.className = 'rp-section';
-    sec.innerHTML = '<h3>TEMPLATES</h3><small>(draft examples to get started)</small>';
+    sec.innerHTML = '<h3 class="rp-templates-title"><img src="icon.png" class="rp-title-icon" alt="">TEMPLATES<img src="icon.png" class="rp-title-icon" alt=""></h3><small>(draft examples to get started)</small>';
     modal.appendChild(sec);
 
     const templateGrid = document.createElement('div');
