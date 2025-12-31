@@ -28,6 +28,35 @@
           <button type="button" id="issuesCopyBtn" class="issues-copy-btn">Copy Issues</button>
         </div>`;
       document.body.appendChild(overlay);
+
+      // Inject scoped styles for modal height + internal scrolling (once)
+      if (!overlay.querySelector('#issuesModalScrollStyles')) {
+        const style = document.createElement('style');
+        style.id = 'issuesModalScrollStyles';
+        style.textContent = `
+          .issues-modal {
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+          }
+
+          .issues-modal-header {
+            flex-shrink: 0;
+          }
+
+          .issues-list {
+            flex: 1 1 auto;
+            overflow-y: auto;
+            margin: 0;
+            padding-right: 6px;
+          }
+
+          .issues-copy-btn {
+            flex-shrink: 0;
+          }
+        `;
+        overlay.appendChild(style);
+      }
     }
 
     // Wire up listeners once
