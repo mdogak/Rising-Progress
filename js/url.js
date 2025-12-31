@@ -3,6 +3,7 @@
  URL-based PRGS loader + user-activated Open action dialog (dismissable)
 */
 import { loadFromPrgsText } from './save-load.js';
+import { openProjectLoader } from './loader.js';
 
 /**
  * Clear project-scoped History Date suppression keys
@@ -143,6 +144,12 @@ function maybePromptForOpenAction(params){
 export function initUrlLoader(){
   try{
     const params = new URLSearchParams(window.location.search || '');
+
+    // ?open=loader opens the Project Loader modal (only when not also loading a project)
+    if (params.get('open') === 'loader' && !params.has('prgs') && !params.has('preset')) {
+      openProjectLoader();
+      return;
+    }
 
     // Prompt user for Open actions after default load
     maybePromptForOpenAction(params);

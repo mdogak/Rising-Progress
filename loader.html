@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<div id="rp-loader-root"></div>
+
+<script type="application/json" id="rp-loader-tiles">
+[
+  { "id":"open", "title":"Open File", "imagePath":"Project_Files/images/openfile.jpg", "action":"openFile" },
+  { "id":"pipeline", "title":"Pipeline Example", "imagePath":"Project_Files/images/pipeline.jpg", "action":"url", "url":"progress.html?prgs=rel:Project_Files/Pipeline_progress_all.prgs&force=true" },
+
+  { "id":"blank", "title":"Blank Template", "imagePath":"Project_Files/images/blank.jpg", "action":"url", "url":"progress.html?prgs=rel:Project_Files/default_progress_all.prgs&force=true" },
+  { "id":"dc", "title":"Data Center Template", "imagePath":"Project_Files/images/datacenter.jpg", "action":"url", "url":"progress.html?prgs=rel:Project_Files/Data_Center_progress_all.prgs&force=true" },
+  { "id":"mech", "title":"Mechanical Facility Template", "imagePath":"Project_Files/images/mechfacility.jpg", "action":"url", "url":"progress.html?prgs=rel:Project_Files/Mech_Facility_progress_all.prgs&force=true" },
+  { "id":"well", "title":"Well Connect Template", "imagePath":"Project_Files/images/wellconnect.jpg", "action":"url", "url":"progress.html?prgs=rel:Project_Files/Well_Connect_progress_all.prgs&force=true" },
+  { "id":"elec", "title":"Electrical Installation Template", "imagePath":"Project_Files/images/electrical.jpg", "action":"url", "url":"progress.html?prgs=rel:Project_Files/I%26E_Facility_progress_all.prgs&force=true" }
+]
+</script>
+
+<style>
+:root{
+  --tile-size: 175px;
+  --tile-gap: 22px;
+}
+
+body.rp-loader-open .betabadge{
+  display:none !important;
+}
+
+.rp-loader-overlay{
+  position:fixed; inset:0;
+  background:rgba(0,0,0,0.5);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:10000;
+}
+
+.rp-loader-modal{
+  position:relative;
+  background:#fff;
+  border-radius:14px;
+  padding:26px 28px 30px;
+  max-height:90vh;
+  overflow-y:auto;
+  box-shadow:0 20px 60px rgba(0,0,0,.35);
+  width: min(calc(var(--tile-size) * 3 + var(--tile-gap) * 2 + 56px), 94vw);
+}
+
+.rp-loader-header{
+  margin-bottom:22px;
+  text-align:center;
+  padding-left:0;
+}
+
+.rp-loader-brand img{
+  width:200px;
+  height:auto;
+  max-width:70vw;
+}
+
+.rp-section{
+  margin-top:30px;
+  margin-bottom:10px;
+  text-align:center;
+}
+
+.rp-section h3{
+  margin:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  letter-spacing:.12em;
+  font-size:18px;
+  font-weight:800;
+  color:#ea580c;
+}
+
+.rp-section small{
+  display:block;
+  margin-top:6px;
+  color:#64748b;
+  font-size:14px;
+}
+
+.rp-grid{
+  display:grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--tile-size), 1fr));
+  gap:var(--tile-gap);
+}
+
+.rp-tile{
+  width:var(--tile-size);
+  cursor:pointer;
+  text-align:center;
+}
+
+.rp-tile-box{
+  width:100%;
+  height:var(--tile-size);
+  border-radius:14px;
+  overflow:hidden;
+  border:1px solid #d1d5db;
+  box-shadow:0 4px 10px rgba(0,0,0,.15);
+}
+
+.rp-tile img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+
+.rp-tile-title{
+  margin-top:8px;
+  font-weight:500;
+  color:#2563eb;
+}
+
+.rp-close{
+  position:absolute;
+  top:10px; right:14px;
+  font-size:22px;
+  cursor:pointer;
+  color:#64748b;
+}
+
+.rp-title-icon{
+  width:16px;
+  height:16px;
+}
+</style>
