@@ -28,6 +28,8 @@ export function initToolbarClear({
           padding: 20px 24px;
           border-radius: 6px;
           width: 360px;
+          max-height: 80vh;
+          overflow-y: auto;
           font-family: system-ui, sans-serif;
           box-shadow: 0 10px 30px rgba(0,0,0,.25);
         }
@@ -51,12 +53,14 @@ export function initToolbarClear({
       <div class="card">
         <h3>Select the items you want to clear:</h3>
         <label><input type="checkbox" data-k="all"> All (load blank project)</label>
-        <label><input type="checkbox" data-k="start" checked> Start Dates</label>
-        <label><input type="checkbox" data-k="end" checked> End Dates</label>
-        <label><input type="checkbox" data-k="cost" checked> Scope weightings</label>
-        <label><input type="checkbox" data-k="units" checked> Units</label>
-        <label><input type="checkbox" data-k="history" checked> History</label>
-        <label><input type="checkbox" data-k="baseline" checked> Baseline</label>
+        <label><input type="checkbox" data-k="start" > Start Dates</label>
+        <label><input type="checkbox" data-k="end" > End Dates</label>
+        <label><input type="checkbox" data-k="cost" > Scope weightings</label>
+        <label><input type="checkbox" data-k="totalUnits"> Total Units</label>
+        <label><input type="checkbox" data-k="progress"> % or Units to Date</label>
+        <label><input type="checkbox" data-k="units"> Units</label>
+        <label><input type="checkbox" data-k="history" > History</label>
+        <label><input type="checkbox" data-k="baseline" > Baseline</label>
         <div class="actions">
           <button id="clearCancel">Cancel</button>
           <button id="clearOk">OK</button>
@@ -93,10 +97,14 @@ export function initToolbarClear({
       if (checks.start) s.start = '';
       if (checks.end) s.end = '';
       if (checks.cost) s.cost = 0;
-      if (checks.units) {
-        s.totalUnits = '';
+      if (checks.totalUnits) s.totalUnits = '';
+      if (checks.progress) {
         s.unitsToDate = 0;
         s.actualPct = 0;
+      }
+      if (checks.units) {
+        // clear units label only (no totals or progress)
+        s.units = '';
       }
     });
 
