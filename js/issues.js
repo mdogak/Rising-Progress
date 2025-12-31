@@ -338,7 +338,7 @@
       const lastDateRaw = fieldDate || getLastHistoryDateFromModel();
       if (lastDateRaw) {
         const pretty = friendlyDate(lastDateRaw);
-        lastHistoryEl.textContent = 'Updated: ' + pretty;
+        lastHistoryEl.textContent = 'Data as of: ' + pretty;
         lastHistoryEl.style.display = '';
       } else {
         lastHistoryEl.textContent = '';
