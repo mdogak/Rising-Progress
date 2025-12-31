@@ -1,8 +1,6 @@
 <!DOCTYPE html>
-<!-- © 2025 Rising Progress LLC. All rights reserved. -->
 <div id="rp-loader-root"></div>
 
-<!-- Editable Tile Configuration (ONLY place to add / edit tiles) -->
 <script type="application/json" id="rp-loader-tiles">
 [
   { "id":"open", "title":"Open File", "imagePath":"Project_Files/images/openfile.jpg", "action":"openFile" },
@@ -18,7 +16,7 @@
 
 <style>
 :root{
-  --tile-size: 175px; /* single tile size constant */
+  --tile-size: 175px;
   --tile-gap: 22px;
 }
 
@@ -38,10 +36,7 @@
   padding:26px 28px 30px;
   max-height:90vh;
   overflow-y:auto;
-  overflow-x:hidden;
   box-shadow:0 20px 60px rgba(0,0,0,.35);
-
-  /* “Just wide enough” for 3 tiles + gaps (no fixed px) */
   width: min(calc(var(--tile-size) * 3 + var(--tile-gap) * 2 + 56px), 94vw);
 }
 
@@ -50,21 +45,8 @@
   margin-bottom:22px;
 }
 
-.rp-loader-brand{
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  gap:10px;
-}
-
 .rp-loader-brand img{
-  height:46px;
-}
-
-.rp-loader-brand span{
-  font-size:22px;
-  font-weight:600;
-  color:#0f172a;
+  display:block;
 }
 
 .rp-section{
@@ -87,29 +69,21 @@
 
 .rp-section small{
   display:block;
-  margin-top:4px;
+  margin-top:6px;
   color:#64748b;
-  font-size:12px;
+  font-size:13px;
 }
 
 .rp-grid{
   display:grid;
   grid-template-columns: repeat(auto-fill, minmax(var(--tile-size), 1fr));
   gap:var(--tile-gap);
-  justify-content:start;
-  align-items:start;
-}
-
-/* Primary grid uses same column math, no centering */
-.rp-grid-primary{
-  justify-content:start;
 }
 
 .rp-tile{
   width:var(--tile-size);
   cursor:pointer;
   text-align:center;
-  user-select:none;
 }
 
 .rp-tile-box{
@@ -119,20 +93,12 @@
   overflow:hidden;
   border:1px solid #d1d5db;
   box-shadow:0 4px 10px rgba(0,0,0,.15);
-  transition:transform .15s ease, box-shadow .15s ease;
-  background:#fff;
-}
-
-.rp-tile:hover .rp-tile-box{
-  transform:translateY(-2px);
-  box-shadow:0 10px 20px rgba(0,0,0,.25);
 }
 
 .rp-tile img{
   width:100%;
   height:100%;
   object-fit:cover;
-  display:block;
 }
 
 .rp-tile-title{
@@ -147,14 +113,10 @@
   font-size:22px;
   cursor:pointer;
   color:#64748b;
-  line-height:1;
 }
-</style>
 
-<style>
 .rp-title-icon{
   width:16px;
   height:16px;
-  opacity:1;
 }
 </style>
