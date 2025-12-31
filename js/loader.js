@@ -1,10 +1,8 @@
-// © 2025 Rising Progress LLC. All rights reserved.
 /*
   Project Loader modal injector + event wiring.
-  - No duplicate load logic: "Open File" delegates to the existing [data-act="open"] handler.
-  - Template tiles navigate using the existing URL loader (?prgs=...).
-  - ESC / click-outside / close icon supported.
-  - Analytics hooks are stubs only.
+  Revised:
+  - Modal now reliably closes AFTER a file is selected from Open File dialog
+  - Uses a one-time document-level change listener to catch dynamically created file inputs
 */
 
 function track(eventName, payload){
@@ -18,7 +16,6 @@ export function openProjectLoader(){
   _open = true;
 
   fetch('loader.html', { cache:'no-store' }).then(r=>r.text()).then(html=>{
-    // Mount loader.html (for CSS + tile config)
     const host = document.createElement('div');
     host.id = 'rp-loader-host';
     host.innerHTML = html;
@@ -28,11 +25,8 @@ export function openProjectLoader(){
     let tiles = [];
     try{
       tiles = JSON.parse(tileJsonEl ? tileJsonEl.textContent : '[]') || [];
-    }catch(e){
-      tiles = [];
-    }
+    }catch(e){}
 
-    // Overlay + modal shell
     const overlay = document.createElement('div');
     overlay.className = 'rp-loader-overlay';
 
@@ -50,30 +44,27 @@ export function openProjectLoader(){
     modal.appendChild(close);
     modal.appendChild(header);
 
-    // Primary actions (first 2 tiles)
     const primaryGrid = document.createElement('div');
     primaryGrid.className = 'rp-grid rp-grid-primary';
-    const primaryTiles = tiles.slice(0,2);
-    primaryTiles.forEach(t => primaryGrid.appendChild(buildTile(t, { primary:true })) );
+    tiles.slice(0,2).forEach(t => primaryGrid.appendChild(buildTile(t)));
     modal.appendChild(primaryGrid);
 
-    // Templates section
     const sec = document.createElement('div');
     sec.className = 'rp-section';
-    sec.innerHTML = '<h3 class="rp-templates-title"><img src="icon.png" class="rp-title-icon" alt="">TEMPLATES<img src="icon.png" class="rp-title-icon" alt=""></h3><small>(draft examples to get started)</small>';
+    sec.innerHTML = '<h3 class="rp-templates-title"><img src="icon.png" class="rp-title-icon">TEMPLATES<img src="icon.png" class="rp-title-icon"></h3><small>(draft examples to get started)</small>';
     modal.appendChild(sec);
 
     const templateGrid = document.createElement('div');
     templateGrid.className = 'rp-grid';
-    tiles.slice(2).forEach(t => templateGrid.appendChild(buildTile(t, { primary:false })) );
+    tiles.slice(2).forEach(t => templateGrid.appendChild(buildTile(t)));
     modal.appendChild(templateGrid);
 
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
 
-    // Dismiss behaviors
     function cleanup(){
       document.removeEventListener('keydown', onKey);
+      document.removeEventListener('change', onFilePicked, true);
       overlay.remove();
       host.remove();
       _open = false;
@@ -81,8 +72,14 @@ export function openProjectLoader(){
 
     function onKey(e){ if(e.key === 'Escape') cleanup(); }
 
+    function onFilePicked(e){
+      if (e.target && e.target.type === 'file' && e.target.files && e.target.files.length > 0) {
+        cleanup();
+      }
+    }
+
     close.addEventListener('click', cleanup);
-    overlay.addEventListener('click', (e)=>{ if(e.target === overlay) cleanup(); });
+    overlay.addEventListener('click', e => { if(e.target === overlay) cleanup(); });
     document.addEventListener('keydown', onKey);
 
     function buildTile(tile){
@@ -92,31 +89,18 @@ export function openProjectLoader(){
                         <div class="rp-tile-title">${tile.title}</div>`;
 
       wrap.addEventListener('click', ()=>{
-        track('tile_clicked', { id: tile.id, title: tile.title, action: tile.action || 'url' });
+        track('tile_clicked', { id: tile.id });
 
         if(tile.action === 'openFile'){
-          // Delegate to the existing Open Project handler (must be a true user click).
           const openItem = document.querySelector('#loadDropdown [data-act="open"]');
           if (openItem) {
+            document.addEventListener('change', onFilePicked, true);
             openItem.dispatchEvent(new MouseEvent('click', { bubbles:true, cancelable:true, view:window }));
           }
-
-          // Auto-close only after a file is actually selected.
-          const fileInputs = Array.from(document.querySelectorAll('input[type="file"]'));
-          const onChange = () => {
-            // Only close if a file was selected
-            const picked = fileInputs.some(inp => inp && inp.files && inp.files.length > 0);
-            if (picked) cleanup();
-            fileInputs.forEach(inp => { try{ inp.removeEventListener('change', onChange); }catch(e){} });
-          };
-          fileInputs.forEach(inp => { try{ inp.addEventListener('change', onChange, { once:false }); }catch(e){} });
-
           return;
         }
 
-        // URL tile: navigate; existing URL loader handles the rest
         if (tile.url) {
-          track('template_selected', { id: tile.id });
           window.location.href = tile.url;
         }
       });
