@@ -1350,26 +1350,43 @@ function hasHistoryActualsAboveThreshold() {
 
 document.addEventListener('DOMContentLoaded', () => {
   const loadBtn = document.getElementById('toolbarLoad');
-  if (loadBtn) loadBtn.textContent = "Open Project";
   const saveBtn = document.getElementById('saveCSV');
-  if (saveBtn) saveBtn.textContent = "Save Project";
   const saveXmlBtn = document.getElementById('saveXML');
-  if (saveXmlBtn) saveXmlBtn.textContent = "Export XML";
-});
 
-document.addEventListener('DOMContentLoaded', () => {
-  const loadBtn = document.getElementById('toolbarLoad');
-  if (loadBtn) loadBtn.innerHTML = "📂 Load Project ▾";
-  const ddItem = document.querySelector('#loadDropdown [data-act="open"]');
-  if (ddItem) ddItem.textContent = "Open Project";
-  // Add Project Loader entry at the bottom of the Load Project dropdown
+  // Labels (keep existing Save behaviors unchanged)
+  if (loadBtn) loadBtn.innerHTML = "📂 Load Project";
+  if (saveBtn) saveBtn.textContent = "Save Project";
+  if (saveXmlBtn) saveXmlBtn.textContent = "Export XML";
+
+  // 1) Button order: ensure Load Project is to the left of Save Project
+  if (loadBtn && saveBtn && loadBtn.parentElement === saveBtn.parentElement) {
+    const parent = loadBtn.parentElement;
+    if (parent && parent.contains(saveBtn) && parent.contains(loadBtn)) {
+      if (loadBtn.compareDocumentPosition(saveBtn) & Node.DOCUMENT_POSITION_FOLLOWING) {
+        // loadBtn is before saveBtn already
+      } else {
+        parent.insertBefore(loadBtn, saveBtn);
+      }
+    }
+  }
+
+  // 2) Remove the Load Project dropdown entirely
   const dd = document.getElementById('loadDropdown');
-  if (dd && !dd.querySelector('[data-act="loader"]')) {
-    const item = document.createElement('div');
-    item.setAttribute('data-act', 'loader');
-    item.style.cssText = 'padding:8px; cursor:pointer;';
-    item.textContent = 'Project Loader';
-    item.addEventListener('click', ()=>{ try{ openProjectLoader(); }catch(e){} });
-    dd.appendChild(item);
+  if (dd) {
+    try { dd.remove(); } catch (e) { dd.parentNode && dd.parentNode.removeChild(dd); }
+  }
+
+  // 3) Load Project button directly opens the Project Loader modal
+  if (loadBtn) {
+    // Remove dropdown affordances if present
+    loadBtn.removeAttribute('aria-haspopup');
+    loadBtn.removeAttribute('aria-expanded');
+
+    // Ensure click always opens loader modal (reuse existing logic)
+    loadBtn.addEventListener('click', (e) => {
+      try { e.preventDefault(); } catch (_) {}
+      try { e.stopPropagation(); } catch (_) {}
+      try { openProjectLoader(); } catch (err) {}
+    });
   }
 });
