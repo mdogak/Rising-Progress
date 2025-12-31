@@ -22,6 +22,13 @@ export function openProjectLoader(){
     document.body.appendChild(host);
 
     document.body.classList.add('rp-loader-open');
+  const betaBadge = document.getElementById('betaBadge');
+  let betaPrevDisplay = null;
+  if(betaBadge){
+    betaPrevDisplay = betaBadge.style.display;
+    betaBadge.style.display = 'none';
+  }
+
 
     const tileJsonEl = host.querySelector('#rp-loader-tiles');
     let tiles = [];
@@ -72,6 +79,10 @@ function cleanup(){
       overlay.remove();
       host.remove();
       document.body.classList.remove('rp-loader-open');
+      if(betaBadge){
+        betaBadge.style.display = betaPrevDisplay;
+      }
+
       _open = false;
     }
 
@@ -133,10 +144,7 @@ function armCloseOnFilePicked(){
         track('tile_clicked', { id: tile.id });
 
         if(tile.action === 'openFile'){
-          // Keep the loader open while the user is in the file dialog.
-          // Close only when a file is actually selected and the load begins.
-          disarmCloseOnPick = armCloseOnFilePicked();
-
+          cleanup();
           requestAnimationFrame(() => {
             const openItem = document.querySelector('#loadDropdown [data-act="open"]');
             if (openItem) {
