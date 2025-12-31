@@ -8,6 +8,24 @@
 (function(){
   let lastIssuesText = '';
 
+  // --- Beta badge control (scoped to Issues modal) ---
+  let _issuesBetaPrevDisplay = null;
+  function hideBetaBadge(){
+    const betaBadge = document.getElementById('betaBadge');
+    if (betaBadge){
+      _issuesBetaPrevDisplay = betaBadge.style.display;
+      betaBadge.style.display = 'none';
+    }
+  }
+  function restoreBetaBadge(){
+    const betaBadge = document.getElementById('betaBadge');
+    if (betaBadge && _issuesBetaPrevDisplay !== null){
+      betaBadge.style.display = _issuesBetaPrevDisplay;
+      _issuesBetaPrevDisplay = null;
+    }
+  }
+
+
   function ensureOverlay(){
     let overlay = document.getElementById('issuesOverlay');
     if(!overlay){
@@ -362,6 +380,7 @@
       });
     }
 
+    hideBetaBadge();
     overlay.classList.remove('hidden');
     document.body.dataset.issuesScrollLock = document.body.style.overflow || '';
     document.body.style.overflow = 'hidden';
@@ -373,6 +392,7 @@ function closeIssuesModal(){
     if(overlay){
       overlay.classList.add('hidden');
     }
+    restoreBetaBadge();
     if (document.body.dataset.issuesScrollLock !== undefined) {
       document.body.style.overflow = document.body.dataset.issuesScrollLock;
       delete document.body.dataset.issuesScrollLock;
