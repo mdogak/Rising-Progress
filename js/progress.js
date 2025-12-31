@@ -1350,43 +1350,60 @@ function hasHistoryActualsAboveThreshold() {
 
 document.addEventListener('DOMContentLoaded', () => {
   const loadBtn = document.getElementById('toolbarLoad');
+  if (loadBtn) loadBtn.textContent = "Load Project";
   const saveBtn = document.getElementById('saveCSV');
-  const saveXmlBtn = document.getElementById('saveXML');
-
-  // Labels (keep existing Save behaviors unchanged)
-  if (loadBtn) loadBtn.innerHTML = "📂 Load Project";
   if (saveBtn) saveBtn.textContent = "Save Project";
+  const saveXmlBtn = document.getElementById('saveXML');
   if (saveXmlBtn) saveXmlBtn.textContent = "Export XML";
+});
 
-  // 1) Button order: ensure Load Project is to the left of Save Project
-  if (loadBtn && saveBtn && loadBtn.parentElement === saveBtn.parentElement) {
-    const parent = loadBtn.parentElement;
-    if (parent && parent.contains(saveBtn) && parent.contains(loadBtn)) {
-      if (loadBtn.compareDocumentPosition(saveBtn) & Node.DOCUMENT_POSITION_FOLLOWING) {
-        // loadBtn is before saveBtn already
-      } else {
-        parent.insertBefore(loadBtn, saveBtn);
-      }
-    }
+document.addEventListener('DOMContentLoaded', () => {
+  const loadBtn = document.getElementById('toolbarLoad');
+  const saveBtn = document.getElementById('saveCSV');
+
+  // Ensure Load Project is left of Save Project (no styling changes; just DOM order)
+  if (loadBtn && saveBtn && saveBtn.parentElement && loadBtn.parentElement === saveBtn.parentElement) {
+    try { saveBtn.parentElement.insertBefore(loadBtn, saveBtn); } catch (e) {}
   }
 
-  // 2) Remove the Load Project dropdown entirely
+  // Load Project button: remove dropdown affordance and always open the Project Loader modal
+  if (loadBtn) loadBtn.innerHTML = "📂 Load Project";
+
+  const ddItem = document.querySelector('#loadDropdown [data-act="open"]');
+  if (ddItem) ddItem.textContent = "Open Project";
+
+  // Ensure the existing Project Loader dropdown action remains available for reuse (loader.js depends on #loadDropdown open action)
   const dd = document.getElementById('loadDropdown');
-  if (dd) {
-    try { dd.remove(); } catch (e) { dd.parentNode && dd.parentNode.removeChild(dd); }
+  if (dd && !dd.querySelector('[data-act="loader"]')) {
+    const item = document.createElement('div');
+    item.setAttribute('data-act', 'loader');
+    item.style.cssText = 'padding:8px; cursor:pointer;';
+    item.textContent = 'Project Loader';
+    item.addEventListener('click', ()=>{ try{ openProjectLoader(); }catch(e){} });
+    dd.appendChild(item);
   }
 
-  // 3) Load Project button directly opens the Project Loader modal
-  if (loadBtn) {
-    // Remove dropdown affordances if present
-    loadBtn.removeAttribute('aria-haspopup');
-    loadBtn.removeAttribute('aria-expanded');
+  // Hide/disable the Load Project dropdown UI while preserving its internal actions for loader.js
+  if (dd) {
+    dd.hidden = true;
+    try { dd.style.display = 'none'; } catch(e) {}
+  }
 
-    // Ensure click always opens loader modal (reuse existing logic)
+  // Override any dropdown-toggle behavior: clicking Load Project triggers the same action as the Project Loader menu item
+  if (loadBtn && !loadBtn.dataset.rpLoaderBound) {
+    loadBtn.dataset.rpLoaderBound = 'true';
     loadBtn.addEventListener('click', (e) => {
-      try { e.preventDefault(); } catch (_) {}
-      try { e.stopPropagation(); } catch (_) {}
-      try { openProjectLoader(); } catch (err) {}
-    });
+      try { e.preventDefault(); } catch(_) {}
+      try { e.stopPropagation(); } catch(_) {}
+      try { e.stopImmediatePropagation(); } catch(_) {}
+
+      const loaderItem = document.querySelector('#loadDropdown [data-act="loader"]');
+      if (loaderItem) {
+        loaderItem.dispatchEvent(new MouseEvent('click', { bubbles:true, cancelable:true, view:window }));
+      } else {
+        try { openProjectLoader(); } catch(_) {}
+      }
+    }, true);
   }
 });
+
