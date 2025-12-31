@@ -1,8 +1,8 @@
 /*
   Project Loader modal injector + event wiring.
   Revised:
-  - Modal now reliably closes AFTER a file is selected from Open File dialog
-  - Uses a one-time document-level change listener to catch dynamically created file inputs
+  - Modal closes BEFORE triggering Open File dialog (guaranteed cleanup)
+  - Adds body class to disable Beta badge while modal is open
 */
 
 function track(eventName, payload){
@@ -20,6 +20,8 @@ export function openProjectLoader(){
     host.id = 'rp-loader-host';
     host.innerHTML = html;
     document.body.appendChild(host);
+
+    document.body.classList.add('rp-loader-open');
 
     const tileJsonEl = host.querySelector('#rp-loader-tiles');
     let tiles = [];
@@ -64,19 +66,13 @@ export function openProjectLoader(){
 
     function cleanup(){
       document.removeEventListener('keydown', onKey);
-      document.removeEventListener('change', onFilePicked, true);
       overlay.remove();
       host.remove();
+      document.body.classList.remove('rp-loader-open');
       _open = false;
     }
 
     function onKey(e){ if(e.key === 'Escape') cleanup(); }
-
-    function onFilePicked(e){
-      if (e.target && e.target.type === 'file' && e.target.files && e.target.files.length > 0) {
-        cleanup();
-      }
-    }
 
     close.addEventListener('click', cleanup);
     overlay.addEventListener('click', e => { if(e.target === overlay) cleanup(); });
@@ -92,11 +88,14 @@ export function openProjectLoader(){
         track('tile_clicked', { id: tile.id });
 
         if(tile.action === 'openFile'){
-          const openItem = document.querySelector('#loadDropdown [data-act="open"]');
-          if (openItem) {
-            document.addEventListener('change', onFilePicked, true);
-            openItem.dispatchEvent(new MouseEvent('click', { bubbles:true, cancelable:true, view:window }));
-          }
+          cleanup(); // close FIRST, then open dialog
+
+          requestAnimationFrame(() => {
+            const openItem = document.querySelector('#loadDropdown [data-act="open"]');
+            if (openItem) {
+              openItem.dispatchEvent(new MouseEvent('click', { bubbles:true, cancelable:true, view:window }));
+            }
+          });
           return;
         }
 
