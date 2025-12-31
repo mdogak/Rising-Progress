@@ -103,8 +103,10 @@ export function initToolbarClear({
         s.actualPct = 0;
       }
       if (checks.units) {
-        // clear units label only (no totals or progress)
-        s.units = '';
+        // Reset units back to default (%). Some models store this as unitsLabel.
+        if ('unitsLabel' in s) s.unitsLabel = '%';
+        if ('units' in s) s.units = '%';
+        if ('unitslabel' in s) s.unitslabel = '%';
       }
     });
 
