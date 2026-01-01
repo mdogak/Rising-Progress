@@ -481,16 +481,11 @@ function buildAllCSV() {
   lines.push('');
 
   if(model.timeSeriesProject){
-    lines.push('#SECTION:TIMESERIES_PROJECT');
-    lines.push('historyDate,key,value');
-    Object.values(model.timeSeriesProject).flat().forEach(r=>{
-      lines.push(csvLine([r.historyDate,r.key,r.value]));
-    });
-    lines.push('');
-  }
+    lines.push('#SECTION:TIMESERIES_PROJECT
+historyDate,key,value
+'.concat(Object.keys(model.timeSeriesProject||{}).sort().map(d=>model.timeSeriesProject[d].map(r=>csvLine([r.historyDate,r.key,r.value])).join('')).join(''))
 
-  if(model.timeSeriesScopes){
-    lines.push('#SECTION:TIMESERIES_SCOPES');
+#SECTION:TIMESERIES_SCOPES');
     lines.push('historyDate,scopeId,label,start,end,cost,perDay,progressValue,unitsToDate,totalUnits,unitsLabel,sectionName,sectionID');
     Object.keys(model.timeSeriesScopes).forEach(d=>{
       model.timeSeriesScopes[d].forEach(s=>{
