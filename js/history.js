@@ -109,14 +109,6 @@ export function renderDailyTable(days, baseline, planned, actual, opts = {}) {
             max="100"
             data-day="${row.day}"
             value="${a == null ? "" : Number(a).toFixed(1)}"
-            ${(() => {
-              // vNext: freeze dailyActual when actualPct exists for this date
-              const m = window.model || {};
-              const ts = m.timeSeries || {};
-              const rowTs = ts[row.day] || {};
-              const frozen = (rowTs.actualPct !== undefined && rowTs.actualPct !== null && rowTs.actualPct !== '');
-              return frozen ? 'disabled title="Frozen (history snapshot exists for this date)"' : '';
-            })()}
             style="width:50px"
           />
         </td>
@@ -165,14 +157,6 @@ export function renderDailyTable(days, baseline, planned, actual, opts = {}) {
             max="100"
             data-day="${row.day}"
             value="${a == null ? "" : Number(a).toFixed(1)}"
-            ${(() => {
-              // vNext: freeze dailyActual when actualPct exists for this date
-              const m = window.model || {};
-              const ts = m.timeSeries || {};
-              const rowTs = ts[row.day] || {};
-              const frozen = (rowTs.actualPct !== undefined && rowTs.actualPct !== null && rowTs.actualPct !== '');
-              return frozen ? 'disabled title="Frozen (history snapshot exists for this date)"' : '';
-            })()}
             style="width:50px"
           />
         </td>
@@ -229,21 +213,6 @@ export function renderDailyTable(days, baseline, planned, actual, opts = {}) {
     .querySelectorAll("#dailyTable input[type=number]")
     .forEach((inp) => {
       const handler = () => {
-        // vNext: prevent edits if this date is frozen
-        try{
-          const m = window.model || {};
-          const ts = m.timeSeries || {};
-          const d0 = inp.getAttribute('data-day');
-          const rowTs = ts[d0] || {};
-          const frozen = (rowTs.actualPct !== undefined && rowTs.actualPct !== null && rowTs.actualPct !== '');
-          if(frozen){
-            // revert UI to stored value
-            const stored = rowTs.dailyActual;
-            inp.value = (stored === undefined || stored === null) ? '' : Number(stored).toFixed(1);
-            return;
-          }
-        }catch(e){}
-
         const model = window.model || {};
         const day = inp.dataset.day;
         const raw = inp.value;

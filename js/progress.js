@@ -62,20 +62,12 @@ let model = {
   history:[], // [{date, actualPct}]
   dailyActuals:{}, // { 'YYYY-MM-DD': number }
   baseline:null,   // { days:[], planned:[] } snapshot
-  daysRelativeToPlan: null,
-
-  // vNext ledger structures (kept alongside legacy views for compatibility)
-  timeSeries: {},
-  timeSeriesProject: {},
-  timeSeriesScopes: {},
-  timeSeriesHeaders: {}
+  daysRelativeToPlan: null
 };
 window.model = model;
 
 function defaultScope(i){
-  if(i===0){ const startDate = new Date(today); startDate.setDate(startDate.getDate()-1); const endDate = new Date(startDate); endDate.setDate(endDate.getDate()+7); const start = fmtDate(startDate); const end = fmtDate(endDate); return {
-    scopeId: 'sc_' + Math.random().toString(36).slice(2,10) + Date.now().toString(36).slice(-4),
- label:`Scope #${i+1}`, start, end, cost:100, actualPct:0, unitsToDate:0, totalUnits:'', unitsLabel:'%', sectionName:'' }; }
+  if(i===0){ const startDate = new Date(today); startDate.setDate(startDate.getDate()-1); const endDate = new Date(startDate); endDate.setDate(endDate.getDate()+7); const start = fmtDate(startDate); const end = fmtDate(endDate); return { label:`Scope #${i+1}`, start, end, cost:100, actualPct:0, unitsToDate:0, totalUnits:'', unitsLabel:'%', sectionName:'' }; }
   return { label:`Scope #${i+1}`, start:'', end:'', cost:0, actualPct:0, unitsToDate:0, totalUnits:'', unitsLabel:'%', sectionName:'' };
 }
 
