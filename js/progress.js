@@ -1407,3 +1407,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
+
+// vNext: expose helpers for section snapshots (2026-01-01T20:30:59.172136Z)
+try {
+  if(typeof calcScopeWeightings === 'function') window.__rpCalcScopeWeightings = calcScopeWeightings;
+  if(typeof calcScopePlannedPctToDate === 'function') window.__rpCalcScopePlannedPctToDate = calcScopePlannedPctToDate;
+  if(typeof parseDate === 'function') window.__rpParseDate = parseDate;
+} catch(_) { }

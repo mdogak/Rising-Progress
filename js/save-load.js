@@ -1,44 +1,3 @@
-
-// vNext: track last Add-to-History click to avoid save-time picker issues
-let __rpLastHistoryDate = null;
-
-
-/* ===============================
- * vNext snapshot helper (module-scope for save path)
- * Timestamp: 2026-01-01T19:45:46.679475Z
- * =============================== */
-function __rpSnapshotToTimeSeries(historyDate){
-  const model = getModel ? getModel() : window.model;
-  if(!model || !historyDate) return;
-
-  model.timeSeriesProject = model.timeSeriesProject || {};
-  model.timeSeriesScopes = model.timeSeriesScopes || {};
-  model.timeSeriesSections = model.timeSeriesSections || {};
-
-  // PROJECT snapshot (flat map; written later as historyDate,key,value)
-  const proj = model.project || {};
-  model.timeSeriesProject[historyDate] = {
-    name: proj.name || '',
-    startup: proj.startup || '',
-    markerLabel: proj.markerLabel || '',
-    labelToggle: !!proj.labelToggle,
-    legendBaselineCheckbox: !!proj.legendBaselineCheckbox,
-    legendPlannedCheckbox: !!proj.legendPlannedCheckbox,
-    legendActualCheckbox: !!proj.legendActualCheckbox,
-    legendForecastCheckbox: !!proj.legendForecastCheckbox,
-  };
-
-  // SCOPES snapshot
-  model.timeSeriesScopes[historyDate] = (model.scopes || []).map(s => ({ ...s }));
-
-  // SECTIONS snapshot (if available)
-  if(typeof window.getSectionRollups === 'function'){
-    model.timeSeriesSections[historyDate] = window.getSectionRollups();
-  } else {
-    model.timeSeriesSections[historyDate] = [];
-  }
-}
-
 /*
 © 2025 Rising Progress LLC. All rights reserved.
 Save/Load/Export module extracted from progress.js
@@ -417,135 +376,124 @@ export async function saveXml(){
 
 function csvEsc(v){ if(v==null) return ''; const s = String(v); return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; }
 function csvLine(arr){ return arr.map(csvEsc).join(',') + '\n'; }
-
 function buildAllCSV(){
   const d = requireDeps();
   const model = getModel();
 
+  model.timeSeriesProject = model.timeSeriesProject || {};
+  model.timeSeriesScopes = model.timeSeriesScopes || {};
+  model.timeSeriesSections = model.timeSeriesSections || {};
+
+  __rpEnsureScopeIds(model.scopes);
+
   const plan = d.calcPlannedSeriesByDay();
   const days = plan.days || [];
   const plannedCum = plan.plannedCum || plan.planned || [];
-  const actualCum = d.calcActualSeriesByDay(days);
   const baselineCum = d.getBaselineSeries(days, plannedCum);
 
-  let out = '';
+  const lines = [];
+  __rpWriteFormat(lines);
 
-  // PROJECT section
-  out += '#SECTION:PROJECT\n';
-  out += 'key,value\n';
-
+  // PROJECT
+  lines.push('#SECTION:PROJECT');
+  lines.push('key,value');
   const proj = model.project || {};
-  const labelToggleEl = document.getElementById('labelToggle');
-  const baselineCb = document.getElementById('legendBaselineCheckbox');
-  const plannedCb = document.getElementById('legendPlannedCheckbox');
-  const actualCb = document.getElementById('legendActualCheckbox');
-  const forecastCb = document.getElementById('legendForecastCheckbox');
+  lines.push(csvLine(['name', proj.name || '']).trimEnd());
+  lines.push(csvLine(['startup', proj.startup || '']).trimEnd());
+  lines.push(csvLine(['markerLabel', proj.markerLabel || '']).trimEnd());
+  lines.push(csvLine(['labelToggle', String(!!proj.labelToggle)]).trimEnd());
+  lines.push(csvLine(['legendBaselineCheckbox', String(!!proj.legendBaselineCheckbox)]).trimEnd());
+  lines.push(csvLine(['legendPlannedCheckbox', String(!!proj.legendPlannedCheckbox)]).trimEnd());
+  lines.push(csvLine(['legendActualCheckbox', String(!!proj.legendActualCheckbox)]).trimEnd());
+  lines.push(csvLine(['legendForecastCheckbox', String(!!proj.legendForecastCheckbox)]).trimEnd());
+  lines.push('');
 
-  const labelToggleVal = (labelToggleEl && typeof labelToggleEl.checked === 'boolean')
-    ? !!labelToggleEl.checked
-    : !!proj.labelToggle;
-
-  const legendBaselineVal = (baselineCb && typeof baselineCb.checked === 'boolean')
-    ? !!baselineCb.checked
-    : (typeof proj.legendBaselineCheckbox !== 'undefined' ? !!proj.legendBaselineCheckbox : true);
-
-  const legendPlannedVal = (plannedCb && typeof plannedCb.checked === 'boolean')
-    ? !!plannedCb.checked
-    : (typeof proj.legendPlannedCheckbox !== 'undefined' ? !!proj.legendPlannedCheckbox : true);
-
-  const legendActualVal = (actualCb && typeof actualCb.checked === 'boolean')
-    ? !!actualCb.checked
-    : (typeof proj.legendActualCheckbox !== 'undefined' ? !!proj.legendActualCheckbox : true);
-
-  const legendForecastVal = (forecastCb && typeof forecastCb.checked === 'boolean')
-    ? !!forecastCb.checked
-    : (typeof proj.legendForecastCheckbox !== 'undefined' ? !!proj.legendForecastCheckbox : true);
-
-  out += csvLine(['name', model.project.name || '']);
-  out += csvLine(['startup', model.project.startup || '']);
-  out += csvLine(['markerLabel', model.project.markerLabel || 'Baseline Complete']);
-  out += csvLine(['labelToggle', labelToggleVal ? 'true' : 'false']);
-  out += csvLine(['legendBaselineCheckbox', legendBaselineVal ? 'true' : 'false']);
-  out += csvLine(['legendPlannedCheckbox', legendPlannedVal ? 'true' : 'false']);
-  out += csvLine(['legendActualCheckbox', legendActualVal ? 'true' : 'false']);
-  out += csvLine(['legendForecastCheckbox', legendForecastVal ? 'true' : 'false']);
-  out += '\n';
-
-  // SCOPES section
-  out += '#SECTION:SCOPES\n';
-  out += 'label,start,end,cost,progressValue,totalUnits,unitsLabel,sectionName\n';
-  (model.scopes || []).forEach(s => {
-    const label = s.label || '';
-    const start = s.start || '';
-    const end = s.end || '';
-    const cost = s.cost != null ? s.cost : 0;
-
-    const hasUnits = s.totalUnits !== '' && s.totalUnits != null && !isNaN(parseFloat(s.totalUnits));
-    const totalUnits = hasUnits ? parseFloat(s.totalUnits) : '';
-    const progressValue = hasUnits ? (s.unitsToDate || 0) : (s.actualPct || 0);
-    const unitsLabel = s.unitsLabel || (hasUnits ? 'Feet' : '%');
-
-    out += csvLine([
-      label,
-      start,
-      end,
-      cost,
-      progressValue,
-      totalUnits === '' ? '' : totalUnits,
-      unitsLabel,
-      (s.sectionName || '')
-    ]);
+  // SCOPES
+  lines.push('#SECTION:SCOPES');
+  lines.push('scopeId,label,start,end,cost,progressValue,totalUnits,unitsLabel,sectionName');
+  (model.scopes || []).forEach((s)=>{
+    const totalUnits = (s.totalUnits === 0) ? 0 : (s.totalUnits || '');
+    const progressValue = (totalUnits !== '' && Number(totalUnits) > 0) ? (s.unitsToDate ?? '') : (s.actualPct ?? '');
+    lines.push(csvLine([
+      s.scopeId || '',
+      s.label || '',
+      s.start || '',
+      s.end || '',
+      (s.cost==null?'':s.cost),
+      (progressValue==null?'':progressValue),
+      (totalUnits==null?'':totalUnits),
+      s.unitsLabel || '%',
+      s.sectionName || ''
+    ]).trimEnd());
   });
-  out += '\n';
+  lines.push('');
 
-  // DAILY_ACTUALS section
-  out += '#SECTION:DAILY_ACTUALS\n';
-  out += 'date,value\n';
-  const daily = model.dailyActuals || {};
-  Object.keys(daily).sort().forEach(dd => {
-    const v = daily[dd];
-    out += csvLine([dd, (v == null || v === '') ? '' : Number(v)]);
-  });
-  out += '\n';
+  // TIMESERIES
+  __rpWriteTimeSeries(lines, model, days, plannedCum, baselineCum);
 
-  // HISTORY section
-  out += '#SECTION:HISTORY\n';
-  out += 'date,actualPct\n';
-  (model.history || []).forEach(h => {
-    if(!h.date) return;
-    const val = h.actualPct != null ? h.actualPct : 0;
-    out += csvLine([h.date, val]);
-  });
-  out += '\n';
-
-  // BASELINE section
-  out += '#SECTION:BASELINE\n';
-  out += 'date,baselinePct\n';
-  if(model.baseline && Array.isArray(model.baseline.days) && Array.isArray(model.baseline.planned)){
-    model.baseline.days.forEach((dd, idx) => {
-      const v = model.baseline.planned[idx];
-      out += csvLine([dd, v == null ? '' : v]);
+  // TIMESERIES_PROJECT
+  lines.push('#SECTION:TIMESERIES_PROJECT');
+  lines.push('historyDate,key,value');
+  Object.keys(model.timeSeriesProject || {}).sort().forEach(d=>{
+    const snap = model.timeSeriesProject[d] || {};
+    Object.keys(snap).forEach(k=>{
+      lines.push(csvLine([d, k, String(snap[k] ?? '')]).trimEnd());
     });
-  }
-  out += '\n';
+  });
+  lines.push('');
 
-  return out;
+  // TIMESERIES_SCOPES
+  lines.push('#SECTION:TIMESERIES_SCOPES');
+  lines.push('historyDate,scopeId,label,start,end,cost,progressValue,totalUnits,unitsLabel,sectionName');
+  Object.keys(model.timeSeriesScopes || {}).sort().forEach(d=>{
+    const list = model.timeSeriesScopes[d];
+    if(!Array.isArray(list)) return;
+    list.forEach(s=>{
+      const totalUnits = (s.totalUnits === 0) ? 0 : (s.totalUnits || '');
+      const progressValue = (totalUnits !== '' && Number(totalUnits) > 0) ? (s.unitsToDate ?? '') : (s.actualPct ?? '');
+      lines.push(csvLine([
+        d,
+        s.scopeId || '',
+        s.label || '',
+        s.start || '',
+        s.end || '',
+        (s.cost==null?'':s.cost),
+        (progressValue==null?'':progressValue),
+        (totalUnits==null?'':totalUnits),
+        s.unitsLabel || '%',
+        s.sectionName || ''
+      ]).trimEnd());
+    });
+  });
+  lines.push('');
+
+  // TIMESERIES_SECTIONS
+  lines.push('#SECTION:TIMESERIES_SECTIONS');
+  lines.push('historyDate,sectionTitle,sectionWeight,sectionPct,sectionPlannedPct');
+  Object.keys(model.timeSeriesSections || {}).sort().forEach(d=>{
+    const rows = model.timeSeriesSections[d];
+    if(!Array.isArray(rows)) return;
+    rows.forEach(r=>{
+      lines.push(csvLine([
+        d,
+        r.sectionTitle || '',
+        (r.sectionWeight==null?'':r.sectionWeight),
+        (r.sectionPct==null?'':r.sectionPct),
+        (r.sectionPlannedPct==null?'':r.sectionPlannedPct)
+      ]).trimEnd());
+    });
+  });
+  lines.push('');
+
+  return lines.join('\n') + '\n';
 }
+
 
 export async function saveAll(){
   const d = requireDeps();
   const model = getModel();
   try{
-    
-  // vNext guardrail: warn if scopes changed and no Add-to-History for today
-  const today = new Date().toISOString().slice(0,10);
-  if(typeof __rpScopesChangedSinceLastHistory === 'function' &&
-     __rpScopesChangedSinceLastHistory() &&
-     window.__rpLastHistoryDate !== today){
-    window.alert('Scopes have changed since the last history snapshot. Consider using Add to History before saving.');
-  }
-  const csv = buildAllCSV();
-
+    const csv = buildAllCSV();
     if(!window._autoSaving && window.showSaveFilePicker){
       const handle = await window.showSaveFilePicker({ suggestedName: (model.project.name? model.project.name.replace(/\s+/g,'_')+'_': '') + 'progress_all.prgs', types:[{ description:'CSV', accept:{ 'text/plain':['.prgs'] } }] });
       const writable = await handle.createWritable(); await writable.write(new Blob([csv], {type:'text/plain'})); await writable.close();
@@ -1180,7 +1128,98 @@ function initAutoLoadDefault(){
   });
 }
 
-export function initSaveLoad(d){
+export /* ===============================
+ * PRGS vNext helpers (writer + snapshots)
+ * Timestamp: 2026-01-01T20:30:59.172136Z
+ * =============================== */
+function __rpStableHash32(str){
+  let h = 2166136261;
+  str = String(str ?? '');
+  for(let i=0;i<str.length;i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return (h>>>0);
+}
+
+function __rpEnsureScopeIds(scopes){
+  if(!Array.isArray(scopes)) return;
+  for(let i=0;i<scopes.length;i++){ 
+    const s = scopes[i];
+    if(!s) continue;
+    if(s.scopeId) continue;
+    const key = [(s.label||''),(s.start||''),(s.end||''),(s.cost==null?'':s.cost),(s.sectionName||''),String(i)].join('|');
+    const h = __rpStableHash32(key).toString(16).padStart(8,'0');
+    s.scopeId = 'sc_' + h + String(i).padStart(3,'0');
+  }
+}
+
+function __rpWriteFormat(lines){
+  lines.push('#SECTION:FORMAT');
+  lines.push('key,value');
+  lines.push('version,2');
+  lines.push('');
+}
+
+function __rpWriteTimeSeries(lines, model, days, plannedCum, baselineCum){
+  lines.push('#SECTION:TIMESERIES');
+  lines.push('date,baselinePct,plannedPct,dailyActual,actualPct');
+
+  const daily = model.dailyActuals || {};
+  const hist = Array.isArray(model.history) ? model.history : [];
+  const histMap = {};
+  hist.forEach(h=>{ if(h && h.date) histMap[h.date] = h.actualPct; });
+
+  const n = Array.isArray(days) ? days.length : 0;
+  for(let i=0;i<n;i++){ 
+    const d = days[i];
+    const b = (Array.isArray(baselineCum) && baselineCum[i]!=null) ? baselineCum[i] : '';
+    const p = (Array.isArray(plannedCum) && plannedCum[i]!=null) ? plannedCum[i] : '';
+    const da = (d in daily && daily[d] != null) ? daily[d] : '';
+    const a = (d in histMap && histMap[d] != null) ? histMap[d] : '';
+    lines.push([d, b===''?'':b, p===''?'':p, da===''?'':da, a===''?'':a].join(','));
+  }
+  lines.push('');
+}
+
+function __rpSnapshotToTimeSeries(historyDate){
+  const model = (typeof getModel === 'function') ? getModel() : (window.model || null);
+  if(!model || !historyDate) return;
+
+  model.timeSeriesProject = model.timeSeriesProject || {};
+  model.timeSeriesScopes = model.timeSeriesScopes || {};
+  model.timeSeriesSections = model.timeSeriesSections || {};
+
+  __rpEnsureScopeIds(model.scopes);
+
+  const proj = model.project || {};
+  model.timeSeriesProject[historyDate] = {
+    name: proj.name || '',
+    startup: proj.startup || '',
+    markerLabel: proj.markerLabel || '',
+    labelToggle: !!proj.labelToggle,
+    legendBaselineCheckbox: !!proj.legendBaselineCheckbox,
+    legendPlannedCheckbox: !!proj.legendPlannedCheckbox,
+    legendActualCheckbox: !!proj.legendActualCheckbox,
+    legendForecastCheckbox: !!proj.legendForecastCheckbox,
+  };
+
+  model.timeSeriesScopes[historyDate] = (model.scopes || []).map(s => ({ ...s }));
+
+  if(window.Sections && typeof window.Sections.getRollups === 'function'){
+    model.timeSeriesSections[historyDate] = window.Sections.getRollups(
+      model,
+      window.__rpCalcScopeWeightings,
+      window.__rpCalcScopePlannedPctToDate,
+      window.__rpParseDate
+    );
+  } else {
+    model.timeSeriesSections[historyDate] = [];
+  }
+
+  window.__rpLastHistoryDate = historyDate;
+}
+
+function initSaveLoad(d){
+  window.__rpSnapshotToTimeSeries = __rpSnapshotToTimeSeries;
+
   if (__saveLoadInitialized) return;
   __saveLoadInitialized = true;
   deps = d;
