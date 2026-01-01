@@ -264,8 +264,7 @@
 // - Scope rows: freely draggable; moved row adopts nearest header above after drop.
 // - Section headers: draggable boundaries only; moving a header does NOT move its rows.
 //   After drop, ALL rows re-associate based on the nearest header above.
-function attachContainerHandlers,
-    getRollups(container, model, rerender){
+function attachContainerHandlers(container, model, rerender){
   // Always keep latest references so handlers work after loading a new project
   container._sectionsModel = model;
   container._sectionsRerender = rerender;
@@ -533,33 +532,7 @@ function attachContainerHandlers,
 
 // Public API
   // Public API
-  
-  function getRollups(model, calcScopeWeightings, calcScopePlannedPctToDate, parseDate){
-    try{
-      const m = model || window.model;
-      if(!m) return [];
-      if(typeof buildSections !== 'function') return [];
-      const secs = buildSections(m);
-      const out = [];
-      for(const sec of secs){
-        const wSum = calcSectionWeightSum(sec.start, sec.end, calcScopeWeightings);
-        const actualPct = calcSectionActualPct(m, sec.start, sec.end, calcScopeWeightings);
-        const plannedPct = calcSectionPlannedPct(m, sec.start, sec.end, calcScopeWeightings, calcScopePlannedPctToDate);
-        const weightPct = wSum * 100;
-        out.push({
-          sectionTitle: sec.name,
-          sectionWeight: Number.isFinite(weightPct) ? Number(weightPct.toFixed(1)) : 0,
-          sectionPct: Number.isFinite(actualPct) ? Number(actualPct.toFixed(1)) : 0,
-          sectionPlannedPct: Number.isFinite(plannedPct) ? Number(plannedPct.toFixed(1)) : 0,
-        });
-      }
-      return out;
-    } catch(_){
-      return [];
-    }
-  }
-
-window.Sections = {
+  window.Sections = {
     ensureSectionNameField,
     buildSections,
     hasHeaderAtIndex,
@@ -567,7 +540,6 @@ window.Sections = {
     removeSection,
     moveRow,
     render,
-    attachContainerHandlers,
-    getRollups
+    attachContainerHandlers
   };
 })();
