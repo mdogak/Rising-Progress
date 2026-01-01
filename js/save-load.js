@@ -1,12 +1,9 @@
 
 /* ===============================
- * PRGS vNext HOTFIX APPLIED
- * File: save-load.js
- * Timestamp: 2026-01-01T17:10:15.688437 UTC
- * Fixes:
- *  - Prevent ReferenceError: (_row.scopeId || __rpGenerateLegacyScopeId(_row, idx)) is not defined
- *  - Deterministic legacy (_row.scopeId || __rpGenerateLegacyScopeId(_row, idx)) backfill
- *  - Ignore sections entirely for legacy load (no sectionId inference)
+ * PRGS vNext HOTFIX #2
+ * Timestamp: 2026-01-01T17:16:19.674525 UTC
+ * Fix:
+ *  - Restore named export loadFromPrgsText for url.js + loader modal
  * =============================== */
 
 /*
@@ -901,28 +898,7 @@ export function loadFromXml(xmlText){
 
 // === Embedded CSV loader for presets ===
 
-export 
-// ---- vNext HOTFIX helpers ----
-function __rpGenerateLegacyScopeId(row, index){
-  const key = [
-    row.label || '',
-    row.start || '',
-    row.end || '',
-    row.cost || '',
-    index
-  ].join('|');
-  return 'sc_' + sha1(key).slice(0,12);
-}
-
-// minimal sha1 (no deps)
-function sha1(str){
-  let buffer = new TextEncoder().encode(str);
-  return crypto.subtle
-    ? crypto.subtle.digest('SHA-1', buffer).then(b=>Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join(''))
-    : str; // fallback should never hit in modern browsers
-}
-
-function loadFromPrgsText(text){
+export function loadFromPrgsText(text){
   const d = requireDeps();
   resetModelForLoad();
 
