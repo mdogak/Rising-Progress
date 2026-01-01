@@ -74,6 +74,45 @@ function setLegendState(patch){
   if(typeof d.setLegendState === 'function') d.setLegendState(patch);
 }
 
+
+// ---- vNext UID helpers (deterministic, non-generic) ----
+function __rpHash(str){
+  let h = 0;
+  for (let i = 0; i < str.length; i++) {
+    h = ((h << 5) - h) + str.charCodeAt(i);
+    h |= 0;
+  }
+  return Math.abs(h).toString(36);
+}
+
+function __rpEnsureScopeAndSectionIds(model){
+  if (!model || !Array.isArray(model.scopes)) return;
+
+  const sectionMap = {};
+  model.scopes.forEach((s, idx) => {
+    // sectionID
+    const secKey = (s.sectionName || '').trim();
+    if (secKey) {
+      if (!sectionMap[secKey]) {
+        sectionMap[secKey] = 'section_' + __rpHash(secKey);
+      }
+      if (!s.sectionID) s.sectionID = sectionMap[secKey];
+    }
+
+    // scopeId
+    if (!s.scopeId) {
+      const basis = [
+        s.label || '',
+        s.start || '',
+        s.end || '',
+        String(idx)
+      ].join('|');
+      s.scopeId = 'scope_' + __rpHash(basis);
+    }
+  });
+}
+
+
 /*****************
  * CSV helpers (Save/Load)
  *****************/
@@ -389,7 +428,6 @@ function csvLine(arr){ return arr.map(csvEsc).join(',') + '\n'; }
 
 
 function buildAllCSV() {
-  const model = getModel();
   const lines = [];
 
   // FORMAT
