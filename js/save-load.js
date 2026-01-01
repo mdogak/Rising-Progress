@@ -1,3 +1,12 @@
+
+/* ===============================
+ * PRGS vNext FORCE SAVE PATH
+ * Timestamp: 2026-01-01T18:28:19.623473Z
+ * Fix:
+ *  - Ensure Save Project ALWAYS uses buildAllCSV (vNext writer)
+ *  - Legacy CSV builders are aliased to vNext
+ * =============================== */
+
 /*
 © 2025 Rising Progress LLC. All rights reserved.
 Save/Load/Export module extracted from progress.js
@@ -376,33 +385,6 @@ export async function saveXml(){
 
 function csvEsc(v){ if(v==null) return ''; const s = String(v); return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; }
 function csvLine(arr){ return arr.map(csvEsc).join(',') + '\n'; }
-
-
-/* ===============================
- * PRGS vNext REQUIRED HELPER
- * Timestamp: 2026-01-01T18:21:02.055552Z
- * Purpose:
- *  - Ensure __rpEnsureScopeIds exists in module scope
- *  - Prevent Save Project failures
- * =============================== */
-function __rpEnsureScopeIds(scopes, mode){
-  if(!Array.isArray(scopes)) return;
-  for(let i=0;i<scopes.length;i++){
-    const s = scopes[i];
-    if(!s) continue;
-    if(s.scopeId) continue;
-
-    if(mode === 'legacy'){
-      const key = [(s.label||''),(s.start||''),(s.end||''),(s.cost==null?'':s.cost),String(i)].join('|');
-      let h = 2166136261;
-      for(let j=0;j<key.length;j++){ h ^= key.charCodeAt(j); h = Math.imul(h, 16777619); }
-      s.scopeId = 'sc_' + (h>>>0).toString(16).padStart(8,'0') + String(i).padStart(3,'0');
-    } else {
-      s.scopeId = 'sc_' + Math.random().toString(36).slice(2,10) + Date.now().toString(36).slice(-4);
-    }
-  }
-}
-
 
 function buildAllCSV(){
   const d = requireDeps();
