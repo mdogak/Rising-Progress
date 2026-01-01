@@ -109,6 +109,14 @@ export function renderDailyTable(days, baseline, planned, actual, opts = {}) {
             max="100"
             data-day="${row.day}"
             value="${a == null ? "" : Number(a).toFixed(1)}"
+            ${(() => {
+              // vNext: freeze dailyActual when actualPct exists for this date
+              const m = window.model || {};
+              const ts = m.timeSeries || {};
+              const rowTs = ts[row.day] || {};
+              const frozen = (rowTs.actualPct !== undefined && rowTs.actualPct !== null && rowTs.actualPct !== '');
+              return frozen ? 'disabled title="Frozen (history snapshot exists for this date)"' : '';
+            })()}
             style="width:50px"
           />
         </td>
@@ -157,6 +165,14 @@ export function renderDailyTable(days, baseline, planned, actual, opts = {}) {
             max="100"
             data-day="${row.day}"
             value="${a == null ? "" : Number(a).toFixed(1)}"
+            ${(() => {
+              // vNext: freeze dailyActual when actualPct exists for this date
+              const m = window.model || {};
+              const ts = m.timeSeries || {};
+              const rowTs = ts[row.day] || {};
+              const frozen = (rowTs.actualPct !== undefined && rowTs.actualPct !== null && rowTs.actualPct !== '');
+              return frozen ? 'disabled title="Frozen (history snapshot exists for this date)"' : '';
+            })()}
             style="width:50px"
           />
         </td>
@@ -213,35 +229,28 @@ export function renderDailyTable(days, baseline, planned, actual, opts = {}) {
     .querySelectorAll("#dailyTable input[type=number]")
     .forEach((inp) => {
       const handler = () => {
+        // vNext: prevent edits if this date is frozen
+        try{
+          const m = window.model || {};
+          const ts = m.timeSeries || {};
+          const d0 = inp.getAttribute('data-day');
+          const rowTs = ts[d0] || {};
+          const frozen = (rowTs.actualPct !== undefined && rowTs.actualPct !== null && rowTs.actualPct !== '');
+          if(frozen){
+            // revert UI to stored value
+            const stored = rowTs.dailyActual;
+            inp.value = (stored === undefined || stored === null) ? '' : Number(stored).toFixed(1);
+            return;
+          }
+        }catch(e){}
+
         const model = window.model || {};
         const day = inp.dataset.day;
         const raw = inp.value;
         const v = raw === "" ? undefined : clamp(Number(raw), 0, 100);
 
-        // Freeze rule (vNext): once a history snapshot exists for this date, daily actual is read-only
-        const frozen = (model.timeSeries && model.timeSeries[day] && model.timeSeries[day].actualPct !== undefined && model.timeSeries[day].actualPct !== '')
-          || (Array.isArray(model.history) && model.history.some(h => h && h.date === day));
-        if(frozen){
-          // Revert UI to stored value and exit without mutating
-          const prev = (model.timeSeries && model.timeSeries[day] && model.timeSeries[day].dailyActual != null)
-            ? model.timeSeries[day].dailyActual
-            : (model.dailyActuals ? model.dailyActuals[day] : undefined);
-          inp.value = (prev == null ? '' : prev);
-          return;
-        }
-
         if (!model.dailyActuals) model.dailyActuals = {};
         model.dailyActuals[day] = v;
-
-        // Keep vNext timeSeries spine in sync
-        if(!model.timeSeries) model.timeSeries = {};
-        if(!model.timeSeries[day]) model.timeSeries[day] = {};
-        if(typeof v === 'undefined') {
-          delete model.timeSeries[day].dailyActual;
-        } else {
-          model.timeSeries[day].dailyActual = v;
-        }
-
         window.model = model;
 
         if (typeof computeAndRender === "function") {
@@ -331,18 +340,6 @@ export function initHistory({ calcTotalActualProgress, fmtDate, today, computeAn
 
     if (!model.dailyActuals) model.dailyActuals = {};
     model.dailyActuals[d] = pct;
-
-    // vNext: write into timeSeries spine (actualPct indicates snapshot exists => freezes daily actuals)
-    if(!model.timeSeries) model.timeSeries = {};
-    if(!model.timeSeries[d]) model.timeSeries[d] = {};
-    model.timeSeries[d].actualPct = pct;
-    model.timeSeries[d].dailyActual = pct; // keep consistent with snapshot point-in-time
-
-    // Ensure snapshot containers exist (actual snapshot capture is handled elsewhere / future patch)
-    if(!model.timeSeriesProject) model.timeSeriesProject = {};
-    if(!model.timeSeriesScopes) model.timeSeriesScopes = {};
-    if(!model.timeSeriesHeaders) model.timeSeriesHeaders = {};
-
     window.model = model;
 
     if (typeof computeAndRender === "function") {

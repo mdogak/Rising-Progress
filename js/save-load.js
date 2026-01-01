@@ -1,11 +1,3 @@
-
-/* ===============================
- * PRGS vNext HOTFIX #2
- * Timestamp: 2026-01-01T17:16:19.674525 UTC
- * Fix:
- *  - Restore named export loadFromPrgsText for url.js + loader modal
- * =============================== */
-
 /*
 © 2025 Rising Progress LLC. All rights reserved.
 Save/Load/Export module extracted from progress.js
@@ -385,9 +377,158 @@ export async function saveXml(){
 function csvEsc(v){ if(v==null) return ''; const s = String(v); return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; }
 function csvLine(arr){ return arr.map(csvEsc).join(',') + '\n'; }
 
+
+/* ===============================
+ * PRGS vNext FULL WIRING (v2 ledger)
+ * Timestamp: 2026-01-01T17:27:12.366722Z
+ * Notes:
+ *  - Legacy PRGS remains loadable (DAILY_ACTUALS/HISTORY/BASELINE supported)
+ *  - New saves write FORMAT + TIMESERIES spine + optional snapshot blocks
+ *  - Sections are intentionally ignored (no sectionId work) per instruction
+ *  - scopeId is internal, stored in PRGS, and assigned once for scopes missing it
+ * =============================== */
+
+function __rpStableScopeIdFromLegacy(row, idx){
+  // Deterministic for legacy content: stable across loads for the same legacy file content.
+  const key = [
+    (row.label||''),
+    (row.start||''),
+    (row.end||''),
+    (row.cost==null?'':String(row.cost)),
+    String(idx)
+  ].join('|');
+  // Simple FNV-1a hash (sync, tiny, deterministic)
+  let h = 2166136261;
+  for(let i=0;i<key.length;i++){ h ^= key.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return 'sc_' + (h >>> 0).toString(16).padStart(8,'0') + String(idx).padStart(3,'0');
+}
+
+function __rpEnsureScopeIds(scopes, seedMode){
+  // seedMode: 'legacy' => deterministic based on row content; 'new' => random once.
+  if(!Array.isArray(scopes)) return;
+  for(let i=0;i<scopes.length;i++){
+    const s = scopes[i];
+    if(!s) continue;
+    if(s.scopeId) continue;
+    if(seedMode === 'legacy'){
+      s.scopeId = __rpStableScopeIdFromLegacy(s, i);
+    } else {
+      s.scopeId = 'sc_' + Math.random().toString(36).slice(2,10) + Date.now().toString(36).slice(-4);
+    }
+  }
+}
+
+function __rpGetOrInitTimeSeries(model){
+  if(!model.timeSeries) model.timeSeries = {};
+  return model.timeSeries;
+}
+
+function __rpUpsertTimeSeriesRow(model, date, patch){
+  if(!date) return;
+  const ts = __rpGetOrInitTimeSeries(model);
+  if(!ts[date]) ts[date] = { baselinePct: undefined, dailyActual: undefined, actualPct: undefined };
+  Object.assign(ts[date], patch||{});
+}
+
+function __rpBuildLegacyViewsFromTimeSeries(model){
+  // Keep existing compute/render logic working.
+  const ts = model.timeSeries || {};
+  model.dailyActuals = model.dailyActuals || {};
+  model.history = model.history || [];
+  model.dailyActuals = {};
+  model.history = [];
+  Object.keys(ts).sort().forEach(d=>{
+    const r = ts[d] || {};
+    if(r.dailyActual !== undefined && r.dailyActual !== '') model.dailyActuals[d] = Number(r.dailyActual);
+    if(r.actualPct !== undefined && r.actualPct !== '') model.history.push({date:d, actualPct:Number(r.actualPct)});
+  });
+}
+
+function __rpWriteFormat(lines){
+  lines.push('#SECTION:FORMAT');
+  lines.push('key,value');
+  lines.push('version,2');
+  lines.push('');
+}
+
+function __rpWriteTimeSeries(lines, model){
+  const ts = model.timeSeries || {};
+  lines.push('#SECTION:TIMESERIES');
+  lines.push('date,baselinePct,dailyActual,actualPct');
+  Object.keys(ts).sort().forEach(d=>{
+    const r = ts[d] || {};
+    lines.push([
+      d,
+      (r.baselinePct === undefined || r.baselinePct === null) ? '' : r.baselinePct,
+      (r.dailyActual === undefined || r.dailyActual === null) ? '' : r.dailyActual,
+      (r.actualPct === undefined || r.actualPct === null) ? '' : r.actualPct,
+    ].join(','));
+  });
+  lines.push('');
+}
+
+function __rpWriteTimeSeriesProject(lines, model){
+  const map = model.timeSeriesProject || {};
+  const dates = Object.keys(map).sort();
+  if(!dates.length) return;
+  lines.push('#SECTION:TIMESERIES_PROJECT');
+  lines.push('key,value');
+  dates.forEach(d=>{
+    const snap = map[d];
+    if(!snap) return;
+    lines.push(['historyDate', d].join(','));
+    Object.keys(snap).forEach(k=>{
+      if(k==='historyDate') return;
+      lines.push([k, String(snap[k] ?? '')].join(','));
+    });
+  });
+  lines.push('');
+}
+
+function __rpWriteTimeSeriesScopes(lines, model){
+  const map = model.timeSeriesScopes || {};
+  const dates = Object.keys(map).sort();
+  if(!dates.length) return;
+  lines.push('#SECTION:TIMESERIES_SCOPES');
+  dates.forEach(d=>{
+    const list = map[d];
+    if(!Array.isArray(list)) return;
+    lines.push(['historyDate', d].join(','));
+    lines.push('scopeId,label,start,end,cost,progressValue,totalUnits,unitsLabel,sectionName');
+    list.forEach(s=>{
+      lines.push([
+        s.scopeId||'',
+        s.label||'',
+        s.start||'',
+        s.end||'',
+        (s.cost==null?'':s.cost),
+        (s.progressValue==null?'':s.progressValue),
+        (s.totalUnits==null?'':s.totalUnits),
+        (s.unitsLabel||''),
+        (s.sectionName||'')
+      ].map(v=>String(v).replaceAll('\n',' ').replaceAll('\r',' ')).join(','));
+    });
+  });
+  lines.push('');
+}
+
+
 function buildAllCSV(){
   const d = requireDeps();
   const model = getModel();
+
+  // vNext: ensure internal scopeId exists (assigned once if missing)
+  __rpEnsureScopeIds(model.scopes, 'new');
+
+  // vNext: ensure timeSeries exists (derive from legacy if needed)
+  if(!model.timeSeries){
+    model.timeSeries = {};
+    // seed from legacy views if present
+    const daily = model.dailyActuals || {};
+    Object.keys(daily).forEach(d=>__rpUpsertTimeSeriesRow(model,d,{dailyActual: daily[d]}));
+    (model.history||[]).forEach(h=>{ if(h && h.date) __rpUpsertTimeSeriesRow(model,h.date,{actualPct: h.actualPct}); });
+  }
+
 
   const plan = d.calcPlannedSeriesByDay();
   const days = plan.days || [];
@@ -440,7 +581,7 @@ function buildAllCSV(){
 
   // SCOPES section
   out += '#SECTION:SCOPES\n';
-  out += 'label,start,end,cost,progressValue,totalUnits,unitsLabel,sectionName\n';
+  out += 'scopeId,label,start,end,cost,progressValue,totalUnits,unitsLabel,sectionName\n';
   (model.scopes || []).forEach(s => {
     const label = s.label || '';
     const start = s.start || '';
@@ -465,36 +606,17 @@ function buildAllCSV(){
   });
   out += '\n';
 
-  // DAILY_ACTUALS section
-  out += '#SECTION:DAILY_ACTUALS\n';
-  out += 'date,value\n';
-  const daily = model.dailyActuals || {};
-  Object.keys(daily).sort().forEach(dd => {
-    const v = daily[dd];
-    out += csvLine([dd, (v == null || v === '') ? '' : Number(v)]);
-  });
-  out += '\n';
+  // vNext ledger sections
+  let lines = out.trimEnd().split('\n');
+  // ensure we end with a blank line before appending section blocks
+  if(lines.length && lines[lines.length-1] !== '') lines.push('');
+  __rpWriteFormat(lines);
+  __rpWriteTimeSeries(lines, model);
+  __rpWriteTimeSeriesProject(lines, model);
+  __rpWriteTimeSeriesScopes(lines, model);
 
-  // HISTORY section
-  out += '#SECTION:HISTORY\n';
-  out += 'date,actualPct\n';
-  (model.history || []).forEach(h => {
-    if(!h.date) return;
-    const val = h.actualPct != null ? h.actualPct : 0;
-    out += csvLine([h.date, val]);
-  });
-  out += '\n';
+  out = lines.join('\n');
 
-  // BASELINE section
-  out += '#SECTION:BASELINE\n';
-  out += 'date,baselinePct\n';
-  if(model.baseline && Array.isArray(model.baseline.days) && Array.isArray(model.baseline.planned)){
-    model.baseline.days.forEach((dd, idx) => {
-      const v = model.baseline.planned[idx];
-      out += csvLine([dd, v == null ? '' : v]);
-    });
-  }
-  out += '\n';
 
   return out;
 }
@@ -906,6 +1028,11 @@ export function loadFromPrgsText(text){
   const rows = parseCSV(text);
   let section = '';
   const fresh = { project:{name:'',startup:'', markerLabel:'Baseline Complete'}, scopes:[], history:[], dailyActuals:{}, baseline:null, daysRelativeToPlan:null };
+  fresh.timeSeries = {};
+  fresh.timeSeriesProject = {};
+  fresh.timeSeriesScopes = {};
+  fresh.timeSeriesHeaders = {};
+
 
   let scopeHeaders = [];
   let baselineRows = [];
@@ -940,6 +1067,62 @@ export function loadFromPrgsText(text){
       };
       s.actualPct = s.totalUnits? (s.unitsToDate && s.totalUnits? (s.unitsToDate/s.totalUnits*100) : 0) : (s.unitsToDate||0);
       fresh.scopes.push(s);
+
+    } else if(section==='FORMAT'){
+      // optional marker, not required for legacy
+      // no-op: loader simply recognizes version if present
+    } else if(section==='TIMESERIES'){
+      if(r[0]==='date') continue;
+      const dd = r[0];
+      if(!dd) continue;
+      const baselinePct = r[1]==='' ? undefined : parseFloat(r[1]);
+      const dailyActual = r[2]==='' ? undefined : parseFloat(r[2]);
+      const actualPct = r[3]==='' ? undefined : parseFloat(r[3]);
+      fresh.timeSeries[dd] = { baselinePct, dailyActual, actualPct };
+    } else if(section==='TIMESERIES_PROJECT'){
+      // Option B: multiple snapshots in one section, start each block with historyDate,<date>
+      if(r[0]==='key') continue;
+      if(r[0]==='historyDate'){
+        fresh.__tsProjCurrentDate = r[1];
+        if(fresh.__tsProjCurrentDate && !fresh.timeSeriesProject[fresh.__tsProjCurrentDate]) fresh.timeSeriesProject[fresh.__tsProjCurrentDate] = { historyDate: fresh.__tsProjCurrentDate };
+        continue;
+      }
+      if(fresh.__tsProjCurrentDate){
+        const dkey = r[0];
+        const dval = r[1];
+        if(dkey) fresh.timeSeriesProject[fresh.__tsProjCurrentDate][dkey] = dval;
+      }
+    } else if(section==='TIMESERIES_SCOPES'){
+      // Option B: date-keyed blocks with a header row per block
+      if(r[0]==='historyDate'){
+        fresh.__tsScopesCurrentDate = r[1];
+        fresh.__tsScopesExpectHeader = true;
+        if(fresh.__tsScopesCurrentDate && !fresh.timeSeriesScopes[fresh.__tsScopesCurrentDate]) fresh.timeSeriesScopes[fresh.__tsScopesCurrentDate] = [];
+        continue;
+      }
+      if(!fresh.__tsScopesCurrentDate) continue;
+      if(fresh.__tsScopesExpectHeader){
+        // swallow header row
+        fresh.__tsScopesExpectHeader = false;
+        continue;
+      }
+      // row: scopeId,label,start,end,cost,progressValue,totalUnits,unitsLabel,sectionName
+      const rowObj = {
+        scopeId: r[0] || '',
+        label: r[1] || '',
+        start: r[2] || '',
+        end: r[3] || '',
+        cost: r[4]==='' ? 0 : parseFloat(r[4]||'0'),
+        progressValue: r[5]==='' ? 0 : parseFloat(r[5]||'0'),
+        totalUnits: r[6]==='' ? '' : parseFloat(r[6]||'0'),
+        unitsLabel: r[7] || '',
+        sectionName: r[8] || ''
+      };
+      fresh.timeSeriesScopes[fresh.__tsScopesCurrentDate].push(rowObj);
+    } else if(section==='TIMESERIES_HEADERS'){
+      // intentionally ignored for now per instruction (safe to skip)
+      continue;
+
     } else if(section==='DAILY_ACTUALS'){
       if(r[0]==='date') continue;
       const dd = r[0]; const a = r[1];
@@ -953,11 +1136,22 @@ export function loadFromPrgsText(text){
     }
   }
 
+  // vNext: if TIMESERIES exists, use it as source of truth for daily+history.
+  if(fresh.timeSeries && Object.keys(fresh.timeSeries).length){
+    __rpBuildLegacyViewsFromTimeSeries(fresh);
+  }
+
   if(baselineRows.length){
     fresh.baseline = { days: baselineRows.map(r=>r.date), planned: baselineRows.map(r=> (r.val==null? null : d.clamp(r.val,0,100))) };
   }
 
+  // vNext: backfill missing scopeId deterministically for legacy files
+  __rpEnsureScopeIds(fresh.scopes, 'legacy');
+  delete fresh.__tsProjCurrentDate;
+  delete fresh.__tsScopesCurrentDate;
+  delete fresh.__tsScopesExpectHeader;
   setModel(fresh);
+
 
   // Rehydrate UI fields
   const nameEl = document.getElementById('projectName');

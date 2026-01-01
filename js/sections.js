@@ -35,14 +35,6 @@
     return `${mm}/${dd}/${yy}`;
   }
 
-  function ensureSectionIdField(model){
-    model.scopes = (model.scopes || []).map(s => {
-      if(!s || typeof s !== 'object') return s;
-      if(!('sectionId' in s)) return { ...s, sectionId: '' };
-      return s;
-    });
-  }
-
   function ensureSectionNameField(model){
     model.scopes = (model.scopes || []).map(s => {
       if(!s || typeof s !== 'object') return s;
@@ -250,7 +242,6 @@
 
   function render(container, model, renderScopeRow, ctx){
     ensureSectionNameField(model);
-    ensureSectionIdField(model);
 
     const sections = buildSections(model);
     const secByStart = new Map(sections.map(s => [s.start, s]));
@@ -360,7 +351,6 @@ function attachContainerHandlers(container, model, rerender){
       const m = getModel();
       if(!m || !Array.isArray(m.scopes)) return;
       ensureSectionNameField(m);
-      ensureSectionIdField(m);
 
       const start = Number(header.dataset.startIndex);
       const end = Number(header.dataset.endIndex);
@@ -382,27 +372,11 @@ function attachContainerHandlers(container, model, rerender){
         header.dataset.prevName = newName;
         return;
       }
-      // Persist to model: all rows in this contiguous segment adopt the new name
-      // IMPORTANT (vNext): keep sectionId stable across title edits.
-      const stableHash = (s) => {
-        let h = 0x811c9dc5;
-        for(let i=0;i<s.length;i++){
-          h ^= s.charCodeAt(i);
-          h = Math.imul(h, 0x01000193) >>> 0;
-        }
-        return ('00000000' + h.toString(16)).slice(-8);
-      };
-      let segId = '';
-      for(let i=start;i<=end;i++){
-        const row = m.scopes[i];
-        if(row && typeof row === 'object' && row.sectionId){ segId = row.sectionId; break; }
-      }
-      if(!segId){ segId = 'sec_' + stableHash([String(newName||''), String(start)].join('|')); }
 
+      // Persist to model: all rows in this contiguous segment adopt the new name
       for(let i=start;i<=end;i++){
         if(m.scopes[i] && typeof m.scopes[i] === 'object'){
           m.scopes[i].sectionName = newName;
-          if(!m.scopes[i].sectionId) m.scopes[i].sectionId = segId;
         }
       }
 

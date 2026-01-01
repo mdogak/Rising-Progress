@@ -62,18 +62,20 @@ let model = {
   history:[], // [{date, actualPct}]
   dailyActuals:{}, // { 'YYYY-MM-DD': number }
   baseline:null,   // { days:[], planned:[] } snapshot
-  daysRelativeToPlan: null
+  daysRelativeToPlan: null,
+
+  // vNext ledger structures (kept alongside legacy views for compatibility)
+  timeSeries: {},
+  timeSeriesProject: {},
+  timeSeriesScopes: {},
+  timeSeriesHeaders: {}
 };
 window.model = model;
-// vNext ledger containers (backward compatible: existing compute/render still uses dailyActuals/history)
-model.timeSeries = model.timeSeries || {};           // { 'YYYY-MM-DD': { baselinePct?, dailyActual?, actualPct? } }
-model.timeSeriesProject = model.timeSeriesProject || {}; // { date: {k:v} }
-model.timeSeriesScopes = model.timeSeriesScopes || {};   // { date: [scopeSnapshot...] }
-model.timeSeriesHeaders = model.timeSeriesHeaders || {}; // { date: [headerSnapshot...] }
-
 
 function defaultScope(i){
-  if(i===0){ const startDate = new Date(today); startDate.setDate(startDate.getDate()-1); const endDate = new Date(startDate); endDate.setDate(endDate.getDate()+7); const start = fmtDate(startDate); const end = fmtDate(endDate); return { label:`Scope #${i+1}`, start, end, cost:100, actualPct:0, unitsToDate:0, totalUnits:'', unitsLabel:'%', sectionName:'' }; }
+  if(i===0){ const startDate = new Date(today); startDate.setDate(startDate.getDate()-1); const endDate = new Date(startDate); endDate.setDate(endDate.getDate()+7); const start = fmtDate(startDate); const end = fmtDate(endDate); return {
+    scopeId: 'sc_' + Math.random().toString(36).slice(2,10) + Date.now().toString(36).slice(-4),
+ label:`Scope #${i+1}`, start, end, cost:100, actualPct:0, unitsToDate:0, totalUnits:'', unitsLabel:'%', sectionName:'' }; }
   return { label:`Scope #${i+1}`, start:'', end:'', cost:0, actualPct:0, unitsToDate:0, totalUnits:'', unitsLabel:'%', sectionName:'' };
 }
 
@@ -1149,13 +1151,7 @@ window.COOKIE_KEY = COOKIE_KEY;
 initSaveLoad({
   // State
   getModel: ()=>model,
-  setModel: (m)=>{ model = m; window.model = model;
-// vNext ledger containers (backward compatible: existing compute/render still uses dailyActuals/history)
-model.timeSeries = model.timeSeries || {};           // { 'YYYY-MM-DD': { baselinePct?, dailyActual?, actualPct? } }
-model.timeSeriesProject = model.timeSeriesProject || {}; // { date: {k:v} }
-model.timeSeriesScopes = model.timeSeriesScopes || {};   // { date: [scopeSnapshot...] }
-model.timeSeriesHeaders = model.timeSeriesHeaders || {}; // { date: [headerSnapshot...] }
- },
+  setModel: (m)=>{ model = m; window.model = model; },
 
   // Render / recompute
   syncScopeRowsToModel,
@@ -1215,12 +1211,6 @@ function hydrateFromSession(){
 
     model = stored;
     window.model = model;
-// vNext ledger containers (backward compatible: existing compute/render still uses dailyActuals/history)
-model.timeSeries = model.timeSeries || {};           // { 'YYYY-MM-DD': { baselinePct?, dailyActual?, actualPct? } }
-model.timeSeriesProject = model.timeSeriesProject || {}; // { date: {k:v} }
-model.timeSeriesScopes = model.timeSeriesScopes || {};   // { date: [scopeSnapshot...] }
-model.timeSeriesHeaders = model.timeSeriesHeaders || {}; // { date: [headerSnapshot...] }
-
 
     const nameEl = document.getElementById('projectName');
     const startupEl = document.getElementById('projectStartup');
@@ -1249,12 +1239,6 @@ function defaultAll(){
     daysRelativeToPlan:null
   };
   window.model = model;
-// vNext ledger containers (backward compatible: existing compute/render still uses dailyActuals/history)
-model.timeSeries = model.timeSeries || {};           // { 'YYYY-MM-DD': { baselinePct?, dailyActual?, actualPct? } }
-model.timeSeriesProject = model.timeSeriesProject || {}; // { date: {k:v} }
-model.timeSeriesScopes = model.timeSeriesScopes || {};   // { date: [scopeSnapshot...] }
-model.timeSeriesHeaders = model.timeSeriesHeaders || {}; // { date: [headerSnapshot...] }
-
   $('#projectName').value = '';
   $('#projectStartup').value = '';
   $('#startupLabelInput').value = 'Baseline Complete';
