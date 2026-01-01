@@ -1,3 +1,39 @@
+
+// ===============================
+// vNext TIMESERIES snapshot logging (save-side only)
+// Timestamp: 2026-01-01T19:30:07.540661Z
+// ===============================
+function __rpSnapshotToTimeSeries(historyDate) {
+  const model = window.model;
+  if(!model || !historyDate) return;
+
+  model.timeSeriesProject = model.timeSeriesProject || {};
+  model.timeSeriesScopes = model.timeSeriesScopes || {};
+  model.timeSeriesSections = model.timeSeriesSections || {};
+
+  // PROJECT snapshot (flat map; written as historyDate,key,value)
+  const proj = model.project || {};
+  model.timeSeriesProject[historyDate] = {
+    name: proj.name || '',
+    startup: proj.startup || '',
+    markerLabel: proj.markerLabel || '',
+    labelToggle: !!proj.labelToggle,
+    legendBaselineCheckbox: !!proj.legendBaselineCheckbox,
+    legendPlannedCheckbox: !!proj.legendPlannedCheckbox,
+    legendActualCheckbox: !!proj.legendActualCheckbox,
+    legendForecastCheckbox: !!proj.legendForecastCheckbox,
+  };
+
+  // SCOPES snapshot
+  model.timeSeriesScopes[historyDate] = (model.scopes || []).map(s => ({ ...s }));
+
+  // SECTIONS snapshot (if available)
+  if(typeof window.getSectionRollups === 'function'){
+    model.timeSeriesSections[historyDate] = window.getSectionRollups();
+  } else {
+    model.timeSeriesSections[historyDate] = [];
+  }
+}
 /*
 © 2025 Rising Progress LLC. All rights reserved.
 */
