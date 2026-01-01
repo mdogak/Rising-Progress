@@ -1,20 +1,43 @@
 
-function __rpScopesChangedSinceLastHistory(){
-  const model = window.model;
-  if(!model || !model.timeSeriesScopes) return false;
-  const dates = Object.keys(model.timeSeriesScopes).sort();
-  if(!dates.length) return true;
-  const last = model.timeSeriesScopes[dates[dates.length-1]] || [];
-  return JSON.stringify(last) !== JSON.stringify(model.scopes || []);
-}
+// vNext: track last Add-to-History click to avoid save-time picker issues
+let __rpLastHistoryDate = null;
+
 
 /* ===============================
- * PRGS vNext FORCE SAVE PATH
- * Timestamp: 2026-01-01T18:28:19.623473Z
- * Fix:
- *  - Ensure Save Project ALWAYS uses buildAllCSV (vNext writer)
- *  - Legacy CSV builders are aliased to vNext
+ * vNext snapshot helper (module-scope for save path)
+ * Timestamp: 2026-01-01T19:45:46.679475Z
  * =============================== */
+function __rpSnapshotToTimeSeries(historyDate){
+  const model = getModel ? getModel() : window.model;
+  if(!model || !historyDate) return;
+
+  model.timeSeriesProject = model.timeSeriesProject || {};
+  model.timeSeriesScopes = model.timeSeriesScopes || {};
+  model.timeSeriesSections = model.timeSeriesSections || {};
+
+  // PROJECT snapshot (flat map; written later as historyDate,key,value)
+  const proj = model.project || {};
+  model.timeSeriesProject[historyDate] = {
+    name: proj.name || '',
+    startup: proj.startup || '',
+    markerLabel: proj.markerLabel || '',
+    labelToggle: !!proj.labelToggle,
+    legendBaselineCheckbox: !!proj.legendBaselineCheckbox,
+    legendPlannedCheckbox: !!proj.legendPlannedCheckbox,
+    legendActualCheckbox: !!proj.legendActualCheckbox,
+    legendForecastCheckbox: !!proj.legendForecastCheckbox,
+  };
+
+  // SCOPES snapshot
+  model.timeSeriesScopes[historyDate] = (model.scopes || []).map(s => ({ ...s }));
+
+  // SECTIONS snapshot (if available)
+  if(typeof window.getSectionRollups === 'function'){
+    model.timeSeriesSections[historyDate] = window.getSectionRollups();
+  } else {
+    model.timeSeriesSections[historyDate] = [];
+  }
+}
 
 /*
 © 2025 Rising Progress LLC. All rights reserved.
@@ -100,9 +123,6 @@ function escapeXml(v){
 function buildMSPXML() {
   const d = requireDeps();
   const model = getModel();
-  model.timeSeriesProject = model.timeSeriesProject || {};
-  model.timeSeriesScopes = model.timeSeriesScopes || {};
-  model.timeSeriesSections = model.timeSeriesSections || {};
   const proj = model.project || {};
 
   // ---- Helpers ----
@@ -365,9 +385,6 @@ function buildMSPXML() {
 export async function saveXml(){
   const d = requireDeps();
   const model = getModel();
-  model.timeSeriesProject = model.timeSeriesProject || {};
-  model.timeSeriesScopes = model.timeSeriesScopes || {};
-  model.timeSeriesSections = model.timeSeriesSections || {};
   try{
     const xml = buildMSPXML();
     const suggested = (model.project.name ? model.project.name.replace(/\s+/g,'_') + '_' : '') + 'progress_all.xml';
@@ -404,9 +421,6 @@ function csvLine(arr){ return arr.map(csvEsc).join(',') + '\n'; }
 function buildAllCSV(){
   const d = requireDeps();
   const model = getModel();
-  model.timeSeriesProject = model.timeSeriesProject || {};
-  model.timeSeriesScopes = model.timeSeriesScopes || {};
-  model.timeSeriesSections = model.timeSeriesSections || {};
 
   const plan = d.calcPlannedSeriesByDay();
   const days = plan.days || [];
@@ -521,17 +535,14 @@ function buildAllCSV(){
 export async function saveAll(){
   const d = requireDeps();
   const model = getModel();
-  model.timeSeriesProject = model.timeSeriesProject || {};
-  model.timeSeriesScopes = model.timeSeriesScopes || {};
-  model.timeSeriesSections = model.timeSeriesSections || {};
   try{
     
-  if(__rpScopesChangedSinceLastHistory()){
-    const ok = window.confirm('Scopes have changed since the last history snapshot. Add them to history before saving?');
-    if(ok){
-      const today = new Date().toISOString().slice(0,10);
-      __rpSnapshotToTimeSeries(today);
-    }
+  // vNext guardrail: warn if scopes changed and no Add-to-History for today
+  const today = new Date().toISOString().slice(0,10);
+  if(typeof __rpScopesChangedSinceLastHistory === 'function' &&
+     __rpScopesChangedSinceLastHistory() &&
+     window.__rpLastHistoryDate !== today){
+    window.alert('Scopes have changed since the last history snapshot. Consider using Add to History before saving.');
   }
   const csv = buildAllCSV();
 
@@ -606,9 +617,6 @@ export function uploadCSVAndLoad(){
         // Legacy simple CSV (Date,Planned_Cumulative,Actual_Cumulative)
         if(/^Date,Planned_Cumulative,Actual_Cumulative/m.test(text)){
           const model = getModel();
-  model.timeSeriesProject = model.timeSeriesProject || {};
-  model.timeSeriesScopes = model.timeSeriesScopes || {};
-  model.timeSeriesSections = model.timeSeriesSections || {};
           const lines = text.trim().split(/\r?\n/);
           lines.shift();
           model.dailyActuals = {};
