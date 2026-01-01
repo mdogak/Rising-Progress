@@ -309,6 +309,51 @@ export function initHistory({ calcTotalActualProgress, fmtDate, today, computeAn
 
     if (!model.dailyActuals) model.dailyActuals = {};
     model.dailyActuals[d] = pct;
+
+    // vNext TIMESERIES snapshot (authoritative; overwrite by historyDate)
+    model.timeSeriesProject = model.timeSeriesProject || {};
+    model.timeSeriesScopes = model.timeSeriesScopes || {};
+    model.timeSeriesSections = model.timeSeriesSections || {};
+
+    // PROJECT snapshot (no toggles)
+    model.timeSeriesProject[d] = [
+      { historyDate: d, key: 'name', value: (model.project && model.project.name) || '' },
+      { historyDate: d, key: 'startup', value: (model.project && model.project.startup) || '' },
+      { historyDate: d, key: 'markerLabel', value: (model.project && model.project.markerLabel) || '' }
+    ];
+
+    // SCOPES snapshot
+    model.timeSeriesScopes[d] = (model.scopes || []).map(s => ({
+      historyDate: d,
+      scopeId: s.scopeId,
+      label: s.label,
+      start: s.start,
+      end: s.end,
+      cost: s.cost,
+      perDay: s.perDay,
+      progressValue: s.progressValue,
+      unitsToDate: s.unitsToDate,
+      totalUnits: s.totalUnits,
+      unitsLabel: s.unitsLabel,
+      sectionName: s.sectionName,
+      sectionID: s.sectionID
+    }));
+
+    // SECTIONS snapshot (all sections)
+    if (window.Sections && typeof window.Sections.getSectionRollups === 'function') {
+      model.timeSeriesSections[d] =
+        window.Sections.getSectionRollups(model).map(sec => ({
+          historyDate: d,
+          sectionID: sec.sectionID,
+          sectionTitle: sec.sectionTitle,
+          sectionWeight: sec.sectionWeight,
+          sectionPct: sec.sectionPct,
+          sectionPlannedPct: sec.sectionPlannedPct
+        }));
+    } else {
+      model.timeSeriesSections[d] = [];
+    }
+
     window.model = model;
 
     if (typeof computeAndRender === "function") {
