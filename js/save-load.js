@@ -430,9 +430,74 @@ function buildAllCSV(){
   out += csvLine(['legendForecastCheckbox', legendForecastVal ? 'true' : 'false']);
   out += '\n';
 
-  // SCOPES section
+  // ==========================
+  // PRGS vNext (Ledger) Output
+  // ==========================
+  // New saves intentionally OMIT legacy DAILY_ACTUALS / HISTORY / BASELINE.
+  // Loader remains backward compatible and can still READ those legacy sections.
+
+  // FORMAT marker (optional for load, but written for new saves)
+  out += '#SECTION:FORMAT\n';
+  out += 'key,value\n';
+  out += csvLine(['version','2']);
+  out += '\n';
+
+  // SCOPES section (now includes stable IDs)
   out += '#SECTION:SCOPES\n';
-  out += 'label,start,end,cost,progressValue,totalUnits,unitsLabel,sectionName\n';
+  out += 'scopeId,label,start,end,cost,progressValue,totalUnits,unitsLabel,sectionName,sectionId\n';
+
+  // --- UID backfill for new saves ---
+  const stableHash = (s) => {
+    // FNV-1a 32-bit (deterministic, fast, no deps)
+    let h = 0x811c9dc5;
+    for(let i=0;i<s.length;i++){
+      h ^= s.charCodeAt(i);
+      h = Math.imul(h, 0x01000193) >>> 0;
+    }
+    return ('00000000' + h.toString(16)).slice(-8);
+  };
+
+  // Ensure sectionId for each contiguous section segment so it survives title edits.
+  let segStart = 0;
+  let lastSectionName = null;
+  let currentSectionId = null;
+
+  (model.scopes || []).forEach((s, idx) => {
+    if(!s || typeof s !== 'object') return;
+
+    // scopeId: generated once and then persisted in model + future saves
+    if(!s.scopeId){
+      s.scopeId = 'sc_' + stableHash([
+        s.label||'',
+        s.start||'',
+        s.end||'',
+        (s.cost!=null? String(s.cost):''),
+        String(idx)
+      ].join('|'));
+    }
+
+    const secName = (s.sectionName || '');
+
+    // When sectionName changes, start a new segment sectionId (if not already present)
+    if(idx===0 || secName !== lastSectionName){
+      segStart = idx;
+      currentSectionId = null;
+    }
+
+    // sectionId: preserve if already set; otherwise derive deterministically per segment
+    if(s.sectionId){
+      currentSectionId = s.sectionId;
+    } else {
+      if(!currentSectionId){
+        currentSectionId = 'sec_' + stableHash([secName, String(segStart)].join('|'));
+      }
+      s.sectionId = currentSectionId;
+    }
+
+    lastSectionName = secName;
+  });
+
+  // Write scopes
   (model.scopes || []).forEach(s => {
     const label = s.label || '';
     const start = s.start || '';
@@ -445,6 +510,7 @@ function buildAllCSV(){
     const unitsLabel = s.unitsLabel || (hasUnits ? 'Feet' : '%');
 
     out += csvLine([
+      s.scopeId || '',
       label,
       start,
       end,
@@ -452,43 +518,131 @@ function buildAllCSV(){
       progressValue,
       totalUnits === '' ? '' : totalUnits,
       unitsLabel,
-      (s.sectionName || '')
+      (s.sectionName || ''),
+      (s.sectionId || '')
     ]);
   });
   out += '\n';
 
-  // DAILY_ACTUALS section
-  out += '#SECTION:DAILY_ACTUALS\n';
-  out += 'date,value\n';
-  const daily = model.dailyActuals || {};
-  Object.keys(daily).sort().forEach(dd => {
-    const v = daily[dd];
-    out += csvLine([dd, (v == null || v === '') ? '' : Number(v)]);
-  });
-  out += '\n';
+  // TIMESERIES (primary daily + history spine)
+  // Stored as:
+  // date,baselinePct,dailyActual,actualPct
+  // - dailyActual is editable curve shaping
+  // - actualPct is ONLY set by "Add to History" snapshots (blank means "no snapshot")
+  out += '#SECTION:TIMESERIES\n';
+  out += 'date,baselinePct,dailyActual,actualPct\n';
 
-  // HISTORY section
-  out += '#SECTION:HISTORY\n';
-  out += 'date,actualPct\n';
-  (model.history || []).forEach(h => {
-    if(!h.date) return;
-    const val = h.actualPct != null ? h.actualPct : 0;
-    out += csvLine([h.date, val]);
-  });
-  out += '\n';
+  // Prefer model.timeSeries; otherwise derive from legacy model.dailyActuals + model.history
+  const ts = (model.timeSeries && typeof model.timeSeries === 'object')
+    ? model.timeSeries
+    : {};
 
-  // BASELINE section
-  out += '#SECTION:BASELINE\n';
-  out += 'date,baselinePct\n';
+  const legacyDaily = model.dailyActuals || {};
+  const legacyHist = Array.isArray(model.history) ? model.history : [];
+
+  // Build a union of all known dates
+  const datesSet = new Set();
+  Object.keys(ts).forEach(d=>datesSet.add(d));
+  Object.keys(legacyDaily).forEach(d=>datesSet.add(d));
+  legacyHist.forEach(h=>{ if(h && h.date) datesSet.add(h.date); });
+
+  // Attempt baselinePct from existing baseline series (if present)
+  const baselineByDate = {};
   if(model.baseline && Array.isArray(model.baseline.days) && Array.isArray(model.baseline.planned)){
-    model.baseline.days.forEach((dd, idx) => {
-      const v = model.baseline.planned[idx];
-      out += csvLine([dd, v == null ? '' : v]);
+    model.baseline.days.forEach((dd, i)=>{
+      const v = model.baseline.planned[i];
+      baselineByDate[dd] = (v==null ? '' : v);
     });
   }
+
+  const histByDate = {};
+  legacyHist.forEach(h=>{
+    if(h && h.date){
+      histByDate[h.date] = (h.actualPct==null ? '' : h.actualPct);
+    }
+  });
+
+  Array.from(datesSet).sort().forEach(dd=>{
+    const row = ts[dd] || {};
+    const baselinePct = (row.baselinePct != null ? row.baselinePct : baselineByDate[dd]);
+    const dailyActual = (row.dailyActual != null ? row.dailyActual : legacyDaily[dd]);
+    const actualPct = (row.actualPct != null && row.actualPct !== '' ? row.actualPct : histByDate[dd]);
+
+    out += csvLine([
+      dd,
+      baselinePct == null ? '' : baselinePct,
+      dailyActual == null ? '' : dailyActual,
+      actualPct == null ? '' : actualPct
+    ]);
+  });
   out += '\n';
 
+  // TIMESERIES_PROJECT (Option B: historyDate,key,value for easier querying)
+  if(model.timeSeriesProject && typeof model.timeSeriesProject === 'object'){
+    out += '#SECTION:TIMESERIES_PROJECT\n';
+    out += 'historyDate,key,value\n';
+    Object.keys(model.timeSeriesProject).sort().forEach(hd=>{
+      const obj = model.timeSeriesProject[hd];
+      if(!obj || typeof obj !== 'object') return;
+      Object.keys(obj).forEach(k=>{
+        if(typeof obj[k] === 'undefined') return;
+        out += csvLine([hd, k, String(obj[k])]);
+      });
+    });
+    out += '\n';
+  }
+
+  // TIMESERIES_SCOPES (Option B: one row per scope per snapshot date)
+  if(model.timeSeriesScopes && typeof model.timeSeriesScopes === 'object'){
+    out += '#SECTION:TIMESERIES_SCOPES\n';
+    out += 'historyDate,scopeId,label,start,end,cost,progressValue,totalUnits,unitsLabel,sectionName,sectionId\n';
+    Object.keys(model.timeSeriesScopes).sort().forEach(hd=>{
+      const arr = model.timeSeriesScopes[hd];
+      if(!Array.isArray(arr)) return;
+      arr.forEach(s=>{
+        if(!s || typeof s !== 'object') return;
+        out += csvLine([
+          hd,
+          s.scopeId||'',
+          s.label||'',
+          s.start||'',
+          s.end||'',
+          (s.cost!=null ? s.cost : 0),
+          (s.progressValue!=null ? s.progressValue : ''),
+          (s.totalUnits!=null ? s.totalUnits : ''),
+          s.unitsLabel||'',
+          s.sectionName||'',
+          s.sectionId||''
+        ]);
+      });
+    });
+    out += '\n';
+  }
+
+  // TIMESERIES_HEADERS (rollups per section per snapshot date)
+  if(model.timeSeriesHeaders && typeof model.timeSeriesHeaders === 'object'){
+    out += '#SECTION:TIMESERIES_HEADERS\n';
+    out += 'historyDate,sectionId,sectionTitle,sectionWeight,sectionPct,sectionPlannedPct\n';
+    Object.keys(model.timeSeriesHeaders).sort().forEach(hd=>{
+      const arr = model.timeSeriesHeaders[hd];
+      if(!Array.isArray(arr)) return;
+      arr.forEach(r=>{
+        if(!r || typeof r !== 'object') return;
+        out += csvLine([
+          hd,
+          r.sectionId||'',
+          r.sectionTitle||'',
+          (r.sectionWeight!=null ? r.sectionWeight : ''),
+          (r.sectionPct!=null ? r.sectionPct : ''),
+          (r.sectionPlannedPct!=null ? r.sectionPlannedPct : '')
+        ]);
+      });
+    });
+    out += '\n';
+  }
+
   return out;
+
 }
 
 export async function saveAll(){
@@ -537,6 +691,72 @@ function resetModelForLoad(){
   // Clear saved data when opening a file/preset
   if (window.sessionStorage) window.sessionStorage.removeItem(d.COOKIE_KEY);
   const fresh = { project:{name:'', startup:'', markerLabel:'Baseline Complete'}, scopes:[], history:[], dailyActuals:{}, baseline:null, daysRelativeToPlan:null };
+
+  // -------------------------------
+  // PRGS vNext UID backfill (legacy)
+  // -------------------------------
+  // If a legacy file loaded without IDs, generate deterministic IDs now.
+  (function(){
+    const stableHash = (s) => {
+      let h = 0x811c9dc5;
+      for(let i=0;i<s.length;i++){
+        h ^= s.charCodeAt(i);
+        h = Math.imul(h, 0x01000193) >>> 0;
+      }
+      return ('00000000' + h.toString(16)).slice(-8);
+    };
+
+    // scopeId
+    (fresh.scopes || []).forEach((s, idx)=>{
+      if(!s || typeof s !== 'object') return;
+      if(!s.scopeId){
+        s.scopeId = 'sc_' + stableHash([
+          s.label||'',
+          s.start||'',
+          s.end||'',
+          (s.cost!=null? String(s.cost):''),
+          String(idx)
+        ].join('|'));
+      }
+    });
+
+    // sectionId per contiguous sectionName segment
+    let segStart = 0;
+    let lastSectionName = null;
+    let currentSectionId = null;
+    (fresh.scopes || []).forEach((s, idx)=>{
+      if(!s || typeof s !== 'object') return;
+      const secName = (s.sectionName || '');
+      if(idx===0 || secName !== lastSectionName){
+        segStart = idx;
+        currentSectionId = null;
+      }
+      if(s.sectionId){
+        currentSectionId = s.sectionId;
+      } else {
+        if(!currentSectionId){
+          currentSectionId = 'sec_' + stableHash([secName, String(segStart)].join('|'));
+        }
+        s.sectionId = currentSectionId;
+      }
+      lastSectionName = secName;
+    });
+
+    // Hydrate timeSeries from legacy dailyActuals/history if TIMESERIES wasn't present
+    if(!fresh.timeSeries) fresh.timeSeries = {};
+    const daily = fresh.dailyActuals || {};
+    Object.keys(daily).forEach(dd=>{
+      if(!fresh.timeSeries[dd]) fresh.timeSeries[dd] = {};
+      if(typeof daily[dd] !== 'undefined') fresh.timeSeries[dd].dailyActual = daily[dd];
+    });
+    (fresh.history || []).forEach(h=>{
+      if(h && h.date){
+        if(!fresh.timeSeries[h.date]) fresh.timeSeries[h.date] = {};
+        fresh.timeSeries[h.date].actualPct = h.actualPct;
+      }
+    });
+  })();
+
   setModel(fresh);
   return fresh;
 }
@@ -920,6 +1140,8 @@ export function loadFromPrgsText(text){
       if(!scopeHeaders.length){ scopeHeaders = r; continue; }
       const idx = (name)=> scopeHeaders.indexOf(name);
       const s = {
+        scopeId: scopeId,
+        sectionId: sectionId,
         label: r[idx('label')]||'',
         start: r[idx('start')]||'',
         end: r[idx('end')]||'',
@@ -932,14 +1154,85 @@ export function loadFromPrgsText(text){
       };
       s.actualPct = s.totalUnits? (s.unitsToDate && s.totalUnits? (s.unitsToDate/s.totalUnits*100) : 0) : (s.unitsToDate||0);
       fresh.scopes.push(s);
+    } else if(section==='FORMAT'){
+      // Optional marker for vNext; never required for legacy loads
+      // Expected: key,value then version,2
+      // Currently used only as a hint (TIMESERIES presence is the real signal)
+    } else if(section==='TIMESERIES'){
+      if(r[0]==='date') continue;
+      const dd = r[0]; 
+      if(!dd) continue;
+      const baselinePct = r[1];
+      const dailyActual = r[2];
+      const actualPct = r[3];
+
+      if(!fresh.timeSeries) fresh.timeSeries = {};
+      if(!fresh.timeSeries[dd]) fresh.timeSeries[dd] = {};
+      // Preserve blanks vs 0 (blank means "not present")
+      if(baselinePct !== '') fresh.timeSeries[dd].baselinePct = d.clamp(parseFloat(baselinePct)||0,0,100);
+      if(dailyActual !== '') fresh.timeSeries[dd].dailyActual = d.clamp(parseFloat(dailyActual)||0,0,100);
+      if(actualPct !== '') fresh.timeSeries[dd].actualPct = d.clamp(parseFloat(actualPct)||0,0,100);
+
+      // Backfill legacy fields for existing compute/render code paths
+      if(dailyActual !== ''){
+        fresh.dailyActuals[dd] = d.clamp(parseFloat(dailyActual)||0,0,100);
+      }
+      if(actualPct !== ''){
+        fresh.history.push({ date: dd, actualPct: d.clamp(parseFloat(actualPct)||0,0,100) });
+      }
+    } else if(section==='TIMESERIES_PROJECT'){
+      // Option B: historyDate,key,value
+      if(r[0]==='historyDate') continue;
+      const hd = r[0]; const k = r[1]; const v = r[2];
+      if(!hd || !k) continue;
+      if(!fresh.timeSeriesProject) fresh.timeSeriesProject = {};
+      if(!fresh.timeSeriesProject[hd]) fresh.timeSeriesProject[hd] = {};
+      fresh.timeSeriesProject[hd][k] = v;
+    } else if(section==='TIMESERIES_SCOPES'){
+      // Option B: historyDate + full scope row per snapshot date
+      if(r[0]==='historyDate') continue;
+      const hd = r[0];
+      if(!hd) continue;
+      if(!fresh.timeSeriesScopes) fresh.timeSeriesScopes = {};
+      if(!fresh.timeSeriesScopes[hd]) fresh.timeSeriesScopes[hd] = [];
+      fresh.timeSeriesScopes[hd].push({
+        historyDate: hd,
+        scopeId: r[1]||'',
+        label: r[2]||'',
+        start: r[3]||'',
+        end: r[4]||'',
+        cost: r[5]===''? 0 : parseFloat(r[5]||'0'),
+        progressValue: r[6]===''? '' : parseFloat(r[6]||'0'),
+        totalUnits: r[7]===''? '' : parseFloat(r[7]||'0'),
+        unitsLabel: r[8]||'',
+        sectionName: r[9]||'',
+        sectionId: r[10]||''
+      });
+    } else if(section==='TIMESERIES_HEADERS'){
+      if(r[0]==='historyDate') continue;
+      const hd = r[0];
+      if(!hd) continue;
+      if(!fresh.timeSeriesHeaders) fresh.timeSeriesHeaders = {};
+      if(!fresh.timeSeriesHeaders[hd]) fresh.timeSeriesHeaders[hd] = [];
+      fresh.timeSeriesHeaders[hd].push({
+        historyDate: hd,
+        sectionId: r[1]||'',
+        sectionTitle: r[2]||'',
+        sectionWeight: r[3]===''? '' : parseFloat(r[3]||'0'),
+        sectionPct: r[4]===''? '' : parseFloat(r[4]||'0'),
+        sectionPlannedPct: r[5]===''? '' : parseFloat(r[5]||'0')
+      });
     } else if(section==='DAILY_ACTUALS'){
+      // Legacy
       if(r[0]==='date') continue;
       const dd = r[0]; const a = r[1];
       if(dd){ fresh.dailyActuals[dd] = a===''? undefined : d.clamp(parseFloat(a)||0,0,100); }
     } else if(section==='HISTORY'){
+      // Legacy
       if(r[0]==='date') continue;
       if(r[0]) fresh.history.push({date:r[0], actualPct: parseFloat(r[1]||'0')||0});
     } else if(section==='BASELINE'){
+      // Legacy
       if(r[0]==='date') continue;
       baselineRows.push({date:r[0], val: (r[1]===''? null : parseFloat(r[1]||'0'))});
     }
@@ -948,6 +1241,72 @@ export function loadFromPrgsText(text){
   if(baselineRows.length){
     fresh.baseline = { days: baselineRows.map(r=>r.date), planned: baselineRows.map(r=> (r.val==null? null : d.clamp(r.val,0,100))) };
   }
+
+
+  // -------------------------------
+  // PRGS vNext UID backfill (legacy)
+  // -------------------------------
+  // If a legacy file loaded without IDs, generate deterministic IDs now.
+  (function(){
+    const stableHash = (s) => {
+      let h = 0x811c9dc5;
+      for(let i=0;i<s.length;i++){
+        h ^= s.charCodeAt(i);
+        h = Math.imul(h, 0x01000193) >>> 0;
+      }
+      return ('00000000' + h.toString(16)).slice(-8);
+    };
+
+    // scopeId
+    (fresh.scopes || []).forEach((s, idx)=>{
+      if(!s || typeof s !== 'object') return;
+      if(!s.scopeId){
+        s.scopeId = 'sc_' + stableHash([
+          s.label||'',
+          s.start||'',
+          s.end||'',
+          (s.cost!=null? String(s.cost):''),
+          String(idx)
+        ].join('|'));
+      }
+    });
+
+    // sectionId per contiguous sectionName segment
+    let segStart = 0;
+    let lastSectionName = null;
+    let currentSectionId = null;
+    (fresh.scopes || []).forEach((s, idx)=>{
+      if(!s || typeof s !== 'object') return;
+      const secName = (s.sectionName || '');
+      if(idx===0 || secName !== lastSectionName){
+        segStart = idx;
+        currentSectionId = null;
+      }
+      if(s.sectionId){
+        currentSectionId = s.sectionId;
+      } else {
+        if(!currentSectionId){
+          currentSectionId = 'sec_' + stableHash([secName, String(segStart)].join('|'));
+        }
+        s.sectionId = currentSectionId;
+      }
+      lastSectionName = secName;
+    });
+
+    // Hydrate timeSeries from legacy dailyActuals/history if TIMESERIES wasn't present
+    if(!fresh.timeSeries) fresh.timeSeries = {};
+    const daily = fresh.dailyActuals || {};
+    Object.keys(daily).forEach(dd=>{
+      if(!fresh.timeSeries[dd]) fresh.timeSeries[dd] = {};
+      if(typeof daily[dd] !== 'undefined') fresh.timeSeries[dd].dailyActual = daily[dd];
+    });
+    (fresh.history || []).forEach(h=>{
+      if(h && h.date){
+        if(!fresh.timeSeries[h.date]) fresh.timeSeries[h.date] = {};
+        fresh.timeSeries[h.date].actualPct = h.actualPct;
+      }
+    });
+  })();
 
   setModel(fresh);
 
@@ -1201,38 +1560,4 @@ function computeDurationFromDates(startISO, finishISO) {
   } catch (e) {
     return 'PT0H0M0S';
   }
-}
-
-
-/* ===============================
- * PRGS vNext REVISION APPLIED
- * File: save-load.js
- * Timestamp: 2026-01-01T16:40:18.825115 UTC
- * Purpose: Ledger + TimeSeries + UID support (backward compatible)
- * =============================== */
-
-
-// --- vNext FORMAT MARKER WRITE SUPPORT ---
-function writeFormatSection(lines){
-  lines.push('#SECTION:FORMAT');
-  lines.push('key,value');
-  lines.push('version,2');
-  lines.push('');
-}
-
-// --- vNext TIMESERIES WRITE SUPPORT ---
-function writeTimeSeries(lines, model){
-  if(!model.timeSeries) return;
-  lines.push('#SECTION:TIMESERIES');
-  lines.push('date,baselinePct,dailyActual,actualPct');
-  Object.keys(model.timeSeries).sort().forEach(d=>{
-    const r = model.timeSeries[d] || {};
-    lines.push([
-      d,
-      r.baselinePct ?? '',
-      r.dailyActual ?? '',
-      r.actualPct ?? ''
-    ].join(','));
-  });
-  lines.push('');
 }

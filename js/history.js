@@ -218,8 +218,30 @@ export function renderDailyTable(days, baseline, planned, actual, opts = {}) {
         const raw = inp.value;
         const v = raw === "" ? undefined : clamp(Number(raw), 0, 100);
 
+        // Freeze rule (vNext): once a history snapshot exists for this date, daily actual is read-only
+        const frozen = (model.timeSeries && model.timeSeries[day] && model.timeSeries[day].actualPct !== undefined && model.timeSeries[day].actualPct !== '')
+          || (Array.isArray(model.history) && model.history.some(h => h && h.date === day));
+        if(frozen){
+          // Revert UI to stored value and exit without mutating
+          const prev = (model.timeSeries && model.timeSeries[day] && model.timeSeries[day].dailyActual != null)
+            ? model.timeSeries[day].dailyActual
+            : (model.dailyActuals ? model.dailyActuals[day] : undefined);
+          inp.value = (prev == null ? '' : prev);
+          return;
+        }
+
         if (!model.dailyActuals) model.dailyActuals = {};
         model.dailyActuals[day] = v;
+
+        // Keep vNext timeSeries spine in sync
+        if(!model.timeSeries) model.timeSeries = {};
+        if(!model.timeSeries[day]) model.timeSeries[day] = {};
+        if(typeof v === 'undefined') {
+          delete model.timeSeries[day].dailyActual;
+        } else {
+          model.timeSeries[day].dailyActual = v;
+        }
+
         window.model = model;
 
         if (typeof computeAndRender === "function") {
@@ -309,6 +331,18 @@ export function initHistory({ calcTotalActualProgress, fmtDate, today, computeAn
 
     if (!model.dailyActuals) model.dailyActuals = {};
     model.dailyActuals[d] = pct;
+
+    // vNext: write into timeSeries spine (actualPct indicates snapshot exists => freezes daily actuals)
+    if(!model.timeSeries) model.timeSeries = {};
+    if(!model.timeSeries[d]) model.timeSeries[d] = {};
+    model.timeSeries[d].actualPct = pct;
+    model.timeSeries[d].dailyActual = pct; // keep consistent with snapshot point-in-time
+
+    // Ensure snapshot containers exist (actual snapshot capture is handled elsewhere / future patch)
+    if(!model.timeSeriesProject) model.timeSeriesProject = {};
+    if(!model.timeSeriesScopes) model.timeSeriesScopes = {};
+    if(!model.timeSeriesHeaders) model.timeSeriesHeaders = {};
+
     window.model = model;
 
     if (typeof computeAndRender === "function") {
@@ -323,21 +357,4 @@ export function initHistory({ calcTotalActualProgress, fmtDate, today, computeAn
       }
     }
   });
-}
-
-
-/* ===============================
- * PRGS vNext REVISION APPLIED
- * File: history.js
- * Timestamp: 2026-01-01T16:40:18.825115 UTC
- * Purpose: Ledger + TimeSeries + UID support (backward compatible)
- * =============================== */
-
-
-// --- vNext FREEZE DAILY ACTUAL LOGIC ---
-export function isDailyActualFrozen(model, date){
-  return !!(model.timeSeries &&
-            model.timeSeries[date] &&
-            model.timeSeries[date].actualPct !== undefined &&
-            model.timeSeries[date].actualPct !== '');
 }

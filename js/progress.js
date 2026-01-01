@@ -65,6 +65,12 @@ let model = {
   daysRelativeToPlan: null
 };
 window.model = model;
+// vNext ledger containers (backward compatible: existing compute/render still uses dailyActuals/history)
+model.timeSeries = model.timeSeries || {};           // { 'YYYY-MM-DD': { baselinePct?, dailyActual?, actualPct? } }
+model.timeSeriesProject = model.timeSeriesProject || {}; // { date: {k:v} }
+model.timeSeriesScopes = model.timeSeriesScopes || {};   // { date: [scopeSnapshot...] }
+model.timeSeriesHeaders = model.timeSeriesHeaders || {}; // { date: [headerSnapshot...] }
+
 
 function defaultScope(i){
   if(i===0){ const startDate = new Date(today); startDate.setDate(startDate.getDate()-1); const endDate = new Date(startDate); endDate.setDate(endDate.getDate()+7); const start = fmtDate(startDate); const end = fmtDate(endDate); return { label:`Scope #${i+1}`, start, end, cost:100, actualPct:0, unitsToDate:0, totalUnits:'', unitsLabel:'%', sectionName:'' }; }
@@ -1143,7 +1149,13 @@ window.COOKIE_KEY = COOKIE_KEY;
 initSaveLoad({
   // State
   getModel: ()=>model,
-  setModel: (m)=>{ model = m; window.model = model; },
+  setModel: (m)=>{ model = m; window.model = model;
+// vNext ledger containers (backward compatible: existing compute/render still uses dailyActuals/history)
+model.timeSeries = model.timeSeries || {};           // { 'YYYY-MM-DD': { baselinePct?, dailyActual?, actualPct? } }
+model.timeSeriesProject = model.timeSeriesProject || {}; // { date: {k:v} }
+model.timeSeriesScopes = model.timeSeriesScopes || {};   // { date: [scopeSnapshot...] }
+model.timeSeriesHeaders = model.timeSeriesHeaders || {}; // { date: [headerSnapshot...] }
+ },
 
   // Render / recompute
   syncScopeRowsToModel,
@@ -1203,6 +1215,12 @@ function hydrateFromSession(){
 
     model = stored;
     window.model = model;
+// vNext ledger containers (backward compatible: existing compute/render still uses dailyActuals/history)
+model.timeSeries = model.timeSeries || {};           // { 'YYYY-MM-DD': { baselinePct?, dailyActual?, actualPct? } }
+model.timeSeriesProject = model.timeSeriesProject || {}; // { date: {k:v} }
+model.timeSeriesScopes = model.timeSeriesScopes || {};   // { date: [scopeSnapshot...] }
+model.timeSeriesHeaders = model.timeSeriesHeaders || {}; // { date: [headerSnapshot...] }
+
 
     const nameEl = document.getElementById('projectName');
     const startupEl = document.getElementById('projectStartup');
@@ -1231,6 +1249,12 @@ function defaultAll(){
     daysRelativeToPlan:null
   };
   window.model = model;
+// vNext ledger containers (backward compatible: existing compute/render still uses dailyActuals/history)
+model.timeSeries = model.timeSeries || {};           // { 'YYYY-MM-DD': { baselinePct?, dailyActual?, actualPct? } }
+model.timeSeriesProject = model.timeSeriesProject || {}; // { date: {k:v} }
+model.timeSeriesScopes = model.timeSeriesScopes || {};   // { date: [scopeSnapshot...] }
+model.timeSeriesHeaders = model.timeSeriesHeaders || {}; // { date: [headerSnapshot...] }
+
   $('#projectName').value = '';
   $('#projectStartup').value = '';
   $('#startupLabelInput').value = 'Baseline Complete';
@@ -1407,18 +1431,3 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-
-
-/* ===============================
- * PRGS vNext REVISION APPLIED
- * File: progress.js
- * Timestamp: 2026-01-01T16:40:18.825115 UTC
- * Purpose: Ledger + TimeSeries + UID support (backward compatible)
- * =============================== */
-
-
-// --- vNext MODEL EXTENSIONS ---
-if(!model.timeSeries) model.timeSeries = {};
-if(!model.timeSeriesProject) model.timeSeriesProject = {};
-if(!model.timeSeriesScopes) model.timeSeriesScopes = {};
-if(!model.timeSeriesHeaders) model.timeSeriesHeaders = {};
