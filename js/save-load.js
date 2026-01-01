@@ -1,65 +1,11 @@
 
-function __rpEnsureScopeIds(scopes){
-  if(!Array.isArray(scopes)) return;
-  scopes.forEach((s,i)=>{
-    if(!s.scopeId){
-      s.scopeId = 'sc_' + i;
-    }
-  });
-}
-
-function __rpEnsureSectionIds(scopes){
-  const map = {};
-  let idx = 0;
-  scopes.forEach(s=>{
-    const key = s.sectionName || '';
-    if(!map[key]){
-      map[key] = 'sec_' + (++idx);
-    }
-    s.sectionID = map[key];
-  });
-}
-
-
-// vNext: track last Add-to-History click to avoid save-time picker issues
-let __rpLastHistoryDate = null;
-
-
 /* ===============================
- * vNext snapshot helper (module-scope for save path)
- * Timestamp: 2026-01-01T19:45:46.679475Z
+ * PRGS vNext FORCE SAVE PATH
+ * Timestamp: 2026-01-01T18:28:19.623473Z
+ * Fix:
+ *  - Ensure Save Project ALWAYS uses buildAllCSV (vNext writer)
+ *  - Legacy CSV builders are aliased to vNext
  * =============================== */
-function __rpSnapshotToTimeSeries(historyDate){
-  const model = getModel ? getModel() : window.model;
-  if(!model || !historyDate) return;
-
-  model.timeSeriesProject = model.timeSeriesProject || {};
-  model.timeSeriesScopes = model.timeSeriesScopes || {};
-  model.timeSeriesSections = model.timeSeriesSections || {};
-
-  // PROJECT snapshot (flat map; written later as historyDate,key,value)
-  const proj = model.project || {};
-  model.timeSeriesProject[historyDate] = {
-    name: proj.name || '',
-    startup: proj.startup || '',
-    markerLabel: proj.markerLabel || '',
-    labelToggle: !!proj.labelToggle,
-    legendBaselineCheckbox: !!proj.legendBaselineCheckbox,
-    legendPlannedCheckbox: !!proj.legendPlannedCheckbox,
-    legendActualCheckbox: !!proj.legendActualCheckbox,
-    legendForecastCheckbox: !!proj.legendForecastCheckbox,
-  };
-
-  // SCOPES snapshot
-  model.timeSeriesScopes[historyDate] = (model.scopes || []).map(s => ({ ...s }));
-
-  // SECTIONS snapshot (if available)
-  if(typeof window.getSectionRollups === 'function'){
-    model.timeSeriesSections[historyDate] = window.getSectionRollups();
-  } else {
-    model.timeSeriesSections[historyDate] = [];
-  }
-}
 
 /*
 © 2025 Rising Progress LLC. All rights reserved.
@@ -441,18 +387,18 @@ function csvEsc(v){ if(v==null) return ''; const s = String(v); return /[",\n]/.
 function csvLine(arr){ return arr.map(csvEsc).join(',') + '\n'; }
 
 
+
 function buildAllCSV() {
   const model = getModel();
   const lines = [];
 
-  __rpEnsureScopeIds(model.scopes);
-  __rpEnsureSectionIds(model.scopes);
-
+  // FORMAT
   lines.push('#SECTION:FORMAT');
   lines.push('key,value');
   lines.push('version,2');
   lines.push('');
 
+  // PROJECT
   lines.push('#SECTION:PROJECT');
   lines.push('key,value');
   const p = model.project || {};
@@ -461,77 +407,96 @@ function buildAllCSV() {
   lines.push(csvLine(['markerLabel', p.markerLabel || '']));
   lines.push('');
 
+  // SCOPES (current)
   lines.push('#SECTION:SCOPES');
   lines.push('scopeId,label,start,end,cost,progressValue,unitsToDate,totalUnits,unitsLabel,sectionName,sectionID');
-  (model.scopes||[]).forEach(s=>{
+  (model.scopes || []).forEach(s => {
     lines.push(csvLine([
-      s.scopeId||'',
-      s.label||'',
-      s.start||'',
-      s.end||'',
-      s.cost??'',
-      s.progressValue??'',
-      s.unitsToDate??'',
-      s.totalUnits??'',
-      s.unitsLabel||'',
-      s.sectionName||'',
-      s.sectionID||''
+      s.scopeId || '',
+      s.label || '',
+      s.start || '',
+      s.end || '',
+      s.cost ?? '',
+      s.progressValue ?? '',
+      s.unitsToDate ?? '',
+      s.totalUnits ?? '',
+      s.unitsLabel || '',
+      s.sectionName || '',
+      s.sectionID || ''
     ]));
   });
   lines.push('');
 
-  if(model.timeSeriesProject){
-    lines.push('#SECTION:TIMESERIES_PROJECT
-historyDate,key,value
-'.concat(Object.keys(model.timeSeriesProject||{}).sort().map(d=>model.timeSeriesProject[d].map(r=>csvLine([r.historyDate,r.key,r.value])).join('')).join(''))
+  // TIMESERIES_PROJECT
+  if (model.timeSeriesProject) {
+    lines.push('#SECTION:TIMESERIES_PROJECT');
+    lines.push('historyDate,key,value');
+    Object.keys(model.timeSeriesProject).sort().forEach(d => {
+      const rows = model.timeSeriesProject[d] || [];
+      rows.forEach(r => {
+        lines.push(csvLine([r.historyDate, r.key, r.value]));
+      });
+    });
+    lines.push('');
+  }
 
-#SECTION:TIMESERIES_SCOPES');
+  // TIMESERIES_SCOPES
+  if (model.timeSeriesScopes) {
+    lines.push('#SECTION:TIMESERIES_SCOPES');
     lines.push('historyDate,scopeId,label,start,end,cost,perDay,progressValue,unitsToDate,totalUnits,unitsLabel,sectionName,sectionID');
-    Object.keys(model.timeSeriesScopes).forEach(d=>{
-      model.timeSeriesScopes[d].forEach(s=>{
+    Object.keys(model.timeSeriesScopes).sort().forEach(d => {
+      const rows = model.timeSeriesScopes[d] || [];
+      rows.forEach(s => {
         lines.push(csvLine([
-          d,s.scopeId||'',s.label||'',s.start||'',s.end||'',
-          s.cost??'',s.perDay??'',s.progressValue??'',
-          s.unitsToDate??'',s.totalUnits??'',
-          s.unitsLabel||'',s.sectionName||'',s.sectionID||''
+          d,
+          s.scopeId || '',
+          s.label || '',
+          s.start || '',
+          s.end || '',
+          s.cost ?? '',
+          s.perDay ?? '',
+          s.progressValue ?? '',
+          s.unitsToDate ?? '',
+          s.totalUnits ?? '',
+          s.unitsLabel || '',
+          s.sectionName || '',
+          s.sectionID || ''
         ]));
       });
     });
     lines.push('');
   }
 
-  if(model.timeSeriesSections){
+  // TIMESERIES_SECTIONS
+  if (model.timeSeriesSections) {
     lines.push('#SECTION:TIMESERIES_SECTIONS');
     lines.push('historyDate,sectionID,sectionTitle,sectionWeight,sectionPct,sectionPlannedPct');
-    Object.keys(model.timeSeriesSections).forEach(d=>{
-      model.timeSeriesSections[d].forEach(r=>{
+    Object.keys(model.timeSeriesSections).sort().forEach(d => {
+      const rows = model.timeSeriesSections[d] || [];
+      rows.forEach(r => {
         lines.push(csvLine([
-          d,r.sectionID||'',r.sectionTitle||'',
-          r.sectionWeight??'',r.sectionPct??'',r.sectionPlannedPct??''
+          d,
+          r.sectionID || '',
+          r.sectionTitle || '',
+          r.sectionWeight ?? '',
+          r.sectionPct ?? '',
+          r.sectionPlannedPct ?? ''
         ]));
       });
     });
     lines.push('');
   }
 
-  return lines.join('\n')+'\n';
+  return lines.join('\n') + '\n';
 }
+
 
 
 export async function saveAll(){
   const d = requireDeps();
   const model = getModel();
   try{
-    
-  // vNext guardrail: warn if scopes changed and no Add-to-History for today
-  const today = new Date().toISOString().slice(0,10);
-  if(typeof __rpScopesChangedSinceLastHistory === 'function' &&
-     __rpScopesChangedSinceLastHistory() &&
-     window.__rpLastHistoryDate !== today){
-    window.alert('Scopes have changed since the last history snapshot. Consider using Add to History before saving.');
-  }
-  const csv = buildAllCSV();
-
+    const csv = buildAllCSV();
     if(!window._autoSaving && window.showSaveFilePicker){
       const handle = await window.showSaveFilePicker({ suggestedName: (model.project.name? model.project.name.replace(/\s+/g,'_')+'_': '') + 'progress_all.prgs', types:[{ description:'CSV', accept:{ 'text/plain':['.prgs'] } }] });
       const writable = await handle.createWritable(); await writable.write(new Blob([csv], {type:'text/plain'})); await writable.close();
