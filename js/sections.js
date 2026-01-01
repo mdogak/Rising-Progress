@@ -543,3 +543,27 @@ function attachContainerHandlers(container, model, rerender){
     attachContainerHandlers
   };
 })();
+
+
+/* ===============================
+ * PRGS vNext REVISION APPLIED
+ * File: sections.js
+ * Timestamp: 2026-01-01T16:40:18.825115 UTC
+ * Purpose: Ledger + TimeSeries + UID support (backward compatible)
+ * =============================== */
+
+
+// --- vNext SECTION UID SUPPORT ---
+export function ensureSectionIds(scopes){
+  let currentId = null;
+  scopes.forEach(s=>{
+    if(!s.sectionId){
+      if(!currentId){
+        currentId = 'sec_' + Math.random().toString(36).slice(2);
+      }
+      s.sectionId = currentId;
+    } else {
+      currentId = s.sectionId;
+    }
+  });
+}

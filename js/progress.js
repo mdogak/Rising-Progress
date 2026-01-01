@@ -1407,3 +1407,18 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
+
+
+/* ===============================
+ * PRGS vNext REVISION APPLIED
+ * File: progress.js
+ * Timestamp: 2026-01-01T16:40:18.825115 UTC
+ * Purpose: Ledger + TimeSeries + UID support (backward compatible)
+ * =============================== */
+
+
+// --- vNext MODEL EXTENSIONS ---
+if(!model.timeSeries) model.timeSeries = {};
+if(!model.timeSeriesProject) model.timeSeriesProject = {};
+if(!model.timeSeriesScopes) model.timeSeriesScopes = {};
+if(!model.timeSeriesHeaders) model.timeSeriesHeaders = {};

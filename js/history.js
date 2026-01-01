@@ -324,3 +324,20 @@ export function initHistory({ calcTotalActualProgress, fmtDate, today, computeAn
     }
   });
 }
+
+
+/* ===============================
+ * PRGS vNext REVISION APPLIED
+ * File: history.js
+ * Timestamp: 2026-01-01T16:40:18.825115 UTC
+ * Purpose: Ledger + TimeSeries + UID support (backward compatible)
+ * =============================== */
+
+
+// --- vNext FREEZE DAILY ACTUAL LOGIC ---
+export function isDailyActualFrozen(model, date){
+  return !!(model.timeSeries &&
+            model.timeSeries[date] &&
+            model.timeSeries[date].actualPct !== undefined &&
+            model.timeSeries[date].actualPct !== '');
+}

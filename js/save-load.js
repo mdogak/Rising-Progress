@@ -1202,3 +1202,37 @@ function computeDurationFromDates(startISO, finishISO) {
     return 'PT0H0M0S';
   }
 }
+
+
+/* ===============================
+ * PRGS vNext REVISION APPLIED
+ * File: save-load.js
+ * Timestamp: 2026-01-01T16:40:18.825115 UTC
+ * Purpose: Ledger + TimeSeries + UID support (backward compatible)
+ * =============================== */
+
+
+// --- vNext FORMAT MARKER WRITE SUPPORT ---
+function writeFormatSection(lines){
+  lines.push('#SECTION:FORMAT');
+  lines.push('key,value');
+  lines.push('version,2');
+  lines.push('');
+}
+
+// --- vNext TIMESERIES WRITE SUPPORT ---
+function writeTimeSeries(lines, model){
+  if(!model.timeSeries) return;
+  lines.push('#SECTION:TIMESERIES');
+  lines.push('date,baselinePct,dailyActual,actualPct');
+  Object.keys(model.timeSeries).sort().forEach(d=>{
+    const r = model.timeSeries[d] || {};
+    lines.push([
+      d,
+      r.baselinePct ?? '',
+      r.dailyActual ?? '',
+      r.actualPct ?? ''
+    ].join(','));
+  });
+  lines.push('');
+}
