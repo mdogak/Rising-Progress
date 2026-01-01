@@ -310,8 +310,6 @@ export function initHistory({ calcTotalActualProgress, fmtDate, today, computeAn
     if (!model.dailyActuals) model.dailyActuals = {};
     model.dailyActuals[d] = pct;
 
-    __rpEnsureScopeAndSectionIds(model);
-
     // vNext TIMESERIES snapshot (authoritative; overwrite by historyDate)
     model.timeSeriesProject = model.timeSeriesProject || {};
     model.timeSeriesScopes = model.timeSeriesScopes || {};

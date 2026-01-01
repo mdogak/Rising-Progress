@@ -74,45 +74,6 @@ function setLegendState(patch){
   if(typeof d.setLegendState === 'function') d.setLegendState(patch);
 }
 
-
-// ---- vNext UID helpers (deterministic, non-generic) ----
-function __rpHash(str){
-  let h = 0;
-  for (let i = 0; i < str.length; i++) {
-    h = ((h << 5) - h) + str.charCodeAt(i);
-    h |= 0;
-  }
-  return Math.abs(h).toString(36);
-}
-
-function __rpEnsureScopeAndSectionIds(model){
-  if (!model || !Array.isArray(model.scopes)) return;
-
-  const sectionMap = {};
-  model.scopes.forEach((s, idx) => {
-    // sectionID
-    const secKey = (s.sectionName || '').trim();
-    if (secKey) {
-      if (!sectionMap[secKey]) {
-        sectionMap[secKey] = 'section_' + __rpHash(secKey);
-      }
-      if (!s.sectionID) s.sectionID = sectionMap[secKey];
-    }
-
-    // scopeId
-    if (!s.scopeId) {
-      const basis = [
-        s.label || '',
-        s.start || '',
-        s.end || '',
-        String(idx)
-      ].join('|');
-      s.scopeId = 'scope_' + __rpHash(basis);
-    }
-  });
-}
-
-
 /*****************
  * CSV helpers (Save/Load)
  *****************/
@@ -423,11 +384,76 @@ export async function saveXml(){
 }
 
 function csvEsc(v){ if(v==null) return ''; const s = String(v); return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; }
+
+// ===============================
+// vNext UID helpers (scopeId / sectionID)
+// - deterministic for legacy loads
+// - generated once when missing, then persisted in .prgs saves
+// ===============================
+function __rpHash36(str) {
+  str = String(str ?? '');
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return (h >>> 0).toString(36);
+}
+
+function __rpEnsureScopeAndSectionIds(model, seedStr) {
+  if (!model || !Array.isArray(model.scopes)) return;
+
+  // seed: stable for legacy file content; persists for this session
+  if (!model.__uidSeed) {
+    const baseSeed = seedStr || (model.project ? (model.project.name || '') + '|' + (model.project.startup || '') : '');
+    model.__uidSeed = __rpHash36(baseSeed);
+  }
+  if (model.__uidCounter == null) model.__uidCounter = 1;
+
+  // sectionName -> sectionID map seeded from existing IDs (do not overwrite)
+  const secMap = {};
+  model.scopes.forEach(s => {
+    const name = (s && s.sectionName) ? String(s.sectionName) : '';
+    if (!name) return;
+    if (s.sectionID) secMap[name] = s.sectionID;
+  });
+
+  model.scopes.forEach((s, idx) => {
+    if (!s) return;
+
+    // sectionID: assign only if missing, never overwrite
+    const secName = (s.sectionName != null) ? String(s.sectionName) : '';
+    if (secName && !s.sectionID) {
+      if (!secMap[secName]) {
+        secMap[secName] = 'sec_' + __rpHash36(model.__uidSeed + '|sec|' + secName);
+      }
+      s.sectionID = secMap[secName];
+    }
+
+    // scopeId: assign only if missing, never overwrite
+    if (!s.scopeId) {
+      const basis = [
+        model.__uidSeed,
+        'sc',
+        (s.label || ''),
+        (s.start || ''),
+        (s.end || ''),
+        (s.cost == null ? '' : String(s.cost)),
+        String(idx),
+        String(model.__uidCounter++)
+      ].join('|');
+      s.scopeId = 'sc_' + __rpHash36(basis);
+    }
+  });
+}
+
+
 function csvLine(arr){ return arr.map(csvEsc).join(',') + '\n'; }
 
 
 
 function buildAllCSV() {
+  const model = getModel();
   const lines = [];
 
   // FORMAT
@@ -956,21 +982,87 @@ export function loadFromPrgsText(text){
       if(r[0]==='legendActualCheckbox') fresh.project.legendActualCheckbox = (r[1]==='true');
       if(r[0]==='legendForecastCheckbox') fresh.project.legendForecastCheckbox = (r[1]==='true');
     } else if(section==='SCOPES'){
-      if(!scopeHeaders.length){ scopeHeaders = r; continue; }
-      const idx = (name)=> scopeHeaders.indexOf(name);
-      const s = {
-        label: r[idx('label')]||'',
-        start: r[idx('start')]||'',
-        end: r[idx('end')]||'',
-        cost: parseFloat(r[idx('cost')]||'0')||0,
-        unitsToDate: parseFloat(r[idx('progressValue')]||'0')||0,
-        totalUnits: (r[idx('totalUnits')]===undefined||r[idx('totalUnits')]==='')? '' : (parseFloat(r[idx('totalUnits')])||0),
-        unitsLabel: r[idx('unitsLabel')]||'%',
-        sectionName: (idx('sectionName')>=0 ? (r[idx('sectionName')]||'') : ''),
-        actualPct: 0
+      const headers = rows[0].map(h => String(h || '').trim());
+      const idx = (name) => headers.indexOf(name);
+      const idxAny = (...names) => {
+        for (const n of names) {
+          const i = idx(n);
+          if (i >= 0) return i;
+        }
+        return -1;
       };
-      s.actualPct = s.totalUnits? (s.unitsToDate && s.totalUnits? (s.unitsToDate/s.totalUnits*100) : 0) : (s.unitsToDate||0);
-      fresh.scopes.push(s);
+
+      const iScopeId = idxAny('scopeId','scopeID');
+      const iSectionID = idxAny('sectionID','sectionId','sectionID'.toUpperCase());
+      const iPerDay = idxAny('perDay','perday','per_day');
+
+      const iLabel = idx('label');
+      const iStart = idx('start');
+      const iEnd = idx('end');
+      const iCost = idx('cost');
+      const iProgVal = idxAny('progressValue','progressvalue','progress');
+      const iUnitsToDate = idxAny('unitsToDate','unitstoDate','units_to_date');
+      const iTotalUnits = idxAny('totalUnits','totalunits','total_units');
+      const iUnitsLabel = idxAny('unitsLabel','unitslabel');
+      const iSectionName = idxAny('sectionName','sectionname');
+
+      model.scopes = [];
+      for (let r = 1; r < rows.length; r++) {
+        const row = rows[r];
+        if (!row || row.length === 0) continue;
+
+        const label = (iLabel >= 0) ? (row[iLabel] || '') : '';
+        const start = (iStart >= 0) ? (row[iStart] || '') : '';
+        const end = (iEnd >= 0) ? (row[iEnd] || '') : '';
+        const cost = (iCost >= 0) ? parseFloat(row[iCost] || 0) : 0;
+
+        const totalUnitsRaw = (iTotalUnits >= 0) ? row[iTotalUnits] : '';
+        const totalUnits = (totalUnitsRaw === '' || totalUnitsRaw == null) ? '' : parseFloat(totalUnitsRaw);
+
+        // progressValue is the authoritative stored user-input (either % or units-to-date)
+        const pvRaw = (iProgVal >= 0) ? row[iProgVal] : '';
+        const progressValue = (pvRaw === '' || pvRaw == null) ? '' : parseFloat(pvRaw);
+
+        const utdRaw = (iUnitsToDate >= 0) ? row[iUnitsToDate] : '';
+        const unitsToDate = (utdRaw === '' || utdRaw == null)
+          ? ((totalUnits !== '' && progressValue !== '') ? progressValue : '')
+          : parseFloat(utdRaw);
+
+        const unitsLabel = (iUnitsLabel >= 0) ? (row[iUnitsLabel] || '%') : '%';
+        const sectionName = (iSectionName >= 0) ? (row[iSectionName] || '') : '';
+
+        const scopeId = (iScopeId >= 0) ? (row[iScopeId] || '') : '';
+        const sectionID = (iSectionID >= 0) ? (row[iSectionID] || '') : '';
+        const perDayRaw = (iPerDay >= 0) ? row[iPerDay] : '';
+        const perDay = (perDayRaw === '' || perDayRaw == null) ? '' : parseFloat(perDayRaw);
+
+        // actualPct: if totalUnits present, derive from unitsToDate; else use progressValue as %
+        const actualPct = (totalUnits !== '' && totalUnits > 0 && unitsToDate !== '')
+          ? (unitsToDate / totalUnits * 100)
+          : (progressValue !== '' ? progressValue : 0);
+
+        model.scopes.push({
+          scopeId,
+          label,
+          start,
+          end,
+          cost,
+          progressValue,
+          unitsToDate,
+          totalUnits,
+          unitsLabel,
+          sectionName,
+          sectionID,
+          perDay,
+          actualPct
+        });
+      }
+
+      // Ensure missing IDs are generated once (legacy files may not include them)
+      try {
+        __rpEnsureScopeAndSectionIds(model, prgsText);
+      } catch (_) {}
+
     } else if(section==='DAILY_ACTUALS'){
       if(r[0]==='date') continue;
       const dd = r[0]; const a = r[1];
