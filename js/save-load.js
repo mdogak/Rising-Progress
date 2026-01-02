@@ -456,7 +456,7 @@ function buildAllCSV() {
   lines.push('');
 
   // TIMESERIES_PROJECT
-  if (model.timeSeriesProject) {
+  if (model.timeSeriesProject || model.timeSeriesScopes || model.timeSeriesSections) {
     lines.push('#SECTION:TIMESERIES_PROJECT');
     lines.push('historyDate,key,value');
     Object.keys(model.timeSeriesProject).sort().forEach(d => {
