@@ -503,6 +503,8 @@ function buildAllCSV() {
     }
     lines.push('');
   }
+    lines.push('');
+  }
 
 // TIMESERIES_PROJECT
   if (model.timeSeriesProject) {
@@ -525,12 +527,13 @@ function buildAllCSV() {
       const rows = model.timeSeriesScopes[d] || [];
       rows.forEach(s => {
         // snapshot dynamic fields at save time
-        const pv = (s.progressValue ?? __computeProgressValue(s));
+        const pv = (s.progressValue ?? (s.totalUnits && Number(s.totalUnits)>0 ? (s.unitsToDate ?? '') : (s.actualPct ?? '')));
         s.progressValue = pv;
         // compute perDay if missing
         if(s.perDay==null || s.perDay===''){
           const totalCost = (model.scopes||[]).reduce((a,b)=>a+(Number(b.cost)||0),0);
           s.perDay = __computePerDay(s, totalCost);
+        if (isFinite(s.perDay)) s.perDay = Math.round(s.perDay * 1000) / 1000;
         }
         lines.push(csvLine([
           d,
@@ -540,7 +543,7 @@ function buildAllCSV() {
           s.end || '',
           s.cost ?? '',
           s.perDay ?? '',
-          __computeProgressValue(s),
+          (s.totalUnits && Number(s.totalUnits)>0 ? (s.unitsToDate ?? '') : (s.actualPct ?? '')),
           s.unitsToDate ?? '',
           s.totalUnits ?? '',
           s.unitsLabel || '',
