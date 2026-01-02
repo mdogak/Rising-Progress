@@ -455,8 +455,36 @@ function buildAllCSV() {
   });
   lines.push('');
 
-  // TIMESERIES_PROJECT
+    // TIMESERIES
   if (model.timeSeriesProject || model.timeSeriesScopes || model.timeSeriesSections) {
+    lines.push('#SECTION:TIMESERIES');
+    lines.push('date,baselinePct,plannedPct,dailyActual,actualPct');
+
+    const daily = model.dailyActuals || {};
+    const hist = Array.isArray(model.history) ? model.history : [];
+    const histMap = {};
+    hist.forEach(h=>{ if(h && h.date) histMap[h.date] = h.actualPct; });
+
+    const days = Array.isArray(model.daysRelativeToPlan)
+      ? model.daysRelativeToPlan
+      : (model.baseline && Array.isArray(model.baseline.days) ? model.baseline.days : []);
+    const plannedCum = Array.isArray(model.plannedCum) ? model.plannedCum : [];
+    const baselineCum = (model.baseline && Array.isArray(model.baseline.planned)) ? model.baseline.planned : [];
+
+    const n = Array.isArray(days) ? days.length : 0;
+    for(let i=0;i<n;i++){
+      const d = days[i];
+      const b = (Array.isArray(baselineCum) && baselineCum[i]!=null) ? baselineCum[i] : '';
+      const p = (Array.isArray(plannedCum) && plannedCum[i]!=null) ? plannedCum[i] : '';
+      const da = (d in daily && daily[d] != null) ? daily[d] : '';
+      const a = (d in histMap && histMap[d] != null) ? histMap[d] : '';
+      lines.push(csvLine([d, b===''?'':b, p===''?'':p, da===''?'':da, a===''?'':a]));
+    }
+    lines.push('');
+  }
+
+// TIMESERIES_PROJECT
+  if (model.timeSeriesProject) {
     lines.push('#SECTION:TIMESERIES_PROJECT');
     lines.push('historyDate,key,value');
     Object.keys(model.timeSeriesProject).sort().forEach(d => {
