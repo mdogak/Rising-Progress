@@ -454,8 +454,7 @@ function buildAllCSV() {
     ]));
   });
   lines.push('');
-
-    // TIMESERIES
+  // TIMESERIES
   if (model.timeSeriesProject || model.timeSeriesScopes || model.timeSeriesSections) {
     lines.push('#SECTION:TIMESERIES');
     lines.push('date,baselinePct,plannedPct,dailyActual,actualPct');
@@ -465,21 +464,45 @@ function buildAllCSV() {
     const histMap = {};
     hist.forEach(h=>{ if(h && h.date) histMap[h.date] = h.actualPct; });
 
-    const days = Array.isArray(model.daysRelativeToPlan)
-      ? model.daysRelativeToPlan
-      : (model.baseline && Array.isArray(model.baseline.days) ? model.baseline.days : []);
-    const plannedCum = Array.isArray(model.plannedCum) ? model.plannedCum : [];
-    const baselineCum = (model.baseline && Array.isArray(model.baseline.planned)) ? model.baseline.planned : [];
+    const days = (model.baseline && Array.isArray(model.baseline.days))
+      ? model.baseline.days
+      : [];
+
+    const baselineCum = (model.baseline && Array.isArray(model.baseline.planned))
+      ? model.baseline.planned
+      : [];
+
+    // rebuild planned cumulative (derivable; not stored in model)
+    const plannedCum = [];
+    let cum = 0;
+    const scopes = Array.isArray(model.scopes) ? model.scopes : [];
+    const totalCost = scopes.reduce((a,b)=>a+(Number(b.cost)||0),0);
+
+    for(let i=0;i<days.length;i++){
+      const d = days[i];
+      let add = 0;
+      scopes.forEach(s=>{
+        if(!s.start || !s.end) return;
+        if(d >= s.start && d <= s.end){
+          const perDay = __computePerDay(s, totalCost);
+          if(isFinite(perDay)) add += perDay;
+        }
+      });
+      cum += add;
+      plannedCum.push(Math.min(100, cum));
+    }
 
     const n = Array.isArray(days) ? days.length : 0;
     for(let i=0;i<n;i++){
       const d = days[i];
-      const b = (Array.isArray(baselineCum) && baselineCum[i]!=null) ? baselineCum[i] : '';
-      const p = (Array.isArray(plannedCum) && plannedCum[i]!=null) ? plannedCum[i] : '';
+      const b = (baselineCum[i]!=null) ? baselineCum[i] : '';
+      const p = (plannedCum[i]!=null) ? plannedCum[i] : '';
       const da = (d in daily && daily[d] != null) ? daily[d] : '';
       const a = (d in histMap && histMap[d] != null) ? histMap[d] : '';
       lines.push(csvLine([d, b===''?'':b, p===''?'':p, da===''?'':da, a===''?'':a]));
     }
+    lines.push('');
+  }
     lines.push('');
   }
 
