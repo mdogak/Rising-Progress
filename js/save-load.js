@@ -503,8 +503,6 @@ function buildAllCSV() {
     }
     lines.push('');
   }
-    lines.push('');
-  }
 
 // TIMESERIES_PROJECT
   if (model.timeSeriesProject) {
