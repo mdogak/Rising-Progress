@@ -1,4 +1,9 @@
 
+function generateScopeId(){
+  return 'sc_' + Math.random().toString(36).slice(2,8);
+}
+
+
 /* ===============================
  * PRGS vNext FORCE SAVE PATH
  * Timestamp: 2026-01-01T18:28:19.623473Z
@@ -411,6 +416,7 @@ function buildAllCSV() {
   lines.push('#SECTION:SCOPES');
   lines.push('scopeId,label,start,end,cost,progressValue,unitsToDate,totalUnits,unitsLabel,sectionName,sectionID');
   (model.scopes || []).forEach(s => {
+    if(!s.scopeId){ s.scopeId = generateScopeId(); }
     lines.push(csvLine([
       s.scopeId || '',
       s.label || '',

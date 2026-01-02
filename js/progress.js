@@ -53,6 +53,19 @@ function clamp(n,min,max){ return Math.max(min, Math.min(max,n)) }
 
 
 
+
+function generateScopeId(){
+  return 'sc_' + Math.random().toString(36).slice(2,8);
+}
+function ensureScopeIds(){
+  if(!model || !Array.isArray(model.scopes)) return;
+  model.scopes.forEach(s=>{
+    if(!s.scopeId){
+      s.scopeId = generateScopeId();
+    }
+  });
+}
+
 /*****************
  * Data model
  *****************/
@@ -67,12 +80,13 @@ let model = {
 window.model = model;
 
 function defaultScope(i){
-  if(i===0){ const startDate = new Date(today); startDate.setDate(startDate.getDate()-1); const endDate = new Date(startDate); endDate.setDate(endDate.getDate()+7); const start = fmtDate(startDate); const end = fmtDate(endDate); return { label:`Scope #${i+1}`, start, end, cost:100, actualPct:0, unitsToDate:0, totalUnits:'', unitsLabel:'%', sectionName:'' }; }
+  if(i===0){ const startDate = new Date(today); startDate.setDate(startDate.getDate()-1); const endDate = new Date(startDate); endDate.setDate(endDate.getDate()+7); const start = fmtDate(startDate); const end = fmtDate(endDate); return { scopeId: generateScopeId(), label:`Scope #${i+1}`, start, end, cost:100, actualPct:0, unitsToDate:0, totalUnits:'', unitsLabel:'%', sectionName:'' }; }
   return { label:`Scope #${i+1}`, start:'', end:'', cost:0, actualPct:0, unitsToDate:0, totalUnits:'', unitsLabel:'%', sectionName:'' };
 }
 
 function ensureRows(n){ const cont = $('#scopeRows'); const cur = cont.children.length; for(let i=cur;i<n;i++) cont.appendChild(renderScopeRow(i)); }
 function syncScopeRowsToModel(){
+  ensureScopeIds();
   const cont = $('#scopeRows');
   if(window.Sections && typeof window.Sections.render === 'function'){
     window.Sections.render(cont, model, renderScopeRow, { calcScopeWeightings, calcScopePlannedPctToDate, parseDate });
