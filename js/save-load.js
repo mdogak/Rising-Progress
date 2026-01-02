@@ -466,8 +466,9 @@ function buildAllCSV() {
       });
     });
     lines.push('');
+  }
 
-// TIMESERIES_SCOPES
+  // TIMESERIES_SCOPES
   if (model.timeSeriesScopes) {
     lines.push('#SECTION:TIMESERIES_SCOPES');
     lines.push('historyDate,scopeId,label,start,end,cost,perDay,progressValue,unitsToDate,totalUnits,unitsLabel,sectionName,sectionID');
@@ -500,8 +501,9 @@ function buildAllCSV() {
       });
     });
     lines.push('');
+  }
 
-// TIMESERIES_SECTIONS
+  // TIMESERIES_SECTIONS
   if (model.timeSeriesSections) {
     lines.push('#SECTION:TIMESERIES_SECTIONS');
     lines.push('historyDate,sectionID,sectionTitle,sectionWeight,sectionPct,sectionPlannedPct');
@@ -519,11 +521,10 @@ function buildAllCSV() {
       });
     });
     lines.push('');
+  }
 
-return lines.join('\n') + '\n';
+  return lines.join('\n') + '\n';
 }
-
-
 
 export async function saveAll(){
   const d = requireDeps();
