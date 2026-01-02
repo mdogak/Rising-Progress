@@ -36,12 +36,95 @@
   }
 
   function ensureSectionNameField(model){
+    model.project = (model.project && typeof model.project === 'object') ? model.project : {};
     model.scopes = (model.scopes || []).map(s => {
       if(!s || typeof s !== 'object') return s;
-      if(!('sectionName' in s)) return { ...s, sectionName: '' };
-      return s;
+      let out = s;
+      if(!('sectionName' in out)) out = { ...out, sectionName: '' };
+      // sectionID is internal-only, persisted on scopes, used to keep section identity stable across renames.
+      if(!('sectionID' in out)) out = { ...out, sectionID: '' };
+      return out;
     });
+
+    // After load (never during parsing), backfill missing sectionIDs once per unique sectionName.
+    // This is idempotent and safe to call on every render.
+    ensureSectionIds(model);
   }
+
+  function __rpGetSectionIdRegistry(model){
+    model.project = (model.project && typeof model.project === 'object') ? model.project : {};
+    if(!model.project.__sectionIdRegistry || typeof model.project.__sectionIdRegistry !== 'object'){
+      model.project.__sectionIdRegistry = { used:{} };
+    }
+    if(!model.project.__sectionIdRegistry.used || typeof model.project.__sectionIdRegistry.used !== 'object'){
+      model.project.__sectionIdRegistry.used = {};
+    }
+    return model.project.__sectionIdRegistry;
+  }
+
+  function __rpRandomHex(byteLen){
+    try{
+      const buf = new Uint8Array(byteLen);
+      (crypto && crypto.getRandomValues) ? crypto.getRandomValues(buf) : buf.fill(0);
+      return Array.from(buf).map(b=>b.toString(16).padStart(2,'0')).join('');
+    }catch(_){
+      // Fallback: timestamp + Math.random; still de-duped via registry.
+      return (Date.now().toString(16) + Math.random().toString(16).slice(2)).slice(0, byteLen*2).padEnd(byteLen*2,'0');
+    }
+  }
+
+  function __rpMakeSectionId(model){
+    const reg = __rpGetSectionIdRegistry(model);
+    // Short, internal ID: sec_<6 hex>
+    // Guarantee uniqueness within the project via registry; never reuse.
+    for(let tries=0; tries<50; tries++){
+      const id = 'sec_' + __rpRandomHex(3); // 6 hex chars
+      if(!reg.used[id]){
+        reg.used[id] = true;
+        return id;
+      }
+    }
+    // Extremely unlikely fallback; widen entropy
+    const id = 'sec_' + __rpRandomHex(6);
+    reg.used[id] = true;
+    return id;
+  }
+
+  function ensureSectionIds(model){
+    // Ensure all existing IDs are registered, then backfill missing IDs by sectionName.
+    if(!model || !Array.isArray(model.scopes)) return;
+    model.project = (model.project && typeof model.project === 'object') ? model.project : {};
+    const reg = __rpGetSectionIdRegistry(model);
+
+    const nameToId = Object.create(null);
+
+    // First pass: register any existing IDs and choose the canonical ID per sectionName
+    for(const s of model.scopes){
+      if(!s || typeof s !== 'object') continue;
+      const name = String(s.sectionName || '');
+      const sid = String(s.sectionID || '');
+      if(sid){
+        reg.used[sid] = true;
+        if(name && !nameToId[name]) nameToId[name] = sid;
+      }
+    }
+
+    // Second pass: assign missing IDs and normalize any mismatches within a sectionName
+    for(const s of model.scopes){
+      if(!s || typeof s !== 'object') continue;
+      const name = String(s.sectionName || '');
+      if(!name){
+        // Unsectioned rows must not carry a stale sectionID.
+        if(s.sectionID) s.sectionID = '';
+        continue;
+      }
+      const canonical = nameToId[name] || (nameToId[name] = __rpMakeSectionId(model));
+      if(String(s.sectionID || '') !== canonical){
+        s.sectionID = canonical;
+      }
+    }
+  }
+
 
   // Build contiguous nonblank section segments from model.scopes[].sectionName
   // Blank sectionName means "no section" (only expected before first section, but supported anywhere).
@@ -59,7 +142,8 @@
         if(n2 !== name) break;
         end++;
       }
-      secs.push({ name, start, end });
+      const sectionID = String(model.scopes[start]?.sectionID || '');
+      secs.push({ name, sectionID, start, end });
       i = end + 1;
     }
     return secs;
@@ -109,8 +193,10 @@
     const newName = `${DEFAULT_PREFIX}${nextSectionNumber(model)}`;
 
     // Assign from index to seg.end (splits any existing section or blank segment)
+    const newId = __rpMakeSectionId(model);
     for(let i=index;i<=seg.end;i++){
       model.scopes[i].sectionName = newName;
+      model.scopes[i].sectionID = newId;
     }
     return true;
   }
@@ -122,12 +208,18 @@
 
     // Find previous nonblank section above this segment
     let prevName = '';
+    let prevId = '';
     for(let i=seg.start-1;i>=0;i--){
       const n = String(model.scopes[i]?.sectionName || '');
-      if(n){ prevName = n; break; }
+      if(n){
+        prevName = n;
+        prevId = String(model.scopes[i]?.sectionID || '');
+        break;
+      }
     }
     for(let i=seg.start;i<=seg.end;i++){
       model.scopes[i].sectionName = prevName; // '' if none
+      model.scopes[i].sectionID = prevName ? (prevId || __rpMakeSectionId(model)) : '';
     }
     return true;
   }
@@ -144,7 +236,10 @@
     // Adopt destination section membership (join destination section; leave original)
     const above = newIndex-1 >= 0 ? String(model.scopes[newIndex-1]?.sectionName || '') : '';
     const below = newIndex+1 < model.scopes.length ? String(model.scopes[newIndex+1]?.sectionName || '') : '';
+    const aboveId = newIndex-1 >= 0 ? String(model.scopes[newIndex-1]?.sectionID || '') : '';
+    const belowId = newIndex+1 < model.scopes.length ? String(model.scopes[newIndex+1]?.sectionID || '') : '';
     row.sectionName = above || below || '';
+    row.sectionID = row.sectionName ? (aboveId || belowId || __rpMakeSectionId(model)) : '';
 
     return true;
   }
@@ -208,6 +303,7 @@
     el.dataset.startIndex = String(section.start);
     el.dataset.endIndex = String(section.end);
     el.dataset.name = section.name;
+    el.dataset.sectionId = String(section.sectionID || '');
     el.draggable = false;
 
     const dr = calcSectionDateRange(model, section.start, section.end, parseDate);
@@ -288,28 +384,32 @@ function attachContainerHandlers(container, model, rerender){
     return getModel().scopes.length; // drop at end
   }
 
-  function nearestHeaderNameAboveIndex(scopes, idx){
+  function nearestHeaderInfoAboveIndex(scopes, idx, model){
     for(let i=idx-1;i>=0;i--){
       const n = String(scopes[i]?.sectionName || '');
-      if(n) return n;
-      // A blank row means "unsectioned"; keep scanning is safe,
-      // but in normal data blank blocks indicate no active header.
-      // The first nonblank encountered (if any) will be the effective header above.
+      if(n){
+        const sid = String(scopes[i]?.sectionID || '');
+        return { name:n, sectionID: sid || (model ? __rpMakeSectionId(model) : '') };
+      }
     }
-    return '';
+    return { name:'', sectionID:'' };
   }
 
   function buildHeaderBoundariesFromModel(model){
     // boundaries derived from contiguous runs of nonblank sectionName
     const secs = buildSections(model);
-    return secs.map(s => ({ name:s.name, start:s.start }));
+    return secs.map(s => ({ name:s.name, sectionID: String(s.sectionID || ''), start:s.start }));
   }
 
   function reassignAllRowsFromBoundaries(boundaries){
     ensureSectionNameField(model);
     const n = getModel().scopes.length;
     const b = (boundaries || [])
-      .map(x => ({ name:String(x.name||''), start:Number(x.start) }))
+      .map(x => ({
+        name: String(x.name || ''),
+        sectionID: String(x.sectionID || ''),
+        start: Number(x.start)
+      }))
       .filter(x => x.name && !isNaN(x.start))
       .sort((a,b)=>a.start-b.start);
 
@@ -327,15 +427,19 @@ function attachContainerHandlers(container, model, rerender){
       cleaned.push(cur);
     }
 
-    // Assign rows
+    // Assign rows (sectionName + sectionID)
     let bi = 0;
     let activeName = '';
+    let activeId = '';
     for(let i=0;i<n;i++){
       if(bi < cleaned.length && cleaned[bi].start === i){
         activeName = cleaned[bi].name;
+        activeId = cleaned[bi].sectionID || __rpMakeSectionId(getModel());
+        cleaned[bi].sectionID = activeId;
         bi++;
       }
       getModel().scopes[i].sectionName = activeName || '';
+      getModel().scopes[i].sectionID = activeName ? activeId : '';
     }
   }
 
@@ -374,9 +478,14 @@ function attachContainerHandlers(container, model, rerender){
       }
 
       // Persist to model: all rows in this contiguous segment adopt the new name
+      // IMPORTANT: preserve existing sectionID (renames must not change identity)
+      const keepId = String(header.dataset.sectionId || (m.scopes[start] ? m.scopes[start].sectionID : '') || '');
+      const finalId = keepId || __rpMakeSectionId(m);
+      header.dataset.sectionId = finalId;
       for(let i=start;i<=end;i++){
         if(m.scopes[i] && typeof m.scopes[i] === 'object'){
           m.scopes[i].sectionName = newName;
+          m.scopes[i].sectionID = finalId;
         }
       }
 
@@ -437,7 +546,8 @@ function attachContainerHandlers(container, model, rerender){
       dragState = {
         type:'header',
         name: String(header.dataset.name || ''),
-        fromStart: Number(header.dataset.startIndex)
+        fromStart: Number(header.dataset.startIndex),
+        sectionID: String(header.dataset.sectionId || '')
       };
       e.dataTransfer.effectAllowed = 'move';
       try { e.dataTransfer.setData('text/plain', JSON.stringify(dragState)); } catch(_) {}
@@ -483,7 +593,9 @@ function attachContainerHandlers(container, model, rerender){
       getModel().scopes.splice(target, 0, moved);
 
       // Adopt section of nearest header above destination
-      moved.sectionName = nearestHeaderNameAboveIndex(getModel().scopes, target);
+      const info = nearestHeaderInfoAboveIndex(getModel().scopes, target, getModel());
+      moved.sectionName = info.name;
+      moved.sectionID = info.name ? info.sectionID : '';
 
       dragState = null;
       const rr = getRerender(); if(typeof rr === 'function') rr();
@@ -513,7 +625,7 @@ function attachContainerHandlers(container, model, rerender){
       if(isNaN(newStart)) newStart = getModel().scopes.length;
       newStart = Math.max(0, Math.min(newStart, getModel().scopes.length));
 
-      kept.push({ name, start:newStart });
+      kept.push({ name, sectionID: String(dragState.sectionID || '' ), start:newStart });
 
       // Reassign ALL rows by nearest header above
       reassignAllRowsFromBoundaries(kept);
