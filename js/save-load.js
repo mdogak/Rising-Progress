@@ -1,8 +1,3 @@
-// ===============================
- // vNext save routing (surgical)
- // All new saves use vNext writer
- // Timestamp: 2026-01-02T01:24:23.655089Z
- // ===============================
 
 /* ===============================
  * PRGS vNext FORCE SAVE PATH
@@ -389,176 +384,150 @@ export async function saveXml(){
 }
 
 function csvEsc(v){ if(v==null) return ''; const s = String(v); return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; }
-
-// ===============================
-// vNext UID helpers (scopeId / sectionID)
-// - deterministic for legacy loads
-// - generated once when missing, then persisted in .prgs saves
-// ===============================
-function __rpHash36(str) {
-  str = String(str ?? '');
-  let h = 2166136261;
-  for (let i = 0; i < str.length; i++) {
-    h ^= str.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return (h >>> 0).toString(36);
-}
-
-function __rpEnsureScopeAndSectionIds(model, seedStr) {
-  if (!model || !Array.isArray(model.scopes)) return;
-
-  // seed: stable for legacy file content; persists for this session
-  if (!model.__uidSeed) {
-    const baseSeed = seedStr || (model.project ? (model.project.name || '') + '|' + (model.project.startup || '') : '');
-    model.__uidSeed = __rpHash36(baseSeed);
-  }
-  if (model.__uidCounter == null) model.__uidCounter = 1;
-
-  // sectionName -> sectionID map seeded from existing IDs (do not overwrite)
-  const secMap = {};
-  model.scopes.forEach(s => {
-    const name = (s && s.sectionName) ? String(s.sectionName) : '';
-    if (!name) return;
-    if (s.sectionID) secMap[name] = s.sectionID;
-  });
-
-  model.scopes.forEach((s, idx) => {
-    if (!s) return;
-
-    // sectionID: assign only if missing, never overwrite
-    const secName = (s.sectionName != null) ? String(s.sectionName) : '';
-    if (secName && !s.sectionID) {
-      if (!secMap[secName]) {
-        secMap[secName] = 'sec_' + __rpHash36(model.__uidSeed + '|sec|' + secName);
-      }
-      s.sectionID = secMap[secName];
-    }
-
-    // scopeId: assign only if missing, never overwrite
-    if (!s.scopeId) {
-      const basis = [
-        model.__uidSeed,
-        'sc',
-        (s.label || ''),
-        (s.start || ''),
-        (s.end || ''),
-        (s.cost == null ? '' : String(s.cost)),
-        String(idx),
-        String(model.__uidCounter++)
-      ].join('|');
-      s.scopeId = 'sc_' + __rpHash36(basis);
-    }
-  });
-}
-
-
 function csvLine(arr){ return arr.map(csvEsc).join(',') + '\n'; }
 
 
 
-function buildAllCSV() {
-  const model = getModel();
-  const lines = [];
+/* ===============================
+ * PRGS vNext helpers (writer + UID)
+ * Timestamp: 2026-01-01T18:55:42.930675Z
+ * =============================== */
+function __rpStableHash32(str){
+  // FNV-1a 32-bit
+  let h = 2166136261;
+  str = String(str ?? '');
+  for(let i=0;i<str.length;i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return (h >>> 0);
+}
 
-  // FORMAT
+function __rpEnsureScopeIds(scopes){
+  if(!Array.isArray(scopes)) return;
+  for(let i=0;i<scopes.length;i++){
+    const s = scopes[i];
+    if(!s) continue;
+    if(s.scopeId) continue;
+    // Deterministic for legacy-loaded content: based on stable scope fields at time of first vNext save.
+    const key = [(s.label||''),(s.start||''),(s.end||''),(s.cost==null?'':s.cost),(s.sectionName||''),String(i)].join('|');
+    const h = __rpStableHash32(key).toString(16).padStart(8,'0');
+    s.scopeId = 'sc_' + h + String(i).padStart(3,'0');
+  }
+}
+
+function __rpWriteFormat(lines){
+  // FORMAT must be the first section for clean detection (loader must not require it).
   lines.push('#SECTION:FORMAT');
   lines.push('key,value');
   lines.push('version,2');
   lines.push('');
+}
 
-  // PROJECT
+function __rpWriteTimeSeries(lines, model, days, plannedCum, baselineCum){
+  lines.push('#SECTION:TIMESERIES');
+  lines.push('date,baselinePct,plannedPct,dailyActual,actualPct');
+
+  const daily = model.dailyActuals || {};
+  const hist = Array.isArray(model.history) ? model.history : [];
+  const histMap = {};
+  hist.forEach(h=>{ if(h && h.date) histMap[h.date] = h.actualPct; });
+
+  const n = Array.isArray(days) ? days.length : 0;
+  for(let i=0;i<n;i++){
+    const d = days[i];
+    const b = (Array.isArray(baselineCum) && baselineCum[i]!=null) ? baselineCum[i] : '';
+    const p = (Array.isArray(plannedCum) && plannedCum[i]!=null) ? plannedCum[i] : '';
+    const da = (d in daily && daily[d] != null) ? daily[d] : '';
+    const a = (d in histMap && histMap[d] != null) ? histMap[d] : '';
+    lines.push([d, b===''?'':b, p===''?'':p, da===''?'':da, a===''?'':a].join(','));
+  }
+  lines.push('');
+}
+function buildAllCSV(){
+  const d = requireDeps();
+  const model = getModel();
+
+  // vNext: ensure internal scopeId exists (stored in PRGS; internal only)
+  __rpEnsureScopeIds(model.scopes);
+
+  // derive planned/baseline series
+  const plan = d.calcPlannedSeriesByDay();
+  const days = plan.days || [];
+  const plannedCum = plan.plannedCum || plan.planned || [];
+  const baselineCum = d.getBaselineSeries(days, plannedCum);
+
+  const lines = [];
+
+  // vNext: FORMAT first
+  __rpWriteFormat(lines);
+
+  // PROJECT (same fields currently saved)
   lines.push('#SECTION:PROJECT');
   lines.push('key,value');
-  const p = model.project || {};
-  lines.push(csvLine(['name', p.name || '']));
-  lines.push(csvLine(['startup', p.startup || '']));
-  lines.push(csvLine(['markerLabel', p.markerLabel || '']));
+
+  const labelToggleEl = document.getElementById('labelToggle');
+  const baselineCb = document.getElementById('legendBaselineCheckbox');
+  const plannedCb = document.getElementById('legendPlannedCheckbox');
+  const actualCb = document.getElementById('legendActualCheckbox');
+  const forecastCb = document.getElementById('legendForecastCheckbox');
+
+  const proj = model.project || {};
+  const labelToggleVal = (labelToggleEl && typeof labelToggleEl.checked === 'boolean') ? !!labelToggleEl.checked : !!proj.labelToggle;
+  const legendBaselineVal = (baselineCb && typeof baselineCb.checked === 'boolean') ? !!baselineCb.checked : (typeof proj.legendBaselineCheckbox !== 'undefined' ? !!proj.legendBaselineCheckbox : true);
+  const legendPlannedVal  = (plannedCb && typeof plannedCb.checked === 'boolean') ? !!plannedCb.checked : (typeof proj.legendPlannedCheckbox  !== 'undefined' ? !!proj.legendPlannedCheckbox  : true);
+  const legendActualVal   = (actualCb && typeof actualCb.checked === 'boolean') ? !!actualCb.checked : (typeof proj.legendActualCheckbox   !== 'undefined' ? !!proj.legendActualCheckbox   : true);
+  const legendForecastVal = (forecastCb && typeof forecastCb.checked === 'boolean') ? !!forecastCb.checked : (typeof proj.legendForecastCheckbox !== 'undefined' ? !!proj.legendForecastCheckbox : true);
+
+  lines.push(csvLine(['name', (model.project && model.project.name) ? model.project.name : '']).trimEnd());
+  lines.push(csvLine(['startup', (model.project && model.project.startup) ? model.project.startup : '']).trimEnd());
+  lines.push(csvLine(['markerLabel', (model.project && model.project.markerLabel) ? model.project.markerLabel : 'Baseline Complete']).trimEnd());
+  lines.push(csvLine(['labelToggle', labelToggleVal ? 'true' : 'false']).trimEnd());
+  lines.push(csvLine(['legendBaselineCheckbox', legendBaselineVal ? 'true' : 'false']).trimEnd());
+  lines.push(csvLine(['legendPlannedCheckbox', legendPlannedVal ? 'true' : 'false']).trimEnd());
+  lines.push(csvLine(['legendActualCheckbox', legendActualVal ? 'true' : 'false']).trimEnd());
+  lines.push(csvLine(['legendForecastCheckbox', legendForecastVal ? 'true' : 'false']).trimEnd());
   lines.push('');
 
-  // SCOPES (current)
+  // SCOPES (scopeId first column)
   lines.push('#SECTION:SCOPES');
-  lines.push('scopeId,label,start,end,cost,progressValue,unitsToDate,totalUnits,unitsLabel,sectionName,sectionID');
-  (model.scopes || []).forEach(s => {
+  lines.push('label,start,end,cost,progressValue,totalUnits,unitsLabel,sectionName,scopeId');
+
+  (model.scopes || []).forEach((s)=>{
+    // progressValue is saved in legacy as either unitsToDate (if units mode) or actualPct (if percent mode)
+    const totalUnits = (s.totalUnits === 0) ? 0 : (s.totalUnits || '');
+    const progressValue = (totalUnits !== '' && Number(totalUnits) > 0) ? (s.unitsToDate ?? '') : (s.actualPct ?? '');
+
     lines.push(csvLine([
       s.scopeId || '',
       s.label || '',
       s.start || '',
       s.end || '',
-      s.cost ?? '',
-      s.progressValue ?? '',
-      s.unitsToDate ?? '',
-      s.totalUnits ?? '',
-      s.unitsLabel || '',
-      s.sectionName || '',
-      s.sectionID || ''
-    ]));
+      (s.cost==null?'':s.cost),
+      (progressValue==null?'':progressValue),
+      (totalUnits==null?'':totalUnits),
+      s.unitsLabel || '%',
+      s.sectionName || ''
+    ]).trimEnd());
   });
   lines.push('');
 
-  // TIMESERIES_PROJECT
-  if (model.timeSeriesProject) {
-    lines.push('#SECTION:TIMESERIES_PROJECT');
-    lines.push('historyDate,key,value');
-    Object.keys(model.timeSeriesProject).sort().forEach(d => {
-      const rows = model.timeSeriesProject[d] || [];
-      rows.forEach(r => {
-        lines.push(csvLine([r.historyDate, r.key, r.value]));
-      });
-    });
-    lines.push('');
-  }
+  // TIMESERIES replaces DAILY_ACTUALS + HISTORY + BASELINE in vNext saves
+  __rpWriteTimeSeries(lines, model, days, plannedCum, baselineCum);
 
-  // TIMESERIES_SCOPES
-  if (model.timeSeriesScopes) {
-    lines.push('#SECTION:TIMESERIES_SCOPES');
-    lines.push('historyDate,scopeId,label,start,end,cost,perDay,progressValue,unitsToDate,totalUnits,unitsLabel,sectionName,sectionID');
-    Object.keys(model.timeSeriesScopes).sort().forEach(d => {
-      const rows = model.timeSeriesScopes[d] || [];
-      rows.forEach(s => {
-        lines.push(csvLine([
-          d,
-          s.scopeId || '',
-          s.label || '',
-          s.start || '',
-          s.end || '',
-          s.cost ?? '',
-          s.perDay ?? '',
-          s.progressValue ?? '',
-          s.unitsToDate ?? '',
-          s.totalUnits ?? '',
-          s.unitsLabel || '',
-          s.sectionName || '',
-          s.sectionID || ''
-        ]));
-      });
-    });
-    lines.push('');
-  }
+  // Snapshot sections (present even if empty for now)
+  lines.push('#SECTION:TIMESERIES_PROJECT');
+  lines.push('key,value');
+  lines.push('');
 
-  // TIMESERIES_SECTIONS
-  if (model.timeSeriesSections) {
-    lines.push('#SECTION:TIMESERIES_SECTIONS');
-    lines.push('historyDate,sectionID,sectionTitle,sectionWeight,sectionPct,sectionPlannedPct');
-    Object.keys(model.timeSeriesSections).sort().forEach(d => {
-      const rows = model.timeSeriesSections[d] || [];
-      rows.forEach(r => {
-        lines.push(csvLine([
-          d,
-          r.sectionID || '',
-          r.sectionTitle || '',
-          r.sectionWeight ?? '',
-          r.sectionPct ?? '',
-          r.sectionPlannedPct ?? ''
-        ]));
-      });
-    });
-    lines.push('');
-  }
+  lines.push('#SECTION:TIMESERIES_SCOPES');
+  lines.push('historyDate,');
+  lines.push('label,start,end,cost,progressValue,totalUnits,unitsLabel,sectionName,scopeId');
+  lines.push('');
+
+  lines.push('#SECTION:TIMESERIES_SECTIONS');
+  lines.push('historyDate,sectionTitle,sectionWeight,sectionPct,sectionPlannedPct');
+  lines.push('');
 
   return lines.join('\n') + '\n';
 }
-
 
 
 export async function saveAll(){
@@ -987,87 +956,21 @@ export function loadFromPrgsText(text){
       if(r[0]==='legendActualCheckbox') fresh.project.legendActualCheckbox = (r[1]==='true');
       if(r[0]==='legendForecastCheckbox') fresh.project.legendForecastCheckbox = (r[1]==='true');
     } else if(section==='SCOPES'){
-      const headers = rows[0].map(h => String(h || '').trim());
-      const idx = (name) => headers.indexOf(name);
-      const idxAny = (...names) => {
-        for (const n of names) {
-          const i = idx(n);
-          if (i >= 0) return i;
-        }
-        return -1;
+      if(!scopeHeaders.length){ scopeHeaders = r; continue; }
+      const idx = (name)=> scopeHeaders.indexOf(name);
+      const s = {
+        label: r[idx('label')]||'',
+        start: r[idx('start')]||'',
+        end: r[idx('end')]||'',
+        cost: parseFloat(r[idx('cost')]||'0')||0,
+        unitsToDate: parseFloat(r[idx('progressValue')]||'0')||0,
+        totalUnits: (r[idx('totalUnits')]===undefined||r[idx('totalUnits')]==='')? '' : (parseFloat(r[idx('totalUnits')])||0),
+        unitsLabel: r[idx('unitsLabel')]||'%',
+        sectionName: (idx('sectionName')>=0 ? (r[idx('sectionName')]||'') : ''),
+        actualPct: 0
       };
-
-      const iScopeId = idxAny('scopeId','scopeID');
-      const iSectionID = idxAny('sectionID','sectionId','sectionID'.toUpperCase());
-      const iPerDay = idxAny('perDay','perday','per_day');
-
-      const iLabel = idx('label');
-      const iStart = idx('start');
-      const iEnd = idx('end');
-      const iCost = idx('cost');
-      const iProgVal = idxAny('progressValue','progressvalue','progress');
-      const iUnitsToDate = idxAny('unitsToDate','unitstoDate','units_to_date');
-      const iTotalUnits = idxAny('totalUnits','totalunits','total_units');
-      const iUnitsLabel = idxAny('unitsLabel','unitslabel');
-      const iSectionName = idxAny('sectionName','sectionname');
-
-      model.scopes = [];
-      for (let r = 1; r < rows.length; r++) {
-        const row = rows[r];
-        if (!row || row.length === 0) continue;
-
-        const label = (iLabel >= 0) ? (row[iLabel] || '') : '';
-        const start = (iStart >= 0) ? (row[iStart] || '') : '';
-        const end = (iEnd >= 0) ? (row[iEnd] || '') : '';
-        const cost = (iCost >= 0) ? parseFloat(row[iCost] || 0) : 0;
-
-        const totalUnitsRaw = (iTotalUnits >= 0) ? row[iTotalUnits] : '';
-        const totalUnits = (totalUnitsRaw === '' || totalUnitsRaw == null) ? '' : parseFloat(totalUnitsRaw);
-
-        // progressValue is the authoritative stored user-input (either % or units-to-date)
-        const pvRaw = (iProgVal >= 0) ? row[iProgVal] : '';
-        const progressValue = (pvRaw === '' || pvRaw == null) ? '' : parseFloat(pvRaw);
-
-        const utdRaw = (iUnitsToDate >= 0) ? row[iUnitsToDate] : '';
-        const unitsToDate = (utdRaw === '' || utdRaw == null)
-          ? ((totalUnits !== '' && progressValue !== '') ? progressValue : '')
-          : parseFloat(utdRaw);
-
-        const unitsLabel = (iUnitsLabel >= 0) ? (row[iUnitsLabel] || '%') : '%';
-        const sectionName = (iSectionName >= 0) ? (row[iSectionName] || '') : '';
-
-        const scopeId = (iScopeId >= 0) ? (row[iScopeId] || '') : '';
-        const sectionID = (iSectionID >= 0) ? (row[iSectionID] || '') : '';
-        const perDayRaw = (iPerDay >= 0) ? row[iPerDay] : '';
-        const perDay = (perDayRaw === '' || perDayRaw == null) ? '' : parseFloat(perDayRaw);
-
-        // actualPct: if totalUnits present, derive from unitsToDate; else use progressValue as %
-        const actualPct = (totalUnits !== '' && totalUnits > 0 && unitsToDate !== '')
-          ? (unitsToDate / totalUnits * 100)
-          : (progressValue !== '' ? progressValue : 0);
-
-        model.scopes.push({
-          scopeId,
-          label,
-          start,
-          end,
-          cost,
-          progressValue,
-          unitsToDate,
-          totalUnits,
-          unitsLabel,
-          sectionName,
-          sectionID,
-          perDay,
-          actualPct
-        });
-      }
-
-      // Ensure missing IDs are generated once (legacy files may not include them)
-      try {
-        __rpEnsureScopeAndSectionIds(model, prgsText);
-      } catch (_) {}
-
+      s.actualPct = s.totalUnits? (s.unitsToDate && s.totalUnits? (s.unitsToDate/s.totalUnits*100) : 0) : (s.unitsToDate||0);
+      fresh.scopes.push(s);
     } else if(section==='DAILY_ACTUALS'){
       if(r[0]==='date') continue;
       const dd = r[0]; const a = r[1];
@@ -1337,10 +1240,4 @@ function computeDurationFromDates(startISO, finishISO) {
   } catch (e) {
     return 'PT0H0M0S';
   }
-}
-
-
-// Alias vNext CSV builder (currently authoritative)
-function buildAllCSV_vNext(){
-  return buildAllCSV();
 }
