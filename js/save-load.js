@@ -91,7 +91,8 @@ function escapeXml(v){
 function buildMSPXML() {
   const d = requireDeps();
   const model = getModel();
-  const proj = model.project || {};
+    __rpEnsureScopeAndSectionIds(model);
+const proj = model.project || {};
 
   // ---- Helpers ----
   const pad2 = (n) => String(n).padStart(2, '0');
@@ -918,6 +919,7 @@ export function loadFromXml(xmlText){
     newModel.dailyActuals = da;
   }
 
+  __rpEnsureScopeAndSectionIds(newModel);
   setModel(newModel);
 
   // Commit into UI
