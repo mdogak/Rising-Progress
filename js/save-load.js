@@ -1,4 +1,26 @@
 
+function __parseDate(d){ return d ? new Date(d + 'T00:00:00') : null; }
+function __daysBetween(a,b){
+  const da = __parseDate(a), db = __parseDate(b);
+  if(!da || !db || isNaN(da) || isNaN(db)) return 0;
+  return Math.floor((db - da)/86400000)+1;
+}
+function __computePerDay(scope, totalCost){
+  if(!scope || !scope.start || !scope.end) return '';
+  const days = __daysBetween(scope.start, scope.end);
+  if(days <= 0) return '';
+  const w = totalCost>0 ? (Number(scope.cost||0)/totalCost)*100 : 0;
+  return w/days;
+}
+function __computeProgressValue(scope){
+  if(!scope) return '';
+  if(scope.totalUnits && Number(scope.totalUnits)>0){
+    return scope.unitsToDate ?? '';
+  }
+  return scope.actualPct ?? '';
+}
+
+
 function generateScopeId(){
   return 'sc_' + Math.random().toString(36).slice(2,8);
 }
@@ -423,7 +445,7 @@ function buildAllCSV() {
       s.start || '',
       s.end || '',
       s.cost ?? '',
-      s.progressValue ?? '',
+      __computeProgressValue(s),
       s.unitsToDate ?? '',
       s.totalUnits ?? '',
       s.unitsLabel || '',
@@ -453,6 +475,14 @@ function buildAllCSV() {
     Object.keys(model.timeSeriesScopes).sort().forEach(d => {
       const rows = model.timeSeriesScopes[d] || [];
       rows.forEach(s => {
+        // snapshot dynamic fields at save time
+        const pv = (s.progressValue ?? __computeProgressValue(s));
+        s.progressValue = pv;
+        // compute perDay if missing
+        if(s.perDay==null || s.perDay===''){
+          const totalCost = (model.scopes||[]).reduce((a,b)=>a+(Number(b.cost)||0),0);
+          s.perDay = __computePerDay(s, totalCost);
+        }
         lines.push(csvLine([
           d,
           s.scopeId || '',
@@ -461,7 +491,7 @@ function buildAllCSV() {
           s.end || '',
           s.cost ?? '',
           s.perDay ?? '',
-          s.progressValue ?? '',
+          __computeProgressValue(s),
           s.unitsToDate ?? '',
           s.totalUnits ?? '',
           s.unitsLabel || '',
