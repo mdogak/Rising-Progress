@@ -91,8 +91,7 @@ function escapeXml(v){
 function buildMSPXML() {
   const d = requireDeps();
   const model = getModel();
-    __rpEnsureScopeAndSectionIds(model);
-const proj = model.project || {};
+  const proj = model.project || {};
 
   // ---- Helpers ----
   const pad2 = (n) => String(n).padStart(2, '0');
@@ -449,13 +448,54 @@ function __rpEnsureScopeAndSectionIds(model, seedStr) {
 }
 
 
+
+// ===============================
+// UID post-load normalization (SAFE)
+// Adds IDs only after legacy load completes
+// Timestamp: 2026-01-02T00:26:16.928891Z
+// ===============================
+function normalizeScopeAndSectionIdsIfMissing() {
+  const model = getModel();
+  if (!model || !Array.isArray(model.scopes)) return;
+
+  const secMap = model.__sectionIdByName || (model.__sectionIdByName = {});
+
+  model.scopes.forEach((s, idx) => {
+    if (!s) return;
+
+    if (!s.sectionID) {
+      const name = (s.sectionName || '').trim();
+      if (!secMap[name]) {
+        let h = 2166136261;
+        for (let i = 0; i < name.length; i++) {
+          h ^= name.charCodeAt(i);
+          h = Math.imul(h, 16777619);
+        }
+        secMap[name] = 'sec_' + (h >>> 0).toString(36);
+      }
+      s.sectionID = secMap[name];
+    }
+
+    if (!s.scopeId) {
+      const basis = [s.label||'', s.start||'', s.end||'', String(idx)].join('|');
+      let h = 2166136261;
+      for (let i = 0; i < basis.length; i++) {
+        h ^= basis.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+      }
+      s.scopeId = 'sc_' + (h >>> 0).toString(36);
+    }
+  });
+}
+
 function csvLine(arr){ return arr.map(csvEsc).join(',') + '\n'; }
 
 
 
 function buildAllCSV() {
   const model = getModel();
-  const lines = [];
+    normalizeScopeAndSectionIdsIfMissing();
+const lines = [];
 
   // FORMAT
   lines.push('#SECTION:FORMAT');
@@ -919,7 +959,6 @@ export function loadFromXml(xmlText){
     newModel.dailyActuals = da;
   }
 
-  __rpEnsureScopeAndSectionIds(newModel);
   setModel(newModel);
 
   // Commit into UI
