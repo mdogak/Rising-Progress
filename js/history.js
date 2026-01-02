@@ -339,16 +339,20 @@ export function initHistory({ calcTotalActualProgress, fmtDate, today, computeAn
       sectionID: s.sectionID
     }));
 
-    // SECTIONS snapshot (authoritative via Sections.getSectionRollups)
-    model.timeSeriesSections[d] =
-      window.Sections.getSectionRollups(model).map(sec => ({
-        historyDate: d,
-        sectionID: sec.sectionID,
-        sectionTitle: sec.sectionTitle,
-        sectionWeight: sec.sectionWeight,
-        sectionPct: sec.sectionPct,
-        sectionPlannedPct: sec.sectionPlannedPct
-      }));
+    // SECTIONS snapshot (all sections)
+    if (window.Sections && typeof window.Sections.getSectionRollups === 'function') {
+      model.timeSeriesSections[d] =
+        (window.Sections && typeof window.Sections.getSectionRollups === 'function' ? window.Sections.getSectionRollups(model) : []).map(sec => ({
+          historyDate: d,
+          sectionID: sec.sectionID,
+          sectionTitle: sec.sectionTitle,
+          sectionWeight: sec.sectionWeight,
+          sectionPct: sec.sectionPct,
+          sectionPlannedPct: sec.sectionPlannedPct
+        }));
+    } else {
+      model.timeSeriesSections[d] = [];
+    }
 
     window.model = model;
 
