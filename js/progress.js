@@ -1188,6 +1188,21 @@ initSaveLoad({
   // Calculations / helpers
   calcPlannedSeriesByDay,
   calcActualSeriesByDay,
+  // Read-only helper for PRGS vNext2 writer: exposes the resolved daily actual series
+  // (explicit + interpolated + trailing nulls) using the same internal logic as the UI.
+  // Accepts an optional days array to align with the writer's chosen day range.
+  getResolvedDailyActualSeries: (daysOverride)=>{
+    try{
+      const plan = calcPlannedSeriesByDay();
+      const days = (Array.isArray(daysOverride) && daysOverride.length)
+        ? daysOverride
+        : (plan && Array.isArray(plan.days) ? plan.days : []);
+      const actual = calcActualSeriesByDay(days);
+      return { days: days.slice(), actual: Array.isArray(actual) ? actual.slice() : [] };
+    }catch(e){
+      return { days: [], actual: [] };
+    }
+  },
   getBaselineSeries,
   clamp,
   parseDate,

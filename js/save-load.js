@@ -497,6 +497,22 @@ s.sectionName || '',
       ? model.baseline.planned
       : [];
 
+    // Resolve daily actuals (explicit + interpolated + trailing nulls) using the same
+    // UI logic in progress.js (read-only). Fall back to sparse map if unavailable.
+    let resolvedDailyActual = null;
+    try{
+      const d = requireDeps();
+      if (d && typeof d.getResolvedDailyActualSeries === 'function') {
+        const res = d.getResolvedDailyActualSeries(days);
+        if (res && Array.isArray(res.actual) && res.actual.length === days.length) {
+          resolvedDailyActual = res.actual;
+        }
+      } else if (d && typeof d.calcActualSeriesByDay === 'function') {
+        const arr = d.calcActualSeriesByDay(days);
+        if (Array.isArray(arr) && arr.length === days.length) resolvedDailyActual = arr;
+      }
+    }catch(e){ /* ignore */ }
+
     // rebuild planned cumulative (derivable; not stored in model)
     const plannedCum = [];
     let cum = 0;
@@ -522,7 +538,9 @@ s.sectionName || '',
       const d = days[i];
       const b = (baselineCum[i]!=null) ? baselineCum[i] : '';
       const p = (plannedCum[i]!=null) ? plannedCum[i] : '';
-      const da = (d in daily && daily[d] != null) ? daily[d] : '';
+      const da = (resolvedDailyActual && resolvedDailyActual.length===n)
+        ? resolvedDailyActual[i]
+        : ((d in daily && daily[d] != null) ? daily[d] : '');
       const a = (d in histMap && histMap[d] != null) ? histMap[d] : '';
       lines.push(csvLine([d, __fmt2(b), __fmt2(p), __fmt2(da), __fmt2(a)]));
     }
