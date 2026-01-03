@@ -322,8 +322,8 @@ export function initHistory({ calcTotalActualProgress, fmtDate, today, computeAn
       { historyDate: d, key: 'markerLabel', value: (model.project && model.project.markerLabel) || '' }
     ];
 
-    // SCOPES snapshot
-    // planned-to-date snapshot helper (matches progress.js planned cell logic)
+    // Planned-to-date helper (historyDate-driven; avoids UI timing issues)
+    const __clamp = (n, min, max) => Math.max(min, Math.min(max, Number(n) || 0));
     const __parseDate = (val) => val ? new Date(val + 'T00:00:00') : null;
     const __daysBetween = (aStr, bStr) => {
       const da = __parseDate(aStr);
@@ -331,7 +331,7 @@ export function initHistory({ calcTotalActualProgress, fmtDate, today, computeAn
       if(!da || !db || isNaN(da.getTime()) || isNaN(db.getTime())) return 0;
       return Math.floor((db - da) / 86400000) + 1; // inclusive
     };
-    const __clamp = (n, min, max) => Math.max(min, Math.min(max, Number(n) || 0));
+    // Matches progress.js planned semantics but uses explicit historyDate (no system-date fallback)
     const __plannedPctToDate = (scope, historyDateStr) => {
       if(!scope || !scope.start || !scope.end) return 0;
       const dStart = __parseDate(scope.start);
@@ -352,15 +352,8 @@ export function initHistory({ calcTotalActualProgress, fmtDate, today, computeAn
 
       return __clamp((elapsedDays / durationDays) * 100, 0, 100);
     };
-    const __plannedToDate = (scope, historyDateStr) => {
-      const p = __plannedPctToDate(scope, historyDateStr);
-      const tu = Number(scope && scope.totalUnits);
-      if (scope && scope.totalUnits !== '' && isFinite(tu) && tu > 0) {
-        return (p / 100) * tu;
-      }
-      return p;
-    };
 
+    // SCOPES snapshot
     model.timeSeriesScopes[d] = (model.scopes || []).map(s => ({
       historyDate: d,
       scopeId: s.scopeId,
@@ -373,7 +366,9 @@ export function initHistory({ calcTotalActualProgress, fmtDate, today, computeAn
       unitsToDate: (s.totalUnits ? s.unitsToDate : ''),
       totalUnits: s.totalUnits,
       unitsLabel: s.unitsLabel,
-      plannedtodate: __plannedToDate(s, d),
+      plannedtodate: (s && s.totalUnits && Number(s.totalUnits) > 0)
+        ? (__plannedPctToDate(s, d) / 100) * Number(s.totalUnits)
+        : __plannedPctToDate(s, d),
       sectionName: s.sectionName,
       sectionID: s.sectionID
     }));

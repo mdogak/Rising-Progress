@@ -474,7 +474,8 @@ function buildAllCSV() {
       (s.totalUnits ? (s.unitsToDate ?? '') : ''),
       s.totalUnits ?? '',
       s.unitsLabel || '',
-      s.sectionName || '',
+                __fmt2(s.plannedtodate ?? ''),
+          s.sectionName || '',
       s.sectionID || ''
     ]));
   });
@@ -571,7 +572,6 @@ function buildAllCSV() {
           __fmt2(s.totalUnits ? (s.unitsToDate ?? '') : ''),
           __fmt2(s.totalUnits ?? ''),
           s.unitsLabel || '',
-          __fmt2(s.plannedtodate ?? ''),
           s.sectionName || '',
           s.sectionID || ''
         ]));
@@ -1128,7 +1128,7 @@ export function loadFromPrgsText(text){
         unitsToDate: numOrBlank(r[idx('unitsToDate')]),
         totalUnits: (r[idx('totalUnits')]===undefined||r[idx('totalUnits')]==='') ? '' : (parseFloat(r[idx('totalUnits')])||0),
         unitsLabel: r[idx('unitsLabel')] || '',
-        plannedtodate: numOrBlank(r[idx('plannedtodate')]),
+        plannedtodate: numOrBlank((idx('plannedtodate')>=0) ? r[idx('plannedtodate')] : ''),
         sectionName: r[idx('sectionName')] || '',
         sectionID: r[idx('sectionID')] || ''
       };
