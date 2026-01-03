@@ -990,6 +990,12 @@ export function loadFromPrgsText(text){
   let scopeHeaders = [];
   let baselineRows = [];
 
+  // v2 TIMESERIES section helpers
+  let timeSeriesHeaders = [];
+  let tsProjectHeaders = [];
+  let tsScopesHeaders = [];
+  let tsSectionsHeaders = [];
+
   for (let r of rows){
     if(r.length===1 && r[0].startsWith('#SECTION:')){ section = r[0].slice('#SECTION:'.length).trim(); continue; }
     if(r.length===0 || (r.length===1 && r[0]==='')) continue;
@@ -1030,6 +1036,98 @@ export function loadFromPrgsText(text){
     } else if(section==='BASELINE'){
       if(r[0]==='date') continue;
       baselineRows.push({date:r[0], val: (r[1]===''? null : parseFloat(r[1]||'0'))});
+    } else if(section==='FORMAT'){
+      // v2 marker (key,value). Currently used to signal versioning.
+      // Keep parsing tolerant; unknown keys are ignored.
+      // Example: version,2
+      // (No-op here; presence of sections below is what drives rehydration.)
+    } else if(section==='TIMESERIES'){
+      // v2 consolidated curve storage.
+      if(!timeSeriesHeaders.length){ timeSeriesHeaders = r; continue; }
+      const idx = (name)=> timeSeriesHeaders.indexOf(name);
+      const date = r[idx('date')] || r[0] || '';
+      if(!date) continue;
+
+      // Rehydrate baseline/history/dailyActuals from consolidated rows.
+      const bStr = (idx('baselinePct')>=0 ? (r[idx('baselinePct')]||'') : '');
+      const aStr = (idx('actualPct')>=0 ? (r[idx('actualPct')]||'') : '');
+      const daStr = (idx('dailyActual')>=0 ? (r[idx('dailyActual')]||'') : '');
+
+      if (bStr !== '') {
+        const bNum = parseFloat(bStr);
+        if (!isNaN(bNum)) baselineRows.push({ date, val: d.clamp(bNum, 0, 100) });
+      }
+      if (aStr !== '') {
+        const aNum = parseFloat(aStr);
+        if (!isNaN(aNum)) fresh.history.push({ date, actualPct: d.clamp(aNum, 0, 100) });
+      }
+      if (daStr !== '') {
+        const daNum = parseFloat(daStr);
+        if (!isNaN(daNum)) fresh.dailyActuals[date] = daNum;
+      }
+    } else if(section==='TIMESERIES_PROJECT'){
+      if(!fresh.timeSeriesProject) fresh.timeSeriesProject = {};
+      if(!tsProjectHeaders.length){ tsProjectHeaders = r; continue; }
+      const idx = (name)=> tsProjectHeaders.indexOf(name);
+      const historyDate = r[idx('historyDate')] || r[0] || '';
+      if(!historyDate) continue;
+      const row = {
+        historyDate,
+        key: r[idx('key')] || '',
+        value: r[idx('value')] || ''
+      };
+      if(!fresh.timeSeriesProject[historyDate]) fresh.timeSeriesProject[historyDate] = [];
+      fresh.timeSeriesProject[historyDate].push(row);
+    } else if(section==='TIMESERIES_SCOPES'){
+      if(!fresh.timeSeriesScopes) fresh.timeSeriesScopes = {};
+      if(!tsScopesHeaders.length){ tsScopesHeaders = r; continue; }
+      const idx = (name)=> tsScopesHeaders.indexOf(name);
+      const historyDate = r[idx('historyDate')] || r[0] || '';
+      if(!historyDate) continue;
+
+      const numOrBlank = (v)=>{
+        if (v === undefined || v === null || v === '') return '';
+        const n = parseFloat(v);
+        return isNaN(n) ? '' : n;
+      };
+
+      const snap = {
+        scopeId: r[idx('scopeId')] || '',
+        label: r[idx('label')] || '',
+        start: r[idx('start')] || '',
+        end: r[idx('end')] || '',
+        cost: numOrBlank(r[idx('cost')]),
+        perDay: numOrBlank(r[idx('perDay')]),
+        progressValue: numOrBlank(r[idx('progressValue')]),
+        unitsToDate: numOrBlank(r[idx('unitsToDate')]),
+        totalUnits: (r[idx('totalUnits')]===undefined||r[idx('totalUnits')]==='') ? '' : (parseFloat(r[idx('totalUnits')])||0),
+        unitsLabel: r[idx('unitsLabel')] || '',
+        sectionName: r[idx('sectionName')] || '',
+        sectionID: r[idx('sectionID')] || ''
+      };
+
+      if(!fresh.timeSeriesScopes[historyDate]) fresh.timeSeriesScopes[historyDate] = [];
+      fresh.timeSeriesScopes[historyDate].push(snap);
+    } else if(section==='TIMESERIES_SECTIONS'){
+      if(!fresh.timeSeriesSections) fresh.timeSeriesSections = {};
+      if(!tsSectionsHeaders.length){ tsSectionsHeaders = r; continue; }
+      const idx = (name)=> tsSectionsHeaders.indexOf(name);
+      const historyDate = r[idx('historyDate')] || r[0] || '';
+      if(!historyDate) continue;
+      const numOrBlank = (v)=>{
+        if (v === undefined || v === null || v === '') return '';
+        const n = parseFloat(v);
+        return isNaN(n) ? '' : n;
+      };
+      const row = {
+        sectionID: r[idx('sectionID')] || '',
+        sectionTitle: r[idx('sectionTitle')] || '',
+        sectionWeight: numOrBlank(r[idx('sectionWeight')]),
+        sectionPct: numOrBlank(r[idx('sectionPct')]),
+        sectionPlannedPct: numOrBlank(r[idx('sectionPlannedPct')])
+      };
+      if(!fresh.timeSeriesSections[historyDate]) fresh.timeSeriesSections[historyDate] = [];
+      fresh.timeSeriesSections[historyDate].push(row);
     }
   }
 
