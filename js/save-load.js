@@ -476,8 +476,9 @@ function buildAllCSV() {
       const rows = model.timeSeriesScopes[d] || [];
       rows.forEach(s => {
         // snapshot dynamic fields at save time
-        const pv = (s.progressValue ?? __computeProgressValue(s));
-        s.progressValue = pv;
+        const pv = (s.progressValue ?? '');
+        const pvOut = (pv !== '' && pv != null) ? pv : __computeProgressValue(s);
+        s.progressValue = pvOut;
         // compute perDay if missing
         if(s.perDay==null || s.perDay===''){
           const totalCost = (model.scopes||[]).reduce((a,b)=>a+(Number(b.cost)||0),0);
@@ -490,8 +491,7 @@ function buildAllCSV() {
           s.start || '',
           s.end || '',
           s.cost ?? '',
-          (isFinite(s.perDay) ? Math.round(s.perDay * 1000) / 1000 : ''),
-          __computeProgressValue(s),
+          (isFinite(s.perDay) ? Math.round(s.perDay * 1000) / 1000 : ''), pvOut,
           s.unitsToDate ?? '',
           s.totalUnits ?? '',
           s.unitsLabel || '',
