@@ -413,6 +413,31 @@ export async function saveXml(){
 function csvEsc(v){ if(v==null) return ''; const s = String(v); return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; }
 function csvLine(arr){ return arr.map(csvEsc).join(',') + '\n'; }
 
+/**
+ * vNext2-only numeric formatter (write-time only)
+ * - ≤2 decimals
+ * - integers keep no .00
+ * - rounds to 2 decimals, strips trailing zeros
+ * - preserves blanks / non-finite as empty cell
+ */
+function __fmt2(v){
+  // Preserve blanks exactly
+  if (v === '' || v === null || v === undefined) return '';
+
+  const n = Number(v);
+  if (!isFinite(n)) return '';
+
+  // Treat near-integers as integers
+  if (Math.abs(n - Math.round(n)) < 1e-9) {
+    return String(Math.round(n));
+  }
+
+  // Round to 2 decimals, strip trailing zeros
+  const r = Math.round(n * 100) / 100;
+  let s = r.toFixed(2);
+  return s.replace(/(\.\d*?[1-9])0+$/, '$1').replace(/\.0+$/, '');
+}
+
 
 
 function buildAllCSV() {
@@ -449,7 +474,8 @@ function buildAllCSV() {
       (s.totalUnits ? (s.unitsToDate ?? '') : ''),
       s.totalUnits ?? '',
       s.unitsLabel || '',
-      s.sectionName || '',
+                __fmt2(s.plannedtodate ?? ''),
+          s.sectionName || '',
       s.sectionID || ''
     ]));
   });
@@ -499,7 +525,7 @@ function buildAllCSV() {
       const p = (plannedCum[i]!=null) ? plannedCum[i] : '';
       const da = (d in daily && daily[d] != null) ? daily[d] : '';
       const a = (d in histMap && histMap[d] != null) ? histMap[d] : '';
-      lines.push(csvLine([d, b===''?'':b, p===''?'':p, da===''?'':da, a===''?'':a]));
+      lines.push(csvLine([d, __fmt2(b), __fmt2(p), __fmt2(da), __fmt2(a)]));
     }
     lines.push('');
   }
@@ -520,7 +546,7 @@ function buildAllCSV() {
   // TIMESERIES_SCOPES
   if (model.timeSeriesScopes) {
     lines.push('#SECTION:TIMESERIES_SCOPES');
-    lines.push('historyDate,scopeId,label,start,end,cost,perDay,actualPct,unitsToDate,totalUnits,unitsLabel,sectionName,sectionID');
+    lines.push('historyDate,scopeId,label,start,end,cost,perDay,actualPct,unitsToDate,totalUnits,unitsLabel,plannedtodate,sectionName,sectionID');
     Object.keys(model.timeSeriesScopes).sort().forEach(d => {
       const rows = model.timeSeriesScopes[d] || [];
       rows.forEach(s => {
@@ -542,9 +568,9 @@ function buildAllCSV() {
           (isFinite(s.perDay)
             ? Math.round(s.perDay * 1000) / 1000
             : ''),
-          s.actualPct ?? '',
-          (s.totalUnits ? (s.unitsToDate ?? '') : ''),
-          s.totalUnits ?? '',
+          __fmt2(s.actualPct ?? ''),
+          __fmt2(s.totalUnits ? (s.unitsToDate ?? '') : ''),
+          __fmt2(s.totalUnits ?? ''),
           s.unitsLabel || '',
           s.sectionName || '',
           s.sectionID || ''
@@ -565,9 +591,9 @@ function buildAllCSV() {
           d,
           r.sectionID || '',
           r.sectionTitle || '',
-          r.sectionWeight ?? '',
-          r.sectionPct ?? '',
-          r.sectionPlannedPct ?? ''
+          __fmt2(r.sectionWeight ?? ''),
+          __fmt2(r.sectionPct ?? ''),
+          __fmt2(r.sectionPlannedPct ?? '')
         ]));
       });
     });
@@ -1102,6 +1128,7 @@ export function loadFromPrgsText(text){
         unitsToDate: numOrBlank(r[idx('unitsToDate')]),
         totalUnits: (r[idx('totalUnits')]===undefined||r[idx('totalUnits')]==='') ? '' : (parseFloat(r[idx('totalUnits')])||0),
         unitsLabel: r[idx('unitsLabel')] || '',
+        plannedtodate: numOrBlank((idx('plannedtodate')>=0) ? r[idx('plannedtodate')] : ''),
         sectionName: r[idx('sectionName')] || '',
         sectionID: r[idx('sectionID')] || ''
       };
