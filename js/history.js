@@ -323,6 +323,44 @@ export function initHistory({ calcTotalActualProgress, fmtDate, today, computeAn
     ];
 
     // SCOPES snapshot
+    // planned-to-date snapshot helper (matches progress.js planned cell logic)
+    const __parseDate = (val) => val ? new Date(val + 'T00:00:00') : null;
+    const __daysBetween = (aStr, bStr) => {
+      const da = __parseDate(aStr);
+      const db = __parseDate(bStr);
+      if(!da || !db || isNaN(da.getTime()) || isNaN(db.getTime())) return 0;
+      return Math.floor((db - da) / 86400000) + 1; // inclusive
+    };
+    const __clamp = (n, min, max) => Math.max(min, Math.min(max, Number(n) || 0));
+    const __plannedPctToDate = (scope, historyDateStr) => {
+      if(!scope || !scope.start || !scope.end) return 0;
+      const dStart = __parseDate(scope.start);
+      const dEnd   = __parseDate(scope.end);
+      const t      = __parseDate(historyDateStr);
+      if(!dStart || !dEnd || !t || isNaN(dStart.getTime()) || isNaN(dEnd.getTime()) || isNaN(t.getTime())) return 0;
+
+      // Invalid range: end before start => treat as 100%
+      if(dEnd < dStart) return 100;
+
+      if(t < dStart) return 0;
+      if(t > dEnd) return 100;
+
+      const durationDays = __daysBetween(scope.start, scope.end);
+      const elapsedDays  = __daysBetween(scope.start, historyDateStr);
+
+      if(durationDays <= 0) return 100;
+
+      return __clamp((elapsedDays / durationDays) * 100, 0, 100);
+    };
+    const __plannedToDate = (scope, historyDateStr) => {
+      const p = __plannedPctToDate(scope, historyDateStr);
+      const tu = Number(scope && scope.totalUnits);
+      if (scope && scope.totalUnits !== '' && isFinite(tu) && tu > 0) {
+        return (p / 100) * tu;
+      }
+      return p;
+    };
+
     model.timeSeriesScopes[d] = (model.scopes || []).map(s => ({
       historyDate: d,
       scopeId: s.scopeId,
@@ -335,6 +373,7 @@ export function initHistory({ calcTotalActualProgress, fmtDate, today, computeAn
       unitsToDate: (s.totalUnits ? s.unitsToDate : ''),
       totalUnits: s.totalUnits,
       unitsLabel: s.unitsLabel,
+      plannedtodate: __plannedToDate(s, d),
       sectionName: s.sectionName,
       sectionID: s.sectionID
     }));

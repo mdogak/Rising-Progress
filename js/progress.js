@@ -358,6 +358,14 @@ function calcScopePlannedPctToDate(s){
 }
 function updatePlannedCell(row, s){
   const plannedPct = calcScopePlannedPctToDate(s);
+  // Persist planned-to-date on the model (write-time only; used for vNext TIMESERIES_SCOPES snapshots)
+  // - Units scopes: planned units-to-date
+  // - % scopes: planned percent-to-date
+  if (s && s.totalUnits !== '' && Number(s.totalUnits) > 0) {
+    s.plannedtodate = (plannedPct / 100) * Number(s.totalUnits);
+  } else {
+    s.plannedtodate = plannedPct;
+  }
   const cell = row.querySelector('[data-k="planned"]');
   if (s.totalUnits !== '' && Number(s.totalUnits) > 0) {
     const plannedUnits = (plannedPct / 100) * Number(s.totalUnits);

@@ -545,7 +545,7 @@ function buildAllCSV() {
   // TIMESERIES_SCOPES
   if (model.timeSeriesScopes) {
     lines.push('#SECTION:TIMESERIES_SCOPES');
-    lines.push('historyDate,scopeId,label,start,end,cost,perDay,actualPct,unitsToDate,totalUnits,unitsLabel,sectionName,sectionID');
+    lines.push('historyDate,scopeId,label,start,end,cost,perDay,actualPct,unitsToDate,totalUnits,unitsLabel,plannedtodate,sectionName,sectionID');
     Object.keys(model.timeSeriesScopes).sort().forEach(d => {
       const rows = model.timeSeriesScopes[d] || [];
       rows.forEach(s => {
@@ -571,6 +571,7 @@ function buildAllCSV() {
           __fmt2(s.totalUnits ? (s.unitsToDate ?? '') : ''),
           __fmt2(s.totalUnits ?? ''),
           s.unitsLabel || '',
+          __fmt2(s.plannedtodate ?? ''),
           s.sectionName || '',
           s.sectionID || ''
         ]));
@@ -1127,6 +1128,7 @@ export function loadFromPrgsText(text){
         unitsToDate: numOrBlank(r[idx('unitsToDate')]),
         totalUnits: (r[idx('totalUnits')]===undefined||r[idx('totalUnits')]==='') ? '' : (parseFloat(r[idx('totalUnits')])||0),
         unitsLabel: r[idx('unitsLabel')] || '',
+        plannedtodate: numOrBlank(r[idx('plannedtodate')]),
         sectionName: r[idx('sectionName')] || '',
         sectionID: r[idx('sectionID')] || ''
       };
