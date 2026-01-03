@@ -331,7 +331,7 @@ export function initHistory({ calcTotalActualProgress, fmtDate, today, computeAn
       end: s.end,
       cost: s.cost,
       perDay: s.perDay,
-      progressValue: s.progressValue,
+      progressValue: (s.totalUnits > 0 ? s.progressValue : ''),
       unitsToDate: s.unitsToDate,
       totalUnits: s.totalUnits,
       unitsLabel: s.unitsLabel,
