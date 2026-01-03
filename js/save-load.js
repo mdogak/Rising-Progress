@@ -445,8 +445,8 @@ function buildAllCSV() {
       s.start || '',
       s.end || '',
       s.cost ?? '',
-      s.actualPct ?? '',
-      s.unitsToDate ?? '',
+      __computeProgressValue(s),
+      (s.totalUnits ? (s.unitsToDate ?? '') : ''),
       s.totalUnits ?? '',
       s.unitsLabel || '',
       s.sectionName || '',
@@ -520,7 +520,7 @@ function buildAllCSV() {
   // TIMESERIES_SCOPES
   if (model.timeSeriesScopes) {
     lines.push('#SECTION:TIMESERIES_SCOPES');
-    lines.push('historyDate,scopeId,label,start,end,cost,perDay,actualPct,unitsToDate,totalUnits,unitsLabel,sectionName,sectionID');
+    lines.push('historyDate,scopeId,label,start,end,cost,perDay,progressValue,unitsToDate,totalUnits,unitsLabel,sectionName,sectionID');
     Object.keys(model.timeSeriesScopes).sort().forEach(d => {
       const rows = model.timeSeriesScopes[d] || [];
       rows.forEach(s => {
@@ -542,8 +542,8 @@ function buildAllCSV() {
           (isFinite(s.perDay)
             ? Math.round(s.perDay * 1000) / 1000
             : ''),
-          s.actualPct ?? '',
-          s.unitsToDate ?? '',
+          __computeProgressValue(s),
+          (s.totalUnits ? (s.unitsToDate ?? '') : ''),
           s.totalUnits ?? '',
           s.unitsLabel || '',
           s.sectionName || '',
