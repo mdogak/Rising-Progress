@@ -1026,10 +1026,16 @@ export function loadFromPrgsText(text){
   const d = requireDeps();
   resetModelForLoad();
 
+  // Temporary guard to prevent ID generation during PRGS hydration
+  try{
+    const m = getModel();
+    if(m) m.__hydratingFromPrgs = true;
+  }catch(e){}
+
   // Parse PRGS (CSV-with-sections) exactly like file uploads / preset loads.
   const rows = parseCSV(text);
   let section = '';
-  const fresh = { project:{name:'',startup:'', markerLabel:'Baseline Complete'}, scopes:[], history:[], dailyActuals:{}, baseline:null, daysRelativeToPlan:null };
+  const fresh = { project:{name:'',startup:'', markerLabel:'Baseline Complete'}, scopes:[], history:[], dailyActuals:{}, baseline:null, daysRelativeToPlan:null, __hydratingFromPrgs:true };
 
   let scopeHeaders = [];
   let baselineRows = [];
@@ -1058,6 +1064,7 @@ export function loadFromPrgsText(text){
       if(!scopeHeaders.length){ scopeHeaders = r; continue; }
       const idx = (name)=> scopeHeaders.indexOf(name);
       const s = {
+        scopeId: (idx('scopeId')>=0 ? (r[idx('scopeId')]||'') : ''),
         label: r[idx('label')]||'',
         start: r[idx('start')]||'',
         end: r[idx('end')]||'',
@@ -1066,7 +1073,9 @@ export function loadFromPrgsText(text){
         totalUnits: (r[idx('totalUnits')]===undefined||r[idx('totalUnits')]==='')? '' : (parseFloat(r[idx('totalUnits')])||0),
         unitsLabel: r[idx('unitsLabel')]||'%',
         sectionName: (idx('sectionName')>=0 ? (r[idx('sectionName')]||'') : ''),
-        actualPct: 0
+        actualPct: 0,
+        sectionID: (idx('sectionID')>=0 ? (r[idx('sectionID')]||'') : '')
+      
       };
       s.actualPct = s.totalUnits? (s.unitsToDate && s.totalUnits? (s.unitsToDate/s.totalUnits*100) : 0) : (s.unitsToDate||0);
       fresh.scopes.push(s);
@@ -1175,12 +1184,75 @@ export function loadFromPrgsText(text){
       fresh.timeSeriesSections[historyDate].push(row);
     }
   }
+  // ---- Hydrate missing identity (scopeId / sectionID) with v2 fallback rules ----
+  (function hydrateIds(){
+    const scopes = Array.isArray(fresh.scopes) ? fresh.scopes : [];
+    const anyMissing = scopes.some(s => !s || !s.scopeId || !String(s.sectionID||'').trim());
+    if (!anyMissing) return;
+
+    const ts = fresh.timeSeriesScopes;
+    if (!ts || typeof ts !== 'object') return;
+    const dates = Object.keys(ts).filter(Boolean).sort();
+    if (!dates.length) return;
+
+    const latestDate = dates[dates.length - 1];
+    const latestRows = Array.isArray(ts[latestDate]) ? ts[latestDate] : [];
+    if (!latestRows.length) return;
+
+    const byScopeId = new Map();
+    const bySignature = new Map(); // label|start|end -> row
+    latestRows.forEach(r => {
+      if (!r) return;
+      if (r.scopeId) byScopeId.set(String(r.scopeId), r);
+      const sig = String(r.label||'') + '|' + String(r.start||'') + '|' + String(r.end||'');
+      if (!bySignature.has(sig)) bySignature.set(sig, r);
+    });
+
+    scopes.forEach(s => {
+      if (!s) return;
+
+      // If scopeId is missing, attempt restore by matching signature against latest snapshot
+      if (!s.scopeId) {
+        const sig = String(s.label||'') + '|' + String(s.start||'') + '|' + String(s.end||'');
+        const r = bySignature.get(sig);
+        if (r && r.scopeId) {
+          s.scopeId = String(r.scopeId);
+          if (!String(s.sectionID||'').trim() && r.sectionID) s.sectionID = String(r.sectionID);
+        }
+      }
+
+      // If sectionID is missing but scopeId exists, fill from scopeId map
+      if (s.scopeId && !String(s.sectionID||'').trim()) {
+        const r = byScopeId.get(String(s.scopeId));
+        if (r && r.sectionID) s.sectionID = String(r.sectionID);
+      }
+    });
+
+    // De-duplicate scopeIds (later duplicates only)
+    const seen = new Set();
+    scopes.forEach(s => {
+      if (!s || !s.scopeId) return;
+      const id = String(s.scopeId);
+      if (!seen.has(id)) { seen.add(id); return; }
+      // Later duplicate → generate a new unique id
+      let newId = generateScopeId();
+      while (seen.has(newId)) newId = generateScopeId();
+      s.scopeId = newId;
+      seen.add(newId);
+    });
+  })();
+
+
 
   if(baselineRows.length){
     fresh.baseline = { days: baselineRows.map(r=>r.date), planned: baselineRows.map(r=> (r.val==null? null : d.clamp(r.val,0,100))) };
   }
 
   setModel(fresh);
+
+  // Clear hydration guard before any UI sync/render
+  try{ fresh.__hydratingFromPrgs = false; }catch(e){}
+  try{ const m2 = getModel(); if(m2) m2.__hydratingFromPrgs = false; }catch(e){}
 
   // Rehydrate UI fields
   const nameEl = document.getElementById('projectName');

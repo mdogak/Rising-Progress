@@ -59,6 +59,8 @@ function generateScopeId(){
 }
 function ensureScopeIds(){
   if(!model || !Array.isArray(model.scopes)) return;
+  // Temporary guard: do not generate IDs while a PRGS file is being hydrated
+  if(model.__hydratingFromPrgs === true) return;
   model.scopes.forEach(s=>{
     if(!s.scopeId){
       s.scopeId = generateScopeId();
