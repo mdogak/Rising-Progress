@@ -454,8 +454,57 @@ function buildAllCSV() {
     ]));
   });
   lines.push('');
+  // TIMESERIES
+  if (model.timeSeriesProject || model.timeSeriesScopes || model.timeSeriesSections) {
+    lines.push('#SECTION:TIMESERIES');
+    lines.push('date,baselinePct,plannedPct,dailyActual,actualPct');
 
-  // TIMESERIES_PROJECT
+    const daily = model.dailyActuals || {};
+    const hist = Array.isArray(model.history) ? model.history : [];
+    const histMap = {};
+    hist.forEach(h=>{ if(h && h.date) histMap[h.date] = h.actualPct; });
+
+    const days = (model.baseline && Array.isArray(model.baseline.days))
+      ? model.baseline.days
+      : [];
+
+    const baselineCum = (model.baseline && Array.isArray(model.baseline.planned))
+      ? model.baseline.planned
+      : [];
+
+    // rebuild planned cumulative (derivable; not stored in model)
+    const plannedCum = [];
+    let cum = 0;
+    const scopes = Array.isArray(model.scopes) ? model.scopes : [];
+    const totalCost = scopes.reduce((a,b)=>a+(Number(b.cost)||0),0);
+
+    for(let i=0;i<days.length;i++){
+      const d = days[i];
+      let add = 0;
+      scopes.forEach(s=>{
+        if(!s.start || !s.end) return;
+        if(d >= s.start && d <= s.end){
+          const perDay = __computePerDay(s, totalCost);
+          if(isFinite(perDay)) add += perDay;
+        }
+      });
+      cum += add;
+      plannedCum.push(Math.min(100, cum));
+    }
+
+    const n = Array.isArray(days) ? days.length : 0;
+    for(let i=0;i<n;i++){
+      const d = days[i];
+      const b = (baselineCum[i]!=null) ? baselineCum[i] : '';
+      const p = (plannedCum[i]!=null) ? plannedCum[i] : '';
+      const da = (d in daily && daily[d] != null) ? daily[d] : '';
+      const a = (d in histMap && histMap[d] != null) ? histMap[d] : '';
+      lines.push(csvLine([d, b===''?'':b, p===''?'':p, da===''?'':da, a===''?'':a]));
+    }
+    lines.push('');
+  }
+
+// TIMESERIES_PROJECT
   if (model.timeSeriesProject) {
     lines.push('#SECTION:TIMESERIES_PROJECT');
     lines.push('historyDate,key,value');
@@ -476,9 +525,8 @@ function buildAllCSV() {
       const rows = model.timeSeriesScopes[d] || [];
       rows.forEach(s => {
         // snapshot dynamic fields at save time
-        const pv = (s.progressValue ?? '');
-        const pvOut = (pv !== '' && pv != null) ? pv : __computeProgressValue(s);
-        s.progressValue = pvOut;
+        const pv = (s.progressValue ?? __computeProgressValue(s));
+        s.progressValue = pv;
         // compute perDay if missing
         if(s.perDay==null || s.perDay===''){
           const totalCost = (model.scopes||[]).reduce((a,b)=>a+(Number(b.cost)||0),0);
@@ -491,7 +539,10 @@ function buildAllCSV() {
           s.start || '',
           s.end || '',
           s.cost ?? '',
-          (isFinite(s.perDay) ? Math.round(s.perDay * 1000) / 1000 : ''), pvOut,
+          (isFinite(s.perDay)
+            ? Math.round(s.perDay * 1000) / 1000
+            : ''),
+          __computeProgressValue(s),
           s.unitsToDate ?? '',
           s.totalUnits ?? '',
           s.unitsLabel || '',
