@@ -445,7 +445,7 @@ function buildAllCSV() {
       s.start || '',
       s.end || '',
       s.cost ?? '',
-      pv,
+      __computeProgressValue(s),
       s.unitsToDate ?? '',
       s.totalUnits ?? '',
       s.unitsLabel || '',
@@ -468,24 +468,20 @@ function buildAllCSV() {
     lines.push('');
   }
 
-  // TIMESERIES_SCOPES
+    // TIMESERIES_SCOPES
   if (model.timeSeriesScopes) {
-    lines.push('#SECTION:TIMESERIES_SCOPES');
-    lines.push('historyDate,scopeId,label,start,end,cost,perDay,progressValue,unitsToDate,totalUnits,unitsLabel,sectionName,sectionID');
     Object.keys(model.timeSeriesScopes).sort().forEach(d => {
       const rows = model.timeSeriesScopes[d] || [];
       rows.forEach(s => {
-        // snapshot dynamic fields at save time
-        const pv = (s.totalUnits && Number(s.totalUnits)>0)
-          ? (s.unitsToDate ?? '')
-          : (s.actualPct ?? '');
-        s.progressValue = pv;
-        // compute perDay if missing
-        if(s.perDay==null || s.perDay===''){
-          const totalCost = (model.scopes||[]).reduce((a,b)=>a+(Number(b.cost)||0),0);
-          s.perDay = __computePerDay(s, totalCost);
-          if (isFinite(s.perDay)) s.perDay = Math.round(s.perDay * 1000) / 1000;
-        }
+        const pv =
+          (s.totalUnits && Number(s.totalUnits) > 0)
+            ? (s.unitsToDate ?? '')
+            : (s.progressValue ?? '');
+
+        const perDay = isFinite(s.perDay)
+          ? Math.round(s.perDay * 1000) / 1000
+          : '';
+
         lines.push(csvLine([
           d,
           s.scopeId || '',
@@ -493,7 +489,7 @@ function buildAllCSV() {
           s.start || '',
           s.end || '',
           s.cost ?? '',
-          s.perDay ?? '',
+          perDay,
           pv,
           s.unitsToDate ?? '',
           s.totalUnits ?? '',
@@ -506,7 +502,7 @@ function buildAllCSV() {
     lines.push('');
   }
 
-  // TIMESERIES_SECTIONS
+// TIMESERIES_SECTIONS
   if (model.timeSeriesSections) {
     lines.push('#SECTION:TIMESERIES_SECTIONS');
     lines.push('historyDate,sectionID,sectionTitle,sectionWeight,sectionPct,sectionPlannedPct');
@@ -528,6 +524,8 @@ function buildAllCSV() {
 
   return lines.join('\n') + '\n';
 }
+
+
 
 export async function saveAll(){
   const d = requireDeps();
