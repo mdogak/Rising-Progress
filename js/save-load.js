@@ -474,8 +474,7 @@ function buildAllCSV() {
       (s.totalUnits ? (s.unitsToDate ?? '') : ''),
       s.totalUnits ?? '',
       s.unitsLabel || '',
-                __fmt2(s.plannedtodate ?? ''),
-          s.sectionName || '',
+s.sectionName || '',
       s.sectionID || ''
     ]));
   });
@@ -572,6 +571,7 @@ function buildAllCSV() {
           __fmt2(s.totalUnits ? (s.unitsToDate ?? '') : ''),
           __fmt2(s.totalUnits ?? ''),
           s.unitsLabel || '',
+          __fmt2(s.plannedtodate ?? ''),
           s.sectionName || '',
           s.sectionID || ''
         ]));

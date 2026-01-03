@@ -399,6 +399,25 @@ function updatePlannedCell(row, s){
     updateIssuesButtonState();
   }
 }
+
+
+// Planned is a pure, historyDate-driven UI calculation.
+// When historyDate changes (user or programmatic), we must refresh the Planned cells.
+function refreshPlannedForAllScopes(){
+  try{
+    const cont = document.getElementById('scopeRows');
+    if(!cont) return;
+    const rows = cont.querySelectorAll('.row');
+    rows.forEach(row=>{
+      const idx = Number(row.dataset.index);
+      if(!isFinite(idx)) return;
+      const s = (model && Array.isArray(model.scopes)) ? model.scopes[idx] : null;
+      if(!s) return;
+      updatePlannedCell(row, s);
+    });
+  }catch(e){}
+}
+
 function calcScopeWeightings(){ const total = model.scopes.reduce((a,b)=>a+(b.cost||0),0) || 0; return model.scopes.map(s=> total>0 ? (s.cost/total) : 0); }
 
 function hasAnyScopeIssues(){
@@ -738,6 +757,7 @@ function updateHistoryDate(totalActual){
     // Always let history drive the default when available
     if (hd.value !== lastDate) {
       hd.value = lastDate;
+      try{ refreshPlannedForAllScopes(); }catch(e){}
     }
     if (typeof totalActual === 'number') {
       lastTotalActualForHistory = totalActual;
@@ -759,6 +779,7 @@ function updateHistoryDate(totalActual){
     try {
       if (typeof fmtDate === 'function' && typeof today !== 'undefined') {
         hd.value = fmtDate(today);
+        try{ refreshPlannedForAllScopes(); }catch(e){}
       }
     } catch (e) { /* noop */ }
   } else if (hd.value && changed) {
@@ -766,6 +787,7 @@ function updateHistoryDate(totalActual){
     try {
       if (typeof fmtDate === 'function' && typeof today !== 'undefined') {
         hd.value = fmtDate(today);
+        try{ refreshPlannedForAllScopes(); }catch(e){}
       }
     } catch (e) { /* noop */ }
   }
@@ -1283,7 +1305,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
 const hd = document.getElementById('historyDate');
 if (hd) {
-  const markManual = () => { hd.dataset.manual = 'true';   if (typeof computeAndRender === 'function') computeAndRender();
+  const markManual = () => { hd.dataset.manual = 'true';
+  if (typeof computeAndRender === 'function') computeAndRender();
+  try{ refreshPlannedForAllScopes(); }catch(e){}
 };
   hd.addEventListener('input', markManual);
   hd.addEventListener('change', markManual);
