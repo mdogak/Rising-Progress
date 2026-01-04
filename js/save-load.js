@@ -442,184 +442,225 @@ function __fmt2(v){
 
 function buildAllCSV() {
   const model = getModel();
-  const lines = [];
 
-  // FORMAT
-  lines.push('#SECTION:FORMAT');
-  lines.push('key,value');
-  lines.push('version,2');
-  lines.push('');
+  // vNext2 writer: strict spacing control using physical lines (no embedded newlines).
+  // - 1 blank line after each #SECTION header
+  // - 2 blank lines between sections
+  const out = [];
 
-  // PROJECT
-  lines.push('#SECTION:PROJECT');
-  lines.push('key,value');
-  const p = model.project || {};
-  lines.push(csvLine(['name', p.name || '']));
-  lines.push(csvLine(['startup', p.startup || '']));
-  lines.push(csvLine(['markerLabel', p.markerLabel || '']));
-  lines.push('');
+  const csvLineNoNL = (arr) => arr.map(csvEsc).join(',');
 
-  // SCOPES (current)
-  lines.push('#SECTION:SCOPES');
-  lines.push('scopeId,label,start,end,cost,progressValue,unitsToDate,totalUnits,unitsLabel,sectionName,sectionID');
-  (model.scopes || []).forEach(s => {
-    if(!s.scopeId){ s.scopeId = generateScopeId(); }
-    lines.push(csvLine([
-      s.scopeId || '',
-      s.label || '',
-      s.start || '',
-      s.end || '',
-      s.cost ?? '',
-      s.actualPct ?? '',
-      (s.totalUnits ? (s.unitsToDate ?? '') : ''),
-      s.totalUnits ?? '',
-      s.unitsLabel || '',
-s.sectionName || '',
-      s.sectionID || ''
-    ]));
-  });
-  lines.push('');
-  // TIMESERIES
-  if (model.timeSeriesProject || model.timeSeriesScopes || model.timeSeriesSections) {
-    lines.push('#SECTION:TIMESERIES');
-    lines.push('date,baselinePct,plannedPct,dailyActual,actualPct');
+  const pad2 = (n) => String(n).padStart(2, '0');
+  const isUserSave = !(typeof window !== 'undefined' && window._autoSaving); // only true for explicit user Save
 
-    const daily = model.dailyActuals || {};
-    const hist = Array.isArray(model.history) ? model.history : [];
-    const histMap = {};
-    hist.forEach(h=>{ if(h && h.date) histMap[h.date] = h.actualPct; });
-
-    const days = (model.baseline && Array.isArray(model.baseline.days))
-      ? model.baseline.days
-      : [];
-
-    const baselineCum = (model.baseline && Array.isArray(model.baseline.planned))
-      ? model.baseline.planned
-      : [];
-
-    // Resolve daily actuals (explicit + interpolated + trailing nulls) using the same
-    // UI logic in progress.js (read-only). Fall back to sparse map if unavailable.
-    let resolvedDailyActual = null;
-    try{
-      const d = requireDeps();
-      if (d && typeof d.getResolvedDailyActualSeries === 'function') {
-        const res = d.getResolvedDailyActualSeries(days);
-        if (res && Array.isArray(res.actual) && res.actual.length === days.length) {
-          resolvedDailyActual = res.actual;
-        }
-      } else if (d && typeof d.calcActualSeriesByDay === 'function') {
-        const arr = d.calcActualSeriesByDay(days);
-        if (Array.isArray(arr) && arr.length === days.length) resolvedDailyActual = arr;
-      }
-    }catch(e){ /* ignore */ }
-
-    // rebuild planned cumulative (derivable; not stored in model)
-    const plannedCum = [];
-    let cum = 0;
-    const scopes = Array.isArray(model.scopes) ? model.scopes : [];
-    const totalCost = scopes.reduce((a,b)=>a+(Number(b.cost)||0),0);
-
-    for(let i=0;i<days.length;i++){
-      const d = days[i];
-      let add = 0;
-      scopes.forEach(s=>{
-        if(!s.start || !s.end) return;
-        if(d >= s.start && d <= s.end){
-          const perDay = __computePerDay(s, totalCost);
-          if(isFinite(perDay)) add += perDay;
-        }
-      });
-      cum += add;
-      plannedCum.push(Math.min(100, cum));
-    }
-
-    const n = Array.isArray(days) ? days.length : 0;
-    for(let i=0;i<n;i++){
-      const d = days[i];
-      const b = (baselineCum[i]!=null) ? baselineCum[i] : '';
-      const p = (plannedCum[i]!=null) ? plannedCum[i] : '';
-      const da = (resolvedDailyActual && resolvedDailyActual.length===n)
-        ? resolvedDailyActual[i]
-        : ((d in daily && daily[d] != null) ? daily[d] : '');
-      const a = (d in histMap && histMap[d] != null) ? histMap[d] : '';
-      lines.push(csvLine([d, __fmt2(b), __fmt2(p), __fmt2(da), __fmt2(a)]));
-    }
-    lines.push('');
+  function section(name, bodyLines) {
+    if (out.length) out.push('', '');        // exactly two blank lines between sections
+    out.push('#SECTION:' + name);
+    out.push('');                            // exactly one blank line after section header
+    out.push(...bodyLines);
   }
 
-// TIMESERIES_PROJECT
-  if (model.timeSeriesProject) {
-    lines.push('#SECTION:TIMESERIES_PROJECT');
-    lines.push('historyDate,key,value');
-    Object.keys(model.timeSeriesProject).sort().forEach(d => {
-      const rows = model.timeSeriesProject[d] || [];
-      rows.forEach(r => {
-        lines.push(csvLine([r.historyDate, r.key, r.value]));
-      });
+  // FORMAT
+  section('FORMAT', [
+    'key,value',
+    csvLineNoNL(['version', '2'])
+  ]);
+
+  // PROJECT
+  const p = model.project || {};
+  const projLines = [];
+  projLines.push('key,value');
+
+  // Preserve existing key order; insert timestamps after name (allowed).
+  projLines.push(csvLineNoNL(['name', p.name || '']));
+
+  if (isUserSave) {
+    const now = new Date();
+    const datesaved = now.getFullYear() + '-' + pad2(now.getMonth() + 1) + '-' + pad2(now.getDate());
+    const timesaved = pad2(now.getHours()) + ':' + pad2(now.getMinutes());
+    projLines.push(csvLineNoNL(['datesaved', datesaved]));
+    projLines.push(csvLineNoNL(['timesaved', timesaved]));
+  }
+
+  projLines.push(csvLineNoNL(['startup', p.startup || '']));
+  projLines.push(csvLineNoNL(['markerLabel', p.markerLabel || '']));
+
+  section('PROJECT', projLines);
+
+  // SCOPES (current)
+  section('SCOPES', (function () {
+    const lines = [];
+    lines.push('scopeId,label,start,end,cost,progressValue,unitsToDate,totalUnits,unitsLabel,sectionName,sectionID');
+    (model.scopes || []).forEach(s => {
+      if (!s.scopeId) { s.scopeId = generateScopeId(); }
+      lines.push(csvLineNoNL([
+        s.scopeId || '',
+        s.label || '',
+        s.start || '',
+        s.end || '',
+        s.cost ?? '',
+        s.actualPct ?? '',
+        (s.totalUnits ? (s.unitsToDate ?? '') : ''),
+        s.totalUnits ?? '',
+        s.unitsLabel || '',
+        s.sectionName || '',
+        s.sectionID || ''
+      ]));
     });
-    lines.push('');
+    return lines;
+  })());
+
+  // TIMESERIES
+  if (model.timeSeriesProject || model.timeSeriesScopes || model.timeSeriesSections) {
+    section('TIMESERIES', (function () {
+      const lines = [];
+      lines.push('date,baselinePct,plannedPct,dailyActual,actualPct');
+
+      const daily = model.dailyActuals || {};
+      const hist = Array.isArray(model.history) ? model.history : [];
+      const histMap = {};
+      hist.forEach(h => { if (h && h.date) histMap[h.date] = h.actualPct; });
+
+      const days = (model.baseline && Array.isArray(model.baseline.days))
+        ? model.baseline.days
+        : [];
+
+      const baselineCum = (model.baseline && Array.isArray(model.baseline.planned))
+        ? model.baseline.planned
+        : [];
+
+      // Resolve daily actuals (explicit + interpolated + trailing nulls) using the same
+      // UI logic in progress.js (read-only). Fall back to sparse map if unavailable.
+      let resolvedDailyActual = null;
+      try {
+        const d = requireDeps();
+        if (d && typeof d.getResolvedDailyActualSeries === 'function') {
+          const res = d.getResolvedDailyActualSeries(days);
+          if (res && Array.isArray(res.actual) && res.actual.length === days.length) {
+            resolvedDailyActual = res.actual;
+          }
+        } else if (d && typeof d.calcActualSeriesByDay === 'function') {
+          const arr = d.calcActualSeriesByDay(days);
+          if (Array.isArray(arr) && arr.length === days.length) resolvedDailyActual = arr;
+        }
+      } catch (e) { /* ignore */ }
+
+      // rebuild planned cumulative (derivable; not stored in model)
+      const plannedCum = [];
+      let cum = 0;
+      const scopes = Array.isArray(model.scopes) ? model.scopes : [];
+      const totalCost = scopes.reduce((a, b) => a + (Number(b.cost) || 0), 0);
+
+      for (let i = 0; i < days.length; i++) {
+        const dday = days[i];
+        let add = 0;
+        scopes.forEach(s => {
+          if (!s.start || !s.end) return;
+          if (dday >= s.start && dday <= s.end) {
+            const perDay = __computePerDay(s, totalCost);
+            if (isFinite(perDay)) add += perDay;
+          }
+        });
+        cum += add;
+        plannedCum.push(Math.min(100, cum));
+      }
+
+      const n = Array.isArray(days) ? days.length : 0;
+      for (let i = 0; i < n; i++) {
+        const dd = days[i];
+        const b = (baselineCum[i] != null) ? baselineCum[i] : '';
+        const p2 = (plannedCum[i] != null) ? plannedCum[i] : '';
+        const da = (resolvedDailyActual && resolvedDailyActual.length === n)
+          ? resolvedDailyActual[i]
+          : ((dd in daily && daily[dd] != null) ? daily[dd] : '');
+        const a = (dd in histMap && histMap[dd] != null) ? histMap[dd] : '';
+        lines.push(csvLineNoNL([dd, __fmt2(b), __fmt2(p2), __fmt2(da), __fmt2(a)]));
+      }
+      return lines;
+    })());
+  }
+
+  // TIMESERIES_PROJECT
+  if (model.timeSeriesProject) {
+    section('TIMESERIES_PROJECT', (function () {
+      const lines = [];
+      lines.push('historyDate,key,value');
+      Object.keys(model.timeSeriesProject).sort().forEach(d => {
+        const rows = model.timeSeriesProject[d] || [];
+        rows.forEach(r => {
+          lines.push(csvLineNoNL([r.historyDate, r.key, r.value]));
+        });
+      });
+      return lines;
+    })());
   }
 
   // TIMESERIES_SCOPES
   if (model.timeSeriesScopes) {
-    lines.push('#SECTION:TIMESERIES_SCOPES');
-    lines.push('historyDate,scopeId,label,start,end,cost,perDay,actualPct,unitsToDate,totalUnits,unitsLabel,plannedtodate,sectionName,sectionID');
-    Object.keys(model.timeSeriesScopes).sort().forEach(d => {
-      const rows = model.timeSeriesScopes[d] || [];
-      rows.forEach(s => {
-        // snapshot dynamic fields at save time
-        const pv = (s.progressValue ?? __computeProgressValue(s));
-        s.progressValue = pv;
-        // compute perDay if missing
-        if(s.perDay==null || s.perDay===''){
-          const totalCost = (model.scopes||[]).reduce((a,b)=>a+(Number(b.cost)||0),0);
-          s.perDay = __computePerDay(s, totalCost);
-        }
-        lines.push(csvLine([
-          d,
-          s.scopeId || '',
-          s.label || '',
-          s.start || '',
-          s.end || '',
-          s.cost ?? '',
-          (isFinite(s.perDay)
-            ? Math.round(s.perDay * 1000) / 1000
-            : ''),
-          __fmt2(s.actualPct ?? ''),
-          __fmt2(s.totalUnits ? (s.unitsToDate ?? '') : ''),
-          __fmt2(s.totalUnits ?? ''),
-          s.unitsLabel || '',
-          __fmt2(s.plannedtodate ?? ''),
-          s.sectionName || '',
-          s.sectionID || ''
-        ]));
+    section('TIMESERIES_SCOPES', (function () {
+      const lines = [];
+      lines.push('historyDate,scopeId,label,start,end,cost,perDay,actualPct,unitsToDate,totalUnits,unitsLabel,plannedtodate,sectionName,sectionID');
+      Object.keys(model.timeSeriesScopes).sort().forEach(d => {
+        const rows = model.timeSeriesScopes[d] || [];
+        rows.forEach(s => {
+          // snapshot dynamic fields at save time
+          const pv = (s.progressValue ?? __computeProgressValue(s));
+          s.progressValue = pv;
+          // compute perDay if missing
+          if (s.perDay == null || s.perDay === '') {
+            const totalCost = (model.scopes || []).reduce((a, b) => a + (Number(b.cost) || 0), 0);
+            s.perDay = __computePerDay(s, totalCost);
+          }
+          lines.push(csvLineNoNL([
+            d,
+            s.scopeId || '',
+            s.label || '',
+            s.start || '',
+            s.end || '',
+            s.cost ?? '',
+            (isFinite(s.perDay)
+              ? Math.round(s.perDay * 1000) / 1000
+              : ''),
+            __fmt2(s.actualPct ?? ''),
+            __fmt2(s.totalUnits ? (s.unitsToDate ?? '') : ''),
+            __fmt2(s.totalUnits ?? ''),
+            s.unitsLabel || '',
+            __fmt2(s.plannedtodate ?? ''),
+            s.sectionName || '',
+            s.sectionID || ''
+          ]));
+        });
       });
-    });
-    lines.push('');
+      return lines;
+    })());
   }
 
   // TIMESERIES_SECTIONS
   if (model.timeSeriesSections) {
-    lines.push('#SECTION:TIMESERIES_SECTIONS');
-    lines.push('historyDate,sectionID,sectionTitle,sectionWeight,sectionPct,sectionPlannedPct');
-    Object.keys(model.timeSeriesSections).sort().forEach(d => {
-      const rows = model.timeSeriesSections[d] || [];
-      rows.forEach(r => {
-        lines.push(csvLine([
-          d,
-          r.sectionID || '',
-          r.sectionTitle || '',
-          __fmt2(r.sectionWeight ?? ''),
-          __fmt2(r.sectionPct ?? ''),
-          __fmt2(r.sectionPlannedPct ?? '')
-        ]));
+    section('TIMESERIES_SECTIONS', (function () {
+      const lines = [];
+      lines.push('historyDate,sectionID,sectionTitle,sectionWeight,sectionPct,sectionPlannedPct');
+      Object.keys(model.timeSeriesSections).sort().forEach(d => {
+        const rows = model.timeSeriesSections[d] || [];
+        rows.forEach(r => {
+          lines.push(csvLineNoNL([
+            d,
+            r.sectionID || '',
+            r.sectionTitle || '',
+            __fmt2(r.sectionWeight ?? ''),
+            __fmt2(r.sectionPct ?? ''),
+            __fmt2(r.sectionPlannedPct ?? '')
+          ]));
+        });
       });
-    });
-    lines.push('');
+      return lines;
+    })());
   }
 
-  return lines.join('\n') + '\n';
+  // Always end file with a single trailing newline.
+  return out.join('\n') + '\n';
 }
+
 
 
 
@@ -1053,6 +1094,8 @@ export function loadFromPrgsText(text){
     if(section==='PROJECT'){
       if(r[0]==='key') { continue; }
       if(r[0]==='name') fresh.project.name = r[1]||'';
+      if(r[0]==='datesaved') fresh.project.datesaved = r[1]||'';
+      if(r[0]==='timesaved') fresh.project.timesaved = r[1]||'';
       if(r[0]==='startup') fresh.project.startup = r[1]||'';
       if(r[0]==='markerLabel') fresh.project.markerLabel = r[1]||'Baseline Complete';
       if(r[0]==='labelToggle') fresh.project.labelToggle = (r[1]==='true');
