@@ -474,23 +474,60 @@ function buildAllCSV(isUserSave=false) {
   ]);
 
   // PROJECT
+  // PROJECT
   const p = model.project || {};
   const projLines = [];
   projLines.push('key,value');
 
-  // Preserve existing key order; insert timestamps after name (allowed).
+  // Always stamp file writes (user save + autosave)
+  const now = new Date();
+  const datesaved = now.getFullYear() + '-' + pad2(now.getMonth() + 1) + '-' + pad2(now.getDate());
+  const timesaved = pad2(now.getHours()) + ':' + pad2(now.getMinutes());
+
+  // UI-authoritative toggles (Option B). DOM is the primary source.
+  const labelToggleEl = document.getElementById('labelToggle');
+  const baselineCb = document.getElementById('legendBaselineCheckbox');
+  const plannedCb = document.getElementById('legendPlannedCheckbox');
+  const actualCb = document.getElementById('legendActualCheckbox');
+  const forecastCb = document.getElementById('legendForecastCheckbox');
+
+  // Final fallback for legend state if checkbox elements are missing
+  let legendState = null;
+  try { legendState = getLegendState(); } catch(e) { legendState = null; }
+
+  const labelToggleVal = (labelToggleEl && typeof labelToggleEl.checked === 'boolean')
+    ? !!labelToggleEl.checked
+    : false;
+
+  const legendBaselineVal = (baselineCb && typeof baselineCb.checked === 'boolean')
+    ? !!baselineCb.checked
+    : (legendState && typeof legendState.baselineVisible === 'boolean' ? !!legendState.baselineVisible : true);
+
+  const legendPlannedVal = (plannedCb && typeof plannedCb.checked === 'boolean')
+    ? !!plannedCb.checked
+    : (legendState && typeof legendState.plannedVisible === 'boolean' ? !!legendState.plannedVisible : true);
+
+  const legendActualVal = (actualCb && typeof actualCb.checked === 'boolean')
+    ? !!actualCb.checked
+    : (legendState && typeof legendState.actualVisible === 'boolean' ? !!legendState.actualVisible : true);
+
+  const legendForecastVal = (forecastCb && typeof forecastCb.checked === 'boolean')
+    ? !!forecastCb.checked
+    : (legendState && typeof legendState.forecastVisible === 'boolean' ? !!legendState.forecastVisible : true);
+
+  const boolStr = (v) => (v ? 'true' : 'false');
+
+  // Strict required key order
+  projLines.push(csvLineNoNL(['datesaved', datesaved]));
+  projLines.push(csvLineNoNL(['timesaved', timesaved]));
   projLines.push(csvLineNoNL(['name', p.name || '']));
-
-  if (isUserSave) {
-    const now = new Date();
-    const datesaved = now.getFullYear() + '-' + pad2(now.getMonth() + 1) + '-' + pad2(now.getDate());
-    const timesaved = pad2(now.getHours()) + ':' + pad2(now.getMinutes());
-    projLines.push(csvLineNoNL(['datesaved', datesaved]));
-    projLines.push(csvLineNoNL(['timesaved', timesaved]));
-  }
-
   projLines.push(csvLineNoNL(['startup', p.startup || '']));
   projLines.push(csvLineNoNL(['markerLabel', p.markerLabel || '']));
+  projLines.push(csvLineNoNL(['labelToggle', boolStr(labelToggleVal)]));
+  projLines.push(csvLineNoNL(['legendBaselineCheckbox', boolStr(legendBaselineVal)]));
+  projLines.push(csvLineNoNL(['legendPlannedCheckbox', boolStr(legendPlannedVal)]));
+  projLines.push(csvLineNoNL(['legendActualCheckbox', boolStr(legendActualVal)]));
+  projLines.push(csvLineNoNL(['legendForecastCheckbox', boolStr(legendForecastVal)]));
 
   section('PROJECT', projLines);
 
