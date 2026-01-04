@@ -937,6 +937,7 @@ function renderLegend(chart){
     baselineVisible = e.target.checked;
     const meta = chart.getDatasetMeta(0);
     meta.hidden = !baselineVisible;
+    persistUiToggles();
     computeAndRender();
     if(window.sessionStorage) sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
   }, baselinePctText);
@@ -946,6 +947,7 @@ function renderLegend(chart){
     plannedVisible = e.target.checked;
     const meta = chart.getDatasetMeta(1);
     meta.hidden = !plannedVisible;
+    persistUiToggles();
     computeAndRender();
     if(window.sessionStorage) sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
   }, plannedPctText);
@@ -955,6 +957,7 @@ function renderLegend(chart){
     actualVisible = e.target.checked;
     const meta = chart.getDatasetMeta(2);
     meta.hidden = !actualVisible;
+    persistUiToggles();
     computeAndRender();
     if(window.sessionStorage) sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
   }, actualPctText);
@@ -964,6 +967,7 @@ function renderLegend(chart){
     forecastVisible = e.target.checked;
     const meta = chart.getDatasetMeta(3);
     meta.hidden = !forecastVisible;
+    persistUiToggles();
     computeAndRender();
     if(window.sessionStorage) sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
   }, daysRelText || null);
@@ -1177,6 +1181,42 @@ const yAxisLabelAnnotation = { type:'label', xValue: labels[0], yValue: 50, cont
 const COOKIE_KEY='progress_tracker_v3b';
 window.COOKIE_KEY = COOKIE_KEY;
 
+// UI-only toggle persistence (separate from model/session storage)
+const UI_TOGGLES_KEY = 'rp_ui_toggles_v1';
+
+function persistUiToggles(){
+  try{
+    if(!window.sessionStorage) return;
+    const labelEl = document.getElementById('labelToggle');
+    const payload = {
+      labelToggle: !!(labelEl && labelEl.checked),
+      baselineVisible: !!baselineVisible,
+      plannedVisible: !!plannedVisible,
+      actualVisible: !!actualVisible,
+      forecastVisible: !!forecastVisible
+    };
+    sessionStorage.setItem(UI_TOGGLES_KEY, JSON.stringify(payload));
+  }catch(e){ /* noop */ }
+}
+
+function restoreUiTogglesFromSession(){
+  try{
+    if(!window.sessionStorage) return;
+    const raw = sessionStorage.getItem(UI_TOGGLES_KEY);
+    if(!raw) return;
+    const st = JSON.parse(raw);
+    if(!st || typeof st !== 'object') return;
+
+    if ('baselineVisible' in st) baselineVisible = !!st.baselineVisible;
+    if ('plannedVisible' in st) plannedVisible = !!st.plannedVisible;
+    if ('actualVisible' in st) actualVisible = !!st.actualVisible;
+    if ('forecastVisible' in st) forecastVisible = !!st.forecastVisible;
+
+    const labelEl = document.getElementById('labelToggle');
+    if(labelEl && ('labelToggle' in st)) labelEl.checked = !!st.labelToggle;
+  }catch(e){ /* noop */ }
+}
+
 // Initialize Save/Load module (dependency injection; avoids circular imports)
 initSaveLoad({
   // State
@@ -1223,6 +1263,8 @@ initSaveLoad({
       if ('actualVisible' in patch) actualVisible = !!patch.actualVisible;
       if ('forecastVisible' in patch) forecastVisible = !!patch.forecastVisible;
     }
+    // Keep session UI state in sync when PRGS load updates legend state
+    persistUiToggles();
   }
 });
 
@@ -1266,6 +1308,8 @@ function hydrateFromSession(){
     if(labelEl) labelEl.value = (model.project && model.project.markerLabel) || 'Baseline Complete';
 
     syncScopeRowsToModel();
+    // Restore UI toggle state before first render on reload
+    restoreUiTogglesFromSession();
     computeAndRender();
     return true;
   }catch(e){
@@ -1298,7 +1342,7 @@ function defaultAll(){
 $('#projectName').addEventListener('input', computeAndRender);
 $('#projectStartup').addEventListener('change', computeAndRender);
 $('#startupLabelInput').addEventListener('input', computeAndRender);
-$('#labelToggle').addEventListener('change', computeAndRender);
+$('#labelToggle').addEventListener('change', (e)=>{ persistUiToggles(); computeAndRender(); });
 
 // Baseline button behavior
 $('#baselineBtn').addEventListener('click', ()=>{
