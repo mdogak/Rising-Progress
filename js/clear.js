@@ -6,7 +6,7 @@ export function initToolbarClear({
 }) {
   const btn = document.getElementById('toolbarClear');
   if (!btn) return;
-
+ 
   // Create modal once
   let modal = document.getElementById('clearModal');
   if (!modal) {
