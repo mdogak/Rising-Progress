@@ -53,6 +53,21 @@ function clamp(n,min,max){ return Math.max(min, Math.min(max,n)) }
 
 
 
+
+function generateScopeId(){
+  return 'sc_' + Math.random().toString(36).slice(2,8);
+}
+function ensureScopeIds(){
+  if(!model || !Array.isArray(model.scopes)) return;
+  // Temporary guard: do not generate IDs while a PRGS file is being hydrated
+  if(model.__hydratingFromPrgs === true) return;
+  model.scopes.forEach(s=>{
+    if(!s.scopeId){
+      s.scopeId = generateScopeId();
+    }
+  });
+}
+
 /*****************
  * Data model
  *****************/
@@ -67,12 +82,13 @@ let model = {
 window.model = model;
 
 function defaultScope(i){
-  if(i===0){ const startDate = new Date(today); startDate.setDate(startDate.getDate()-1); const endDate = new Date(startDate); endDate.setDate(endDate.getDate()+7); const start = fmtDate(startDate); const end = fmtDate(endDate); return { label:`Scope #${i+1}`, start, end, cost:100, actualPct:0, unitsToDate:0, totalUnits:'', unitsLabel:'%', sectionName:'' }; }
+  if(i===0){ const startDate = new Date(today); startDate.setDate(startDate.getDate()-1); const endDate = new Date(startDate); endDate.setDate(endDate.getDate()+7); const start = fmtDate(startDate); const end = fmtDate(endDate); return { scopeId: generateScopeId(), label:`Scope #${i+1}`, start, end, cost:100, actualPct:0, unitsToDate:0, totalUnits:'', unitsLabel:'%', sectionName:'' }; }
   return { label:`Scope #${i+1}`, start:'', end:'', cost:0, actualPct:0, unitsToDate:0, totalUnits:'', unitsLabel:'%', sectionName:'' };
 }
 
 function ensureRows(n){ const cont = $('#scopeRows'); const cur = cont.children.length; for(let i=cur;i<n;i++) cont.appendChild(renderScopeRow(i)); }
 function syncScopeRowsToModel(){
+  ensureScopeIds();
   const cont = $('#scopeRows');
   if(window.Sections && typeof window.Sections.render === 'function'){
     window.Sections.render(cont, model, renderScopeRow, { calcScopeWeightings, calcScopePlannedPctToDate, parseDate });
@@ -385,6 +401,25 @@ function updatePlannedCell(row, s){
     updateIssuesButtonState();
   }
 }
+
+
+// Planned is a pure, historyDate-driven UI calculation.
+// When historyDate changes (user or programmatic), we must refresh the Planned cells.
+function refreshPlannedForAllScopes(){
+  try{
+    const cont = document.getElementById('scopeRows');
+    if(!cont) return;
+    const rows = cont.querySelectorAll('.row');
+    rows.forEach(row=>{
+      const idx = Number(row.dataset.index);
+      if(!isFinite(idx)) return;
+      const s = (model && Array.isArray(model.scopes)) ? model.scopes[idx] : null;
+      if(!s) return;
+      updatePlannedCell(row, s);
+    });
+  }catch(e){}
+}
+
 function calcScopeWeightings(){ const total = model.scopes.reduce((a,b)=>a+(b.cost||0),0) || 0; return model.scopes.map(s=> total>0 ? (s.cost/total) : 0); }
 
 function hasAnyScopeIssues(){
@@ -724,6 +759,7 @@ function updateHistoryDate(totalActual){
     // Always let history drive the default when available
     if (hd.value !== lastDate) {
       hd.value = lastDate;
+      try{ refreshPlannedForAllScopes(); }catch(e){}
     }
     if (typeof totalActual === 'number') {
       lastTotalActualForHistory = totalActual;
@@ -745,6 +781,7 @@ function updateHistoryDate(totalActual){
     try {
       if (typeof fmtDate === 'function' && typeof today !== 'undefined') {
         hd.value = fmtDate(today);
+        try{ refreshPlannedForAllScopes(); }catch(e){}
       }
     } catch (e) { /* noop */ }
   } else if (hd.value && changed) {
@@ -752,6 +789,7 @@ function updateHistoryDate(totalActual){
     try {
       if (typeof fmtDate === 'function' && typeof today !== 'undefined') {
         hd.value = fmtDate(today);
+        try{ refreshPlannedForAllScopes(); }catch(e){}
       }
     } catch (e) { /* noop */ }
   }
@@ -899,6 +937,7 @@ function renderLegend(chart){
     baselineVisible = e.target.checked;
     const meta = chart.getDatasetMeta(0);
     meta.hidden = !baselineVisible;
+    persistUiToggles();
     computeAndRender();
     if(window.sessionStorage) sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
   }, baselinePctText);
@@ -908,6 +947,7 @@ function renderLegend(chart){
     plannedVisible = e.target.checked;
     const meta = chart.getDatasetMeta(1);
     meta.hidden = !plannedVisible;
+    persistUiToggles();
     computeAndRender();
     if(window.sessionStorage) sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
   }, plannedPctText);
@@ -917,6 +957,7 @@ function renderLegend(chart){
     actualVisible = e.target.checked;
     const meta = chart.getDatasetMeta(2);
     meta.hidden = !actualVisible;
+    persistUiToggles();
     computeAndRender();
     if(window.sessionStorage) sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
   }, actualPctText);
@@ -926,6 +967,7 @@ function renderLegend(chart){
     forecastVisible = e.target.checked;
     const meta = chart.getDatasetMeta(3);
     meta.hidden = !forecastVisible;
+    persistUiToggles();
     computeAndRender();
     if(window.sessionStorage) sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
   }, daysRelText || null);
@@ -1139,6 +1181,42 @@ const yAxisLabelAnnotation = { type:'label', xValue: labels[0], yValue: 50, cont
 const COOKIE_KEY='progress_tracker_v3b';
 window.COOKIE_KEY = COOKIE_KEY;
 
+// UI-only toggle persistence (separate from model/session storage)
+const UI_TOGGLES_KEY = 'rp_ui_toggles_v1';
+
+function persistUiToggles(){
+  try{
+    if(!window.sessionStorage) return;
+    const labelEl = document.getElementById('labelToggle');
+    const payload = {
+      labelToggle: !!(labelEl && labelEl.checked),
+      baselineVisible: !!baselineVisible,
+      plannedVisible: !!plannedVisible,
+      actualVisible: !!actualVisible,
+      forecastVisible: !!forecastVisible
+    };
+    sessionStorage.setItem(UI_TOGGLES_KEY, JSON.stringify(payload));
+  }catch(e){ /* noop */ }
+}
+
+function restoreUiTogglesFromSession(){
+  try{
+    if(!window.sessionStorage) return;
+    const raw = sessionStorage.getItem(UI_TOGGLES_KEY);
+    if(!raw) return;
+    const st = JSON.parse(raw);
+    if(!st || typeof st !== 'object') return;
+
+    if ('baselineVisible' in st) baselineVisible = !!st.baselineVisible;
+    if ('plannedVisible' in st) plannedVisible = !!st.plannedVisible;
+    if ('actualVisible' in st) actualVisible = !!st.actualVisible;
+    if ('forecastVisible' in st) forecastVisible = !!st.forecastVisible;
+
+    const labelEl = document.getElementById('labelToggle');
+    if(labelEl && ('labelToggle' in st)) labelEl.checked = !!st.labelToggle;
+  }catch(e){ /* noop */ }
+}
+
 // Initialize Save/Load module (dependency injection; avoids circular imports)
 initSaveLoad({
   // State
@@ -1152,6 +1230,21 @@ initSaveLoad({
   // Calculations / helpers
   calcPlannedSeriesByDay,
   calcActualSeriesByDay,
+  // Read-only helper for PRGS vNext2 writer: exposes the resolved daily actual series
+  // (explicit + interpolated + trailing nulls) using the same internal logic as the UI.
+  // Accepts an optional days array to align with the writer's chosen day range.
+  getResolvedDailyActualSeries: (daysOverride)=>{
+    try{
+      const plan = calcPlannedSeriesByDay();
+      const days = (Array.isArray(daysOverride) && daysOverride.length)
+        ? daysOverride
+        : (plan && Array.isArray(plan.days) ? plan.days : []);
+      const actual = calcActualSeriesByDay(days);
+      return { days: days.slice(), actual: Array.isArray(actual) ? actual.slice() : [] };
+    }catch(e){
+      return { days: [], actual: [] };
+    }
+  },
   getBaselineSeries,
   clamp,
   parseDate,
@@ -1170,6 +1263,8 @@ initSaveLoad({
       if ('actualVisible' in patch) actualVisible = !!patch.actualVisible;
       if ('forecastVisible' in patch) forecastVisible = !!patch.forecastVisible;
     }
+    // Keep session UI state in sync when PRGS load updates legend state
+    persistUiToggles();
   }
 });
 
@@ -1213,6 +1308,8 @@ function hydrateFromSession(){
     if(labelEl) labelEl.value = (model.project && model.project.markerLabel) || 'Baseline Complete';
 
     syncScopeRowsToModel();
+    // Restore UI toggle state before first render on reload
+    restoreUiTogglesFromSession();
     computeAndRender();
     return true;
   }catch(e){
@@ -1245,7 +1342,7 @@ function defaultAll(){
 $('#projectName').addEventListener('input', computeAndRender);
 $('#projectStartup').addEventListener('change', computeAndRender);
 $('#startupLabelInput').addEventListener('input', computeAndRender);
-$('#labelToggle').addEventListener('change', computeAndRender);
+$('#labelToggle').addEventListener('change', (e)=>{ persistUiToggles(); computeAndRender(); });
 
 // Baseline button behavior
 $('#baselineBtn').addEventListener('click', ()=>{
@@ -1269,7 +1366,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
 const hd = document.getElementById('historyDate');
 if (hd) {
-  const markManual = () => { hd.dataset.manual = 'true';   if (typeof computeAndRender === 'function') computeAndRender();
+  const markManual = () => { hd.dataset.manual = 'true';
+  if (typeof computeAndRender === 'function') computeAndRender();
+  try{ refreshPlannedForAllScopes(); }catch(e){}
 };
   hd.addEventListener('input', markManual);
   hd.addEventListener('change', markManual);

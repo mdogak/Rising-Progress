@@ -309,6 +309,177 @@ export function initHistory({ calcTotalActualProgress, fmtDate, today, computeAn
 
     if (!model.dailyActuals) model.dailyActuals = {};
     model.dailyActuals[d] = pct;
+
+    // vNext TIMESERIES snapshot (authoritative; overwrite by historyDate)
+    model.timeSeriesProject = model.timeSeriesProject || {};
+    model.timeSeriesScopes = model.timeSeriesScopes || {};
+    model.timeSeriesSections = model.timeSeriesSections || {};
+
+    // PROJECT snapshot (no toggles)
+    model.timeSeriesProject[d] = [
+      { historyDate: d, key: 'name', value: (model.project && model.project.name) || '' },
+      { historyDate: d, key: 'startup', value: (model.project && model.project.startup) || '' },
+      { historyDate: d, key: 'markerLabel', value: (model.project && model.project.markerLabel) || '' }
+    ];
+
+    // Planned-to-date helper (historyDate-driven; avoids UI timing issues)
+    const __clamp = (n, min, max) => Math.max(min, Math.min(max, Number(n) || 0));
+    const __parseDate = (val) => val ? new Date(val + 'T00:00:00') : null;
+    const __daysBetween = (aStr, bStr) => {
+      const da = __parseDate(aStr);
+      const db = __parseDate(bStr);
+      if(!da || !db || isNaN(da.getTime()) || isNaN(db.getTime())) return 0;
+      return Math.floor((db - da) / 86400000) + 1; // inclusive
+    };
+    // Matches progress.js planned semantics but uses explicit historyDate (no system-date fallback)
+    const __plannedPctToDate = (scope, historyDateStr) => {
+      if(!scope || !scope.start || !scope.end) return 0;
+      const dStart = __parseDate(scope.start);
+      const dEnd   = __parseDate(scope.end);
+      const t      = __parseDate(historyDateStr);
+      if(!dStart || !dEnd || !t || isNaN(dStart.getTime()) || isNaN(dEnd.getTime()) || isNaN(t.getTime())) return 0;
+
+      // Invalid range: end before start => treat as 100%
+      if(dEnd < dStart) return 100;
+
+      if(t < dStart) return 0;
+      if(t > dEnd) return 100;
+
+      const durationDays = __daysBetween(scope.start, scope.end);
+      const elapsedDays  = __daysBetween(scope.start, historyDateStr);
+
+      if(durationDays <= 0) return 100;
+
+      return __clamp((elapsedDays / durationDays) * 100, 0, 100);
+    };
+
+    // SCOPES snapshot
+    model.timeSeriesScopes[d] = (model.scopes || []).map(s => ({
+      historyDate: d,
+      scopeId: s.scopeId,
+      label: s.label,
+      start: s.start,
+      end: s.end,
+      cost: s.cost,
+      perDay: s.perDay,
+      actualPct: s.actualPct,
+      unitsToDate: (s.totalUnits ? s.unitsToDate : ''),
+      totalUnits: s.totalUnits,
+      unitsLabel: s.unitsLabel,
+      plannedtodate: (s && s.totalUnits && Number(s.totalUnits) > 0)
+        ? (__plannedPctToDate(s, d) / 100) * Number(s.totalUnits)
+        : __plannedPctToDate(s, d),
+      sectionName: s.sectionName,
+      sectionID: s.sectionID
+    }));
+
+    // SECTIONS snapshot (contiguous nonblank segments; UI order)
+    // Rules:
+    // - Build from the model (not DOM)
+    // - Ignore unsectioned scopes (blank sectionName)
+    // - Preserve UI order (no sorting)
+    // - sectionID is authoritative; sectionTitle is descriptive only
+    (function captureSectionSnapshots(){
+      const scopes = Array.isArray(model.scopes) ? model.scopes : [];
+      const totalCost = scopes.reduce((sum, s)=> sum + (Number(s && s.cost) || 0), 0);
+      const weights = scopes.map(s => totalCost > 0 ? ((Number(s && s.cost) || 0) / totalCost) : 0);
+
+      const clamp = (n, min, max) => Math.max(min, Math.min(max, Number(n) || 0));
+      const parseDate = (val) => val ? new Date(val + 'T00:00:00') : null;
+      const daysBetween = (aStr, bStr) => {
+        const da = parseDate(aStr);
+        const db = parseDate(bStr);
+        if(!da || !db || isNaN(da.getTime()) || isNaN(db.getTime())) return 0;
+        return Math.floor((db - da) / 86400000) + 1; // inclusive
+      };
+
+      // Local planned% helper: matches progress.js behavior (planned uses historyDate only; no system-date fallback)
+      const plannedPctToDate = (scope, historyDateStr) => {
+        if(!scope || !scope.start || !scope.end) return 0;
+        const dStart = parseDate(scope.start);
+        const dEnd   = parseDate(scope.end);
+        const t      = parseDate(historyDateStr);
+        if(!dStart || !dEnd || !t || isNaN(dStart.getTime()) || isNaN(dEnd.getTime()) || isNaN(t.getTime())) return 0;
+
+        // Invalid range: end before start => treat as 100%
+        if(dEnd < dStart) return 100;
+
+        if(t < dStart) return 0;
+        if(t > dEnd) return 100;
+
+        const durationDays = daysBetween(scope.start, scope.end);
+        const elapsedDays  = daysBetween(scope.start, historyDateStr);
+
+        if(durationDays <= 0) return 100;
+
+        return clamp((elapsedDays / durationDays) * 100, 0, 100);
+      };
+
+      const rows = [];
+      let i = 0;
+
+      while(i < scopes.length){
+        const s0 = scopes[i] || {};
+        const name = String(s0.sectionName || '');
+        const sid  = String(s0.sectionID || '');
+
+        // Ignore unsectioned scopes
+        if(!name){
+          i++;
+          continue;
+        }
+
+        // Determine contiguous segment bounds (same sectionName + sectionID)
+        const start = i;
+        let end = i;
+        while(end + 1 < scopes.length){
+          const sN = scopes[end + 1] || {};
+          const name2 = String(sN.sectionName || '');
+          const sid2  = String(sN.sectionID || '');
+          if(!name2) break;
+          if(name2 !== name) break;
+          if(sid2 !== sid) break;
+          end++;
+        }
+
+        // Compute rollups using the same weighting logic as section headers:
+        // - Scope weights are derived from cost/totalCost (fractions)
+        // - Section weight is sum of those weights (no re-scaling), displayed as percent points
+        let wSum = 0;
+        let accActual = 0;
+        let accPlanned = 0;
+
+        for(let k = start; k <= end; k++){
+          const wi = Number(weights[k]) || 0;
+          wSum += wi;
+
+          const a = Number((scopes[k] && scopes[k].actualPct) || 0) || 0;
+          accActual += wi * a;
+
+          const p = Number(plannedPctToDate(scopes[k], d) || 0) || 0;
+          accPlanned += wi * p;
+        }
+
+        const sectionWeight = (Number(wSum) || 0) * 100;
+        const sectionPct = wSum > 0 ? clamp(accActual / wSum, 0, 100) : 0;
+        const sectionPlannedPct = wSum > 0 ? clamp(accPlanned / wSum, 0, 100) : 0;
+
+        rows.push({
+          historyDate: d,
+          sectionID: sid,
+          sectionTitle: name,
+          sectionWeight,
+          sectionPct,
+          sectionPlannedPct
+        });
+
+        i = end + 1;
+      }
+
+      model.timeSeriesSections[d] = rows;
+    })();
+
+
     window.model = model;
 
     if (typeof computeAndRender === "function") {
