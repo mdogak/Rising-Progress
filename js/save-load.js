@@ -1038,6 +1038,7 @@ export function loadFromPrgsText(text){
   const fresh = { project:{name:'',startup:'', markerLabel:'Baseline Complete'}, scopes:[], history:[], dailyActuals:{}, baseline:null, daysRelativeToPlan:null, __hydratingFromPrgs:true };
 
   let scopeHeaders = [];
+  let scopeIdxMap = null;
   let baselineRows = [];
 
   // v2 TIMESERIES section helpers
@@ -1061,24 +1062,90 @@ export function loadFromPrgsText(text){
       if(r[0]==='legendActualCheckbox') fresh.project.legendActualCheckbox = (r[1]==='true');
       if(r[0]==='legendForecastCheckbox') fresh.project.legendForecastCheckbox = (r[1]==='true');
     } else if(section==='SCOPES'){
-      if(!scopeHeaders.length){ scopeHeaders = r; continue; }
-      const idx = (name)=> scopeHeaders.indexOf(name);
-      const s = {
-        scopeId: (idx('scopeId')>=0 ? (r[idx('scopeId')]||'') : ''),
-        label: r[idx('label')]||'',
-        start: r[idx('start')]||'',
-        end: r[idx('end')]||'',
-        cost: parseFloat(r[idx('cost')]||'0')||0,
-        unitsToDate: parseFloat(r[idx('progressValue')]||'0')||0,
-        totalUnits: (r[idx('totalUnits')]===undefined||r[idx('totalUnits')]==='')? '' : (parseFloat(r[idx('totalUnits')])||0),
-        unitsLabel: r[idx('unitsLabel')]||'%',
-        sectionName: (idx('sectionName')>=0 ? (r[idx('sectionName')]||'') : ''),
-        actualPct: 0,
-        sectionID: (idx('sectionID')>=0 ? (r[idx('sectionID')]||'') : '')
-      
+      // vNext2 SCOPES: header-aware parsing (case-insensitive) to avoid column shifting.
+      if(!scopeHeaders.length){
+        scopeHeaders = r;
+        scopeIdxMap = {};
+        scopeHeaders.forEach((h, i)=>{
+          const key = String(h||'').trim();
+          if(!key) return;
+          // Store both original and lowercase keys so we tolerate casing/typos like unitstoDate.
+          scopeIdxMap[key] = i;
+          scopeIdxMap[key.toLowerCase()] = i;
+        });
+        continue;
+      }
+
+      const col = (row, name)=>{
+        if(!scopeIdxMap) return '';
+        const k = String(name||'').trim();
+        const i = (scopeIdxMap[k] != null) ? scopeIdxMap[k] : scopeIdxMap[k.toLowerCase()];
+        if(i == null) return '';
+        const v = row[i];
+        return (v === undefined || v === null) ? '' : v;
       };
-      s.actualPct = s.totalUnits? (s.unitsToDate && s.totalUnits? (s.unitsToDate/s.totalUnits*100) : 0) : (s.unitsToDate||0);
+
+      const scopeId    = String(col(r,'scopeId') || col(r,'scopeID') || '').trim();
+      const label      = col(r,'label')||'';
+      const start      = col(r,'start')||'';
+      const end        = col(r,'end')||'';
+      const cost       = parseFloat(col(r,'cost')||'0')||0;
+
+      const totalUnitsCell = col(r,'totalUnits');
+      const totalUnitsStr  = (totalUnitsCell === undefined || totalUnitsCell === null) ? '' : String(totalUnitsCell).trim();
+      const isPercentScope = (totalUnitsStr === '');
+      const totalUnits     = isPercentScope ? '' : (parseFloat(totalUnitsStr) || 0);
+
+      // Hydrate unitsToDate from its dedicated column (never from progressValue).
+      const unitsToDateCell = col(r,'unitsToDate') || col(r,'unitstoDate');
+      const unitsToDateStr  = (unitsToDateCell === undefined || unitsToDateCell === null) ? '' : String(unitsToDateCell).trim();
+      const unitsToDate     = isPercentScope
+        ? 0
+        : ((unitsToDateStr === '') ? 0 : (parseFloat(unitsToDateStr)||0));
+
+      // Hydrate progressValue as 0–100 (percent) and treat it as authoritative snapshot.
+      // If missing, recover best-effort:
+      //   - unit scopes: backfill from unitsToDate/totalUnits when possible
+      //   - % scopes: default to 0 (user can re-enter)
+      const pvCell = col(r,'progressValue');
+      const pvStr  = (pvCell === undefined || pvCell === null) ? '' : String(pvCell).trim();
+      let progressValue = (pvStr === '') ? NaN : parseFloat(pvStr);
+
+      if(!isFinite(progressValue)){
+        if(!isPercentScope && isFinite(unitsToDate) && isFinite(totalUnits) && totalUnits > 0){
+          progressValue = (unitsToDate / totalUnits) * 100;
+        } else {
+          progressValue = 0;
+        }
+      }
+
+      // Clamp to [0,100] but do NOT normalize.
+      progressValue = d.clamp(progressValue, 0, 100);
+
+      const unitsLabel  = col(r,'unitsLabel')||'';
+      const sectionName = String(col(r,'sectionName')||'');
+      const sectionID   = String(col(r,'sectionID')||'');
+
+      const s = {
+        scopeId,
+        label,
+        start,
+        end,
+        cost,
+        progressValue,
+        unitsToDate,
+        totalUnits,
+        unitsLabel: unitsLabel || (isPercentScope ? '%' : ''),
+        sectionName,
+        sectionID,
+        // Internal/UI value:
+        // - For unit scopes, actualPct is stored as percent complete.
+        // - For % scopes, actualPct is the percent entered.
+        actualPct: progressValue
+      };
+
       fresh.scopes.push(s);
+    } else if(section==='DAILY_ACTUALS'){} else if(section==='DAILY_ACTUALS'){
     } else if(section==='DAILY_ACTUALS'){
       if(r[0]==='date') continue;
       const dd = r[0]; const a = r[1];
