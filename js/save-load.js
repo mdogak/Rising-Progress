@@ -440,24 +440,31 @@ function __fmt2(v){
 
 
 
-function buildAllCSV() {
+function buildAllCSV(isUserSave=false) {
   const model = getModel();
 
   // vNext2 writer: strict spacing control using physical lines (no embedded newlines).
-  // - 1 blank line after each #SECTION header
+  // - NO blank line between #SECTION header and the CSV header row
+  // - 1 blank line between CSV header row and first data row
   // - 2 blank lines between sections
   const out = [];
 
   const csvLineNoNL = (arr) => arr.map(csvEsc).join(',');
 
   const pad2 = (n) => String(n).padStart(2, '0');
-  const isUserSave = !(typeof window !== 'undefined' && window._autoSaving); // only true for explicit user Save
 
   function section(name, bodyLines) {
     if (out.length) out.push('', '');        // exactly two blank lines between sections
     out.push('#SECTION:' + name);
-    out.push('');                            // exactly one blank line after section header
-    out.push(...bodyLines);
+    // bodyLines[0] MUST be the CSV header row for the section.
+    if (Array.isArray(bodyLines) && bodyLines.length) {
+      out.push(bodyLines[0]);
+      out.push('');                          // exactly one blank line after header row
+      if (bodyLines.length > 1) out.push(...bodyLines.slice(1));
+    } else {
+      // Tolerant fallback: keep section syntactically valid.
+      out.push('');
+    }
   }
 
   // FORMAT
@@ -668,7 +675,8 @@ export async function saveAll(){
   const d = requireDeps();
   const model = getModel();
   try{
-    const csv = buildAllCSV();
+    const isUserSave = !(typeof window !== 'undefined' && window._autoSaving);
+    const csv = buildAllCSV(isUserSave);
     if(!window._autoSaving && window.showSaveFilePicker){
       const handle = await window.showSaveFilePicker({ suggestedName: (model.project.name? model.project.name.replace(/\s+/g,'_')+'_': '') + 'progress_all.prgs', types:[{ description:'CSV', accept:{ 'text/plain':['.prgs'] } }] });
       const writable = await handle.createWritable(); await writable.write(new Blob([csv], {type:'text/plain'})); await writable.close();
@@ -1234,6 +1242,15 @@ export function loadFromPrgsText(text){
         return isNaN(n) ? '' : n;
       };
 
+      const pvIdx = idx('progressValue');
+      const apIdx = idx('actualPct');
+
+      // vNext2 writer emits actualPct (not progressValue) in TIMESERIES_SCOPES.
+      // Back-compat: if only progressValue exists, treat it as the percent (0-100).
+      const actualPct = (apIdx >= 0)
+        ? numOrBlank(r[apIdx])
+        : (pvIdx >= 0 ? numOrBlank(r[pvIdx]) : '');
+
       const snap = {
         scopeId: r[idx('scopeId')] || '',
         label: r[idx('label')] || '',
@@ -1241,7 +1258,9 @@ export function loadFromPrgsText(text){
         end: r[idx('end')] || '',
         cost: numOrBlank(r[idx('cost')]),
         perDay: numOrBlank(r[idx('perDay')]),
-        progressValue: numOrBlank(r[idx('progressValue')]),
+        actualPct: actualPct,
+        // Optional legacy/back-compat field
+        progressValue: (pvIdx >= 0 ? numOrBlank(r[pvIdx]) : ''),
         unitsToDate: numOrBlank(r[idx('unitsToDate')]),
         totalUnits: (r[idx('totalUnits')]===undefined||r[idx('totalUnits')]==='') ? '' : (parseFloat(r[idx('totalUnits')])||0),
         unitsLabel: r[idx('unitsLabel')] || '',
