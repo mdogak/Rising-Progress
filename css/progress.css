@@ -738,7 +738,7 @@ html, body {
 }
 
 .warn-progress-orange {
-  outline: 1px solid rgba(234,88,12,0.5);
+  outline: 1px solid rgba(22,163,74,0.5); /* green */
   outline-offset: -1px;
 }
 
