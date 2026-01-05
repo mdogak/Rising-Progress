@@ -611,7 +611,7 @@ html, body {
   display:grid;
   gap:16px;
   grid-template-columns:
-    180px   /* Scope */
+    220px   /* Scope */
     132px   /* Start */
     132px   /* End */
     120px   /* Cost / % Weight */
