@@ -58,6 +58,25 @@ html, body {
   gap:16px;
   align-items:center;
 }
+
+/* IMPORTANT:
+   .section-row MUST always match the grid used by .row
+*/
+.section-row{
+  display: grid;
+  grid-template-columns:
+    220px   /* Scope */
+    132px   /* Start */
+    132px   /* End */
+    120px   /* Cost / % Weight */
+    100px   /* Total Units */
+    100px   /* % or Units to Date */
+    80px    /* Units */
+    100px   /* Planned */
+    80px;   /* Actions */
+  gap: 16px;
+  align-items: center;
+}
     
     .row > * { min-width: 0; } /* allow grid children to shrink and avoid overflow */
     .row input, .row select { width: 100%; box-sizing: border-box; } /* inputs fit inside their cell */
