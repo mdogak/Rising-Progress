@@ -731,18 +731,18 @@ html, body {
   opacity: 1 !important;
 }
 
-
-/* ===== Warning outlines (daily entry guidance) ===== */
-/* Outline only (no background, no glow). Must coexist with existing flags. */
-input.warn-progress-blue{
+/* === Warning outlines (daily entry guidance) === */
+.warn-progress-blue {
   outline: 2px solid var(--accent);
-  outline-offset: 0px;
+  outline-offset: -2px;
 }
-input.warn-progress-orange{
-  outline: 2px solid var(--accent-2);
-  outline-offset: 0px;
+
+.warn-progress-orange {
+  outline: 2px solid #ea580c;
+  outline-offset: -2px;
 }
-input.warn-totalunits-orange{
-  outline: 2px solid var(--accent-2);
-  outline-offset: 0px;
+
+.warn-totalunits-orange {
+  outline: 2px solid #ea580c;
+  outline-offset: -2px;
 }
