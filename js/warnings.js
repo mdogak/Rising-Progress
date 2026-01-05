@@ -39,9 +39,7 @@ export function applyScopeWarnings({ model, container }) {
         const end = new Date(s.end + 'T00:00:00');
 
         if (
-          historyDate >= start &&
-          historyDate <= end &&
-          actualPct < 100
+          historyDate >= start && actualPct < 100
         ) {
           progressEl.classList.remove('warn-progress-blue');
           progressEl.classList.add('warn-progress-orange');
