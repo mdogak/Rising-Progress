@@ -730,3 +730,19 @@ html, body {
 .scope-complete .row-menu * {
   opacity: 1 !important;
 }
+
+
+/* ===== Warning outlines (daily entry guidance) ===== */
+/* Outline only (no background, no glow). Must coexist with existing flags. */
+input.warn-progress-blue{
+  outline: 2px solid var(--accent);
+  outline-offset: 0px;
+}
+input.warn-progress-orange{
+  outline: 2px solid var(--accent-2);
+  outline-offset: 0px;
+}
+input.warn-totalunits-orange{
+  outline: 2px solid var(--accent-2);
+  outline-offset: 0px;
+}
