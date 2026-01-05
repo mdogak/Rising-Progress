@@ -55,7 +55,7 @@ export function openProjectLoader(){
 
     const primaryGrid = document.createElement('div');
     primaryGrid.className = 'rp-grid rp-grid-primary';
-    tiles.slice(0,2).forEach(t => primaryGrid.appendChild(buildTile(t)));
+    tiles.slice(0,3).forEach(t => primaryGrid.appendChild(buildTile(t)));
     modal.appendChild(primaryGrid);
 
     const sec = document.createElement('div');
