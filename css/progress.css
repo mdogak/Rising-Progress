@@ -30,7 +30,7 @@ html, body {
     .wrap{max-width:1280px;margin:0 auto;padding:24px}
     .grid{display:grid;gap:16px}
     .cols-2{grid-template-columns:
-    180px   /* Scope */
+    220px   /* Scope */
     132px   /* Start */
     132px   /* End */
     120px   /* Cost / % Weight */
@@ -46,7 +46,7 @@ html, body {
     .row{
   display:grid;
   grid-template-columns:
-    180px   /* Scope */
+    220px   /* Scope */
     132px   /* Start */
     132px   /* End */
     120px   /* Cost / % Weight */
@@ -57,6 +57,25 @@ html, body {
     80px    /* Actions */;  /* Actions */
   gap:16px;
   align-items:center;
+}
+
+/* IMPORTANT:
+   .section-row MUST always match the grid used by .row
+*/
+.section-row{
+  display: grid;
+  grid-template-columns:
+    220px   /* Scope */
+    132px   /* Start */
+    132px   /* End */
+    120px   /* Cost / % Weight */
+    100px   /* Total Units */
+    100px   /* % or Units to Date */
+    80px    /* Units */
+    100px   /* Planned */
+    80px;   /* Actions */
+  gap: 16px;
+  align-items: center;
 }
     
     .row > * { min-width: 0; } /* allow grid children to shrink and avoid overflow */
@@ -80,7 +99,7 @@ html, body {
     canvas{width:100%!important;height:520px!important;background:#ffffff;border:1px solid var(--border);border-radius:12px}
     .narrow{max-width:720px}
     .stack-when-narrow{display:grid;grid-template-columns:
-    180px   /* Scope */
+    220px   /* Scope */
     132px   /* Start */
     132px   /* End */
     120px   /* Cost / % Weight */
@@ -592,7 +611,7 @@ html, body {
   display:grid;
   gap:16px;
   grid-template-columns:
-    180px   /* Scope */
+    220px   /* Scope */
     132px   /* Start */
     132px   /* End */
     120px   /* Cost / % Weight */
