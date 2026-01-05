@@ -803,21 +803,22 @@ function computeAndRender(){
   // --- warnings (lazy-loaded, non-module safe) ---
   try {
     if (!window.__warningsLoaded) {
-  window.__warningsLoaded = true;
-  import('./warnings.js').then(m => {
-    window.applyScopeWarnings = m.applyScopeWarnings;
-    // Apply immediately after module loads (covers initial project load)
-    try {
-      window.applyScopeWarnings({
-        model,
-        container: document.getElementById('scopeRows')
-      });
-    } catch(e) {}
-  }).catch(()=>{});
-}
-
+      window.__warningsLoaded = true;
+      import('./warnings.js').then(m => {
+        window.applyScopeWarnings = m.applyScopeWarnings;
+        // Apply immediately after module loads (covers initial project load)
+        try {
+          window.applyScopeWarnings({
+            model,
+            container: document.getElementById('scopeRows')
+          });
+        } catch(e) {}
+      }).catch(()=>{});
+    }
+  } catch(e) {}
 
   // Moved baseline/planned percentages into the legend; leave this area empty.
+
   model.project.name = $('#projectName').value.trim();
   model.project.startup = $('#projectStartup').value;
   model.project.markerLabel = ($('#startupLabelInput').value || 'Baseline Complete').trim();
