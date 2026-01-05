@@ -65,7 +65,7 @@ export function openProjectLoader(){
 
     const templateGrid = document.createElement('div');
     templateGrid.className = 'rp-grid';
-    tiles.slice(2).forEach(t => templateGrid.appendChild(buildTile(t)));
+    tiles.slice(3).forEach(t => templateGrid.appendChild(buildTile(t)));
     modal.appendChild(templateGrid);
 
     overlay.appendChild(modal);
