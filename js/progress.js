@@ -800,6 +800,21 @@ function updateHistoryDate(totalActual){
 }
 
 function computeAndRender(){
+  // --- warnings (lazy-loaded, non-module safe) ---
+try {
+  if (!window.__warningsLoaded) {
+    window.__warningsLoaded = true;
+    import('./warnings.js').then(m => {
+      window.applyScopeWarnings = m.applyScopeWarnings;
+      // Apply immediately after module loads (covers initial project load)
+      try {
+        window.applyScopeWarnings({ model, container: document.getElementById('scopeRows') });
+      } catch(e) {}
+    }).catch(()=>{});
+  }
+} catch(e) {}
+
+
   // Moved baseline/planned percentages into the legend; leave this area empty.
   model.project.name = $('#projectName').value.trim();
   model.project.startup = $('#projectStartup').value;
@@ -882,6 +897,10 @@ const rel = computeDaysRelativeToPlan(days, plannedCum, actualCum);
     if(rel.daysRelative===0){ $('#planDelta').innerHTML = `<div>Current Progress: <strong>${rel.actualPct.toFixed(1)}%</strong></div>${plannedLine}${baselineLine}<div>Actual Relative to Plan: on plan</div>`; }
     else { const words = rel.daysRelative>0 ? 'days ahead of plan' : 'days behind plan'; $('#planDelta').innerHTML = `<div>Current Progress: <strong>${rel.actualPct.toFixed(1)}%</strong></div>${plannedLine}${baselineLine}<div>Actual Relative to Plan: <strong>${absDaysStr}</strong> ${words}</div>`; }
   } else { model.daysRelativeToPlan = null; $('#planDelta').textContent = ''; }
+
+  // Apply visual warning outlines (daily entry guidance)
+  try { if (window.applyScopeWarnings) window.applyScopeWarnings({ model, container: document.getElementById('scopeRows') }); } catch(e) {}
+
   sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
 }
 
@@ -1311,6 +1330,17 @@ function hydrateFromSession(){
     // Restore UI toggle state before first render on reload
     restoreUiTogglesFromSession();
     computeAndRender();
+
+  // Ensure warnings apply after project load / hydration
+  if (window.applyScopeWarnings) {
+    try {
+      window.applyScopeWarnings({
+        model,
+        container: document.getElementById('scopeRows')
+      });
+    } catch(e) {}
+  }
+
     return true;
   }catch(e){
     console.error('Failed to hydrate model from sessionStorage', e);

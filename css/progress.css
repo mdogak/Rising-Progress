@@ -730,3 +730,19 @@ html, body {
 .scope-complete .row-menu * {
   opacity: 1 !important;
 }
+
+/* === Warning outlines (daily entry guidance) === */
+.warn-progress-blue {
+  outline: 1px solid rgba(37,99,235,0.5);
+  outline-offset: -1px;
+}
+
+.warn-progress-orange {
+  outline: 1px solid rgba(22,163,74,0.5); /* green */
+  outline-offset: -1px;
+}
+
+.warn-totalunits-orange {
+  outline: 1px solid rgba(234,88,12,0.5);
+  outline-offset: -1px;
+}
