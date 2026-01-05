@@ -1326,6 +1326,17 @@ function hydrateFromSession(){
     // Restore UI toggle state before first render on reload
     restoreUiTogglesFromSession();
     computeAndRender();
+
+  // Ensure warnings apply after project load / hydration
+  if (window.applyScopeWarnings) {
+    try {
+      window.applyScopeWarnings({
+        model,
+        container: document.getElementById('scopeRows')
+      });
+    } catch(e) {}
+  }
+
     return true;
   }catch(e){
     console.error('Failed to hydrate model from sessionStorage', e);
