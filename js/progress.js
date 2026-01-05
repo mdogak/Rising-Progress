@@ -9,8 +9,6 @@ import { initSaveLoad, loadFromPresetCsv } from './save-load.js';
 import { initUrlLoader } from './url.js';
 import { openProjectLoader } from './loader.js';
 import {
-import { applyScopeWarnings } from './warnings.js';
-
   initHistoryDatePrompt,
   armHistoryDatePrompt,
   maybePromptForHistoryDate
@@ -802,6 +800,17 @@ function updateHistoryDate(totalActual){
 }
 
 function computeAndRender(){
+  // --- warnings (lazy-loaded, non-module safe) ---
+  try {
+    if (!window.__warningsLoaded) {
+      window.__warningsLoaded = true;
+      import('./warnings.js').then(m => {
+        window.applyScopeWarnings = m.applyScopeWarnings;
+      }).catch(()=>{});
+    }
+  } catch(e) {}
+
+
   // Moved baseline/planned percentages into the legend; leave this area empty.
   model.project.name = $('#projectName').value.trim();
   model.project.startup = $('#projectStartup').value;
@@ -886,7 +895,7 @@ const rel = computeDaysRelativeToPlan(days, plannedCum, actualCum);
   } else { model.daysRelativeToPlan = null; $('#planDelta').textContent = ''; }
 
   // Apply visual warning outlines (daily entry guidance)
-  try { applyScopeWarnings({ model, container: document.getElementById('scopeRows') }); } catch(e) {}
+  try { if (window.applyScopeWarnings) window.applyScopeWarnings({ model, container: document.getElementById('scopeRows') }); } catch(e) {}
 
   sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
 }

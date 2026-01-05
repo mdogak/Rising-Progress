@@ -1,92 +1,65 @@
-/*
-© 2025 Rising Progress LLC. All rights reserved.
+export function applyScopeWarnings({ model, container }) {
+  if (!container || !model || !Array.isArray(model.scopes)) return;
 
-warnings.js
-- Purely additive DOM warning outlines to guide daily entry fields.
-- No model mutation, no persistence, no inline styles.
-*/
+  const historyInput = document.getElementById('historyDate');
+  const historyDate = historyInput && historyInput.value
+    ? new Date(historyInput.value + 'T00:00:00')
+    : null;
 
-export function applyScopeWarnings({ model, container } = {}) {
-  try {
-    const cont = container || document.getElementById('scopeRows');
-    if (!cont || !model || !Array.isArray(model.scopes)) return;
+  const rows = container.querySelectorAll('.row[data-index]');
+  rows.forEach(row => {
+    const idx = Number(row.dataset.index);
+    const s = model.scopes[idx];
+    if (!s) return;
 
-    const hdEl = document.getElementById('historyDate');
-    const hdStr = (hdEl && typeof hdEl.value === 'string') ? hdEl.value.trim() : '';
-    const hd = parseDateStrict(hdStr);
+    const progressEl = row.querySelector('[data-k="progress"]');
+    const totalUnitsEl = row.querySelector('[data-k="totalUnits"]');
 
-    const rows = cont.querySelectorAll('.row');
-    rows.forEach(row => {
-      const idx = Number(row.dataset.index);
-      if (!isFinite(idx)) return;
+    // Cleanup
+    if (progressEl) {
+      progressEl.classList.remove('warn-progress-blue', 'warn-progress-orange');
+    }
+    if (totalUnitsEl) {
+      totalUnitsEl.classList.remove('warn-totalunits-orange');
+    }
 
-      const s = model.scopes[idx];
-      if (!s) return;
+    const actualPct = Number(s.actualPct) || 0;
+    const isComplete = actualPct >= 100;
 
-      const progressEl = row.querySelector('input[data-k="progress"]');
-      const totalUnitsEl = row.querySelector('input[data-k="totalUnits"]');
+    // Progress field warnings
+    if (progressEl && !isComplete) {
+      progressEl.classList.add('warn-progress-blue');
 
-      // Always clear prior warning classes first (every render)
-      if (progressEl) {
-        progressEl.classList.remove('warn-progress-blue', 'warn-progress-orange');
-      }
-      if (totalUnitsEl) {
-        totalUnitsEl.classList.remove('warn-totalunits-orange');
-      }
+      if (
+        historyDate &&
+        s.start &&
+        s.end
+      ) {
+        const start = new Date(s.start + 'T00:00:00');
+        const end = new Date(s.end + 'T00:00:00');
 
-      const actualPct = Number(s.actualPct);
-      const isComplete = (isFinite(actualPct) && actualPct >= 100) || row.classList.contains('scope-complete');
-      if (isComplete) {
-        // Suppress all warnings when complete
-        return;
-      }
-
-      // --- Rule 1: Progress entry field (data-k="progress") ---
-      if (progressEl) {
-        let useOrange = false;
-
-        // Escalated state only if ALL conditions are true
-        if (hd && isFinite(hd.getTime())) {
-          const dStart = parseDateStrict(s.start);
-          const dEnd = parseDateStrict(s.end);
-
-          if (dStart && dEnd && isFinite(dStart.getTime()) && isFinite(dEnd.getTime())) {
-            if (hd >= dStart && hd <= dEnd) {
-              if (isFinite(actualPct) && actualPct < 100) {
-                useOrange = true;
-              }
-            }
-          }
-        }
-
-        if (useOrange) {
+        if (
+          historyDate >= start &&
+          historyDate <= end &&
+          actualPct < 100
+        ) {
+          progressEl.classList.remove('warn-progress-blue');
           progressEl.classList.add('warn-progress-orange');
-        } else {
-          progressEl.classList.add('warn-progress-blue');
         }
       }
+    }
 
-      // --- Rule 2: Total Units field (data-k="totalUnits") ---
-      if (totalUnitsEl) {
-        const unitsLabel = (s.unitsLabel == null ? '' : String(s.unitsLabel)).trim();
-        const totalUnitsVal = s.totalUnits;
+    // Total Units warnings
+    if (totalUnitsEl && !isComplete) {
+      const unitsLabel = s.unitsLabel;
+      const totalUnits = s.totalUnits;
 
-        const isNonPercent = unitsLabel !== '%';
-        const isZeroOrBlank = (totalUnitsVal === 0 || totalUnitsVal === '');
-
-        if (isNonPercent && isZeroOrBlank) {
-          totalUnitsEl.classList.add('warn-totalunits-orange');
-        }
+      if (
+        unitsLabel !== '%' &&
+        (totalUnits === 0 || totalUnits === '')
+      ) {
+        totalUnitsEl.classList.add('warn-totalunits-orange');
       }
-    });
-  } catch (_) {
-    // Never throw from warning logic
-  }
-}
-
-function parseDateStrict(val) {
-  if (!val || typeof val !== 'string') return null;
-  const d = new Date(val + 'T00:00:00');
-  if (!d || isNaN(d.getTime())) return null;
-  return d;
+    }
+  });
 }
