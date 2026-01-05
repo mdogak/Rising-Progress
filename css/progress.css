@@ -30,7 +30,7 @@ html, body {
     .wrap{max-width:1280px;margin:0 auto;padding:24px}
     .grid{display:grid;gap:16px}
     .cols-2{grid-template-columns:
-    180px   /* Scope */
+    220px   /* Scope */
     132px   /* Start */
     132px   /* End */
     120px   /* Cost / % Weight */
