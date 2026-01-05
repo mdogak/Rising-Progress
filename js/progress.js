@@ -803,12 +803,18 @@ function computeAndRender(){
   // --- warnings (lazy-loaded, non-module safe) ---
   try {
     if (!window.__warningsLoaded) {
-      window.__warningsLoaded = true;
-      import('./warnings.js').then(m => {
-        window.applyScopeWarnings = m.applyScopeWarnings;
-      }).catch(()=>{});
-    }
-  } catch(e) {}
+  window.__warningsLoaded = true;
+  import('./warnings.js').then(m => {
+    window.applyScopeWarnings = m.applyScopeWarnings;
+    // Apply immediately after module loads (covers initial project load)
+    try {
+      window.applyScopeWarnings({
+        model,
+        container: document.getElementById('scopeRows')
+      });
+    } catch(e) {}
+  }).catch(()=>{});
+}
 
 
   // Moved baseline/planned percentages into the legend; leave this area empty.
