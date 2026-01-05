@@ -46,7 +46,7 @@ html, body {
     .row{
   display:grid;
   grid-template-columns:
-    180px   /* Scope */
+    220px   /* Scope */
     132px   /* Start */
     132px   /* End */
     120px   /* Cost / % Weight */
@@ -80,7 +80,7 @@ html, body {
     canvas{width:100%!important;height:520px!important;background:#ffffff;border:1px solid var(--border);border-radius:12px}
     .narrow{max-width:720px}
     .stack-when-narrow{display:grid;grid-template-columns:
-    180px   /* Scope */
+    220px   /* Scope */
     132px   /* Start */
     132px   /* End */
     120px   /* Cost / % Weight */
