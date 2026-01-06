@@ -1477,7 +1477,58 @@ function hasHistoryActualsAboveThreshold() {
   });
 }
 
+
+/*****************
+ * Save Project dropdown anchoring (toolbar)
+ *
+ * Mirror the row-menu pattern: a positioned wrapper with an absolutely-positioned dropdown child.
+ * This prevents the Save dropdown from detaching when the page scrolls.
+ *****************/
+function anchorSaveProjectDropdown(){
+  try{
+    const saveBtn = document.getElementById('saveCSV');
+    if(!saveBtn) return;
+
+    // The Save dropdown element is expected to exist in the DOM (created by save-load.js / HTML).
+    const dd = document.getElementById('saveDropdown');
+    if(!dd) return;
+
+    // Avoid double-wrapping if this runs more than once.
+    if(saveBtn.parentElement && saveBtn.parentElement.dataset && saveBtn.parentElement.dataset.rpSaveWrap === 'true'){
+      return;
+    }
+
+    // Create a dedicated wrapper for just Save Project controls.
+    const wrap = document.createElement('div');
+    wrap.dataset.rpSaveWrap = 'true';
+    // Establish positioning context (like .actions for row menus).
+    wrap.style.position = 'relative';
+    // Keep inline-block so the wrapper sizes to the button and doesn't affect toolbar layout.
+    wrap.style.display = 'inline-block';
+
+    // Insert wrapper where the Save button currently lives.
+    const parent = saveBtn.parentElement;
+    if(!parent) return;
+    parent.insertBefore(wrap, saveBtn);
+
+    // Move button + dropdown inside wrapper.
+    wrap.appendChild(saveBtn);
+    wrap.appendChild(dd);
+
+    // Ensure dropdown is anchored to the wrapper, not the page.
+    // (No page-level coordinate math; just structural anchoring like row menus.)
+    dd.style.position = 'absolute';
+    if(!dd.style.top) dd.style.top = '100%';
+    if(!dd.style.left) dd.style.left = '0';
+  }catch(e){
+    try{ console.error('Failed to anchor Save Project dropdown', e); }catch(_){}
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+  // Anchor Save Project dropdown to the Save button (prevents scroll detachment)
+  anchorSaveProjectDropdown();
+
   const loadBtn = document.getElementById('toolbarLoad');
   if (loadBtn) loadBtn.textContent = "Load Project";
   const saveBtn = document.getElementById('saveCSV');
