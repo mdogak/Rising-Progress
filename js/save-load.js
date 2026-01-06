@@ -1447,9 +1447,6 @@ function initSaveDropdown(){
   if (!btn || !dd || !btnCSV || !btnXML) return;
 
   function openDropdown() {
-    const rect = btn.getBoundingClientRect();
-    dd.style.left   = (rect.left + window.scrollX) + 'px';
-    dd.style.top    = (rect.bottom + window.scrollY + 4) + 'px';
     dd.style.display = 'block';
     void dd.offsetWidth;
     dd.classList.add('show');
