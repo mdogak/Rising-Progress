@@ -87,7 +87,7 @@ html, body {
     .danger{color:var(--danger)}
     .ok{color:var(--ok)}
     .pill{display:inline-flex;gap:6px;align-items:flex-start;border-radius:12px;padding:6px 10px;background:#ffffff;border:1px solid var(--border);flex-direction:row; align-items:center}
-    .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;position:relative}
     table{width:auto;border-collapse:collapse}
     th,td{padding:6px 8px;border-bottom:1px solid var(--border);text-align:left}
     .center{text-align:center}
@@ -238,6 +238,9 @@ html, body {
   transition: opacity 0.2s ease, transform 0.2s ease;
   opacity:0;
   transform: translateY(-5px);
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
 }
 #saveDropdown.show {
   opacity:1;
