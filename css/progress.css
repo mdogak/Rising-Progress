@@ -87,7 +87,7 @@ html, body {
     .danger{color:var(--danger)}
     .ok{color:var(--ok)}
     .pill{display:inline-flex;gap:6px;align-items:flex-start;border-radius:12px;padding:6px 10px;background:#ffffff;border:1px solid var(--border);flex-direction:row; align-items:center}
-    .toolbar{position:relative;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
     table{width:auto;border-collapse:collapse}
     th,td{padding:6px 8px;border-bottom:1px solid var(--border);text-align:left}
     .center{text-align:center}
@@ -230,11 +230,16 @@ html, body {
   white-space: nowrap !important;
   display: inline-block;
 }
-
-
-
+:has(> #saveCSV):has(> #saveDropdown){
+  position: relative;
+}
 
 #saveDropdown {
+  position: absolute !important;
+  top: calc(100% + 6px) !important;
+  left: 0 !important;
+  z-index: 2000;
+
   transition: opacity 0.2s ease, transform 0.2s ease;
   opacity:0;
   transform: translateY(-5px);
