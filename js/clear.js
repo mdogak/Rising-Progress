@@ -53,14 +53,16 @@ export function initToolbarClear({
       <div class="card">
         <h3>Select the items you want to clear:</h3>
         <label><input type="checkbox" data-k="all"> All (load blank project)</label>
-        <label><input type="checkbox" data-k="start" > Start Dates</label>
-        <label><input type="checkbox" data-k="end" > End Dates</label>
-        <label><input type="checkbox" data-k="cost" > Scope weightings</label>
-        <label><input type="checkbox" data-k="totalUnits"> Total Units</label>
-        <label><input type="checkbox" data-k="progress"> % or Units to Date</label>
-        <label><input type="checkbox" data-k="units"> Units</label>
-        <label><input type="checkbox" data-k="history" > History</label>
-        <label><input type="checkbox" data-k="baseline" > Baseline</label>
+<label><input type="checkbox" data-k="start" > Start Dates</label>
+<label><input type="checkbox" data-k="end" > End Dates</label>
+<label><input type="checkbox" data-k="cost" > Scope weightings</label>
+<label><input type="checkbox" data-k="totalUnits"> Total Units</label>
+<label><input type="checkbox" data-k="progress"> % or Units to Date</label>
+<label><input type="checkbox" data-k="units"> Units</label>
+<label><input type="checkbox" data-k="baseline" > Baseline</label>
+<label><input type="checkbox" data-k="history" > Actuals History</label>
+<label><input type="checkbox" data-k="timeseries" > Scope History</label>
+
         <div class="actions">
           <button id="clearCancel">Cancel</button>
           <button id="clearOk">OK</button>
@@ -71,6 +73,10 @@ export function initToolbarClear({
   }
 
   btn.addEventListener('click', () => {
+    // Keep modal stateless: reset checks each time it opens
+    modal.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = false;
+    });
     modal.style.display = 'flex';
   });
 
@@ -109,17 +115,25 @@ export function initToolbarClear({
         if ('unitslabel' in s) s.unitslabel = '%';
       }
     });
+// Baseline / history / timeseries clears (kept explicit and easy to reason about)
+if (checks.baseline) {
+  // If the baseline structure changes in future, setting to null still guarantees
+  // baseline.days[] and baseline.planned[] are cleared.
+  model.baseline = null;
+}
 
-    if (checks.history) {
-      model.history = [];
-      model.dailyActuals = {};
-    }
+if (checks.history) {
+  model.history = [];
+  model.dailyActuals = {};
+}
 
-    if (checks.baseline) {
-      model.baseline = null;
-    }
-
-    syncScopeRowsToModel();
+if (checks.timeseries) {
+  // Clear timeseries caches only (do not modify scopes)
+  model.timeSeriesScopes = [];
+  model.timeSeriesProject = [];
+  model.timeSeriesSections = [];
+}
+syncScopeRowsToModel();
     computeAndRender();
     sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
   };
