@@ -249,13 +249,6 @@ function onScopeChange(e){
   const costVal = isFinite(inputs.cost) ? inputs.cost : 0;
   s.cost = clamp(costVal, 0, SAFE_MAX);
 
-  if (window.RPWarnings && typeof window.RPWarnings.maybeWarnOnSectionWeightChange === 'function') {
-    window.RPWarnings.maybeWarnOnSectionWeightChange({
-      model,
-      scope: s
-    });
-  }
-
   // Total Units: allow '' for unset, otherwise clamp to >= 0
   let totalUnitsValue;
   if (inputs.totalUnitsRaw === '' || inputs.totalUnitsRaw == null) {

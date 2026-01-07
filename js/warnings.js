@@ -226,10 +226,14 @@ function hasSectionTimeseries(model){
   }
 }
 
-export function maybeWarnOnSectionWeightChange({ model, scope } = {}) {
+export function maybeWarnOnSectionWeightChange({ model, oldId, newId } = {}) {
   if (window._sectionWeightWarningAcknowledged) return;
-  if (!model || !scope) return;
+  if (!model) return;
   if (!hasSectionTimeseries(model)) return;
+
+  const a = (oldId == null ? '' : String(oldId));
+  const b = (newId == null ? '' : String(newId));
+  if (a === b) return;
 
   window.alert(
     "Changes have been made to modify the weight of this section. The historical values for this section will still be based on the previous configuration."

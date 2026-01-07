@@ -1516,16 +1516,98 @@ function initSaveDropdown(){
   btnCSV.addEventListener('click', function (e) {
     e.stopPropagation();
     closeDropdown();
-    if (typeof window.requireAuthForSaveAll === 'function') window.requireAuthForSaveAll();
-    else if (typeof saveAll === 'function') saveAll();
-    else if (typeof window.saveCsv === 'function') window.saveCsv();
+
+    const doSaveFlow = () => {
+      if (typeof window.requireAuthForSaveAll === 'function') window.requireAuthForSaveAll();
+      else if (typeof saveAll === 'function') saveAll();
+      else if (typeof window.saveCsv === 'function') window.saveCsv();
+    };
+
+    const guardFn = (window.RPWarnings && window.RPWarnings.guardSaveWithTimeseries);
+    const model = (typeof getModel === 'function') ? getModel() : (window.model || null);
+
+    if (typeof guardFn === 'function') {
+      const doSaveOnly = () => { doSaveFlow(); };
+      const doAddAndSave = () => {
+        try {
+          if (window.RPHistory && typeof window.RPHistory.addToHistory === 'function') {
+            window.RPHistory.addToHistory();
+          } else if (typeof window.addToHistory === 'function') {
+            window.addToHistory();
+          }
+        } catch (err) {
+          try { console.error('Failed to add to history before save', err); } catch(_) {}
+        }
+
+        if (window.RPWarnings && typeof window.RPWarnings.clearScopesDirtySinceLastHistory === 'function') {
+          window.RPWarnings.clearScopesDirtySinceLastHistory();
+        }
+
+        doSaveFlow();
+      };
+      const doCancel = () => {
+        // User dismissed the guard; do nothing.
+      };
+
+      guardFn({
+        model: (window.model || model),
+        onAddAndSave: doAddAndSave,
+        onSaveOnly: doSaveOnly,
+        onCancel: doCancel
+      });
+
+      return;
+    }
+
+    doSaveFlow();
   });
 
   btnXML.addEventListener('click', function (e) {
     e.stopPropagation();
     closeDropdown();
-    if (typeof window.requireAuthForSaveXml === 'function') window.requireAuthForSaveXml();
-    else if (typeof saveXml === 'function') saveXml();
+
+    const doSaveFlowXml = () => {
+      if (typeof window.requireAuthForSaveXml === 'function') window.requireAuthForSaveXml();
+      else if (typeof saveXml === 'function') saveXml();
+    };
+
+    const guardFn = (window.RPWarnings && window.RPWarnings.guardSaveWithTimeseries);
+    const model = (typeof getModel === 'function') ? getModel() : (window.model || null);
+
+    if (typeof guardFn === 'function') {
+      const doSaveOnly = () => { doSaveFlowXml(); };
+      const doAddAndSave = () => {
+        try {
+          if (window.RPHistory && typeof window.RPHistory.addToHistory === 'function') {
+            window.RPHistory.addToHistory();
+          } else if (typeof window.addToHistory === 'function') {
+            window.addToHistory();
+          }
+        } catch (err) {
+          try { console.error('Failed to add to history before save', err); } catch(_) {}
+        }
+
+        if (window.RPWarnings && typeof window.RPWarnings.clearScopesDirtySinceLastHistory === 'function') {
+          window.RPWarnings.clearScopesDirtySinceLastHistory();
+        }
+
+        doSaveFlowXml();
+      };
+      const doCancel = () => {
+        // User dismissed the guard; do nothing.
+      };
+
+      guardFn({
+        model: (window.model || model),
+        onAddAndSave: doAddAndSave,
+        onSaveOnly: doSaveOnly,
+        onCancel: doCancel
+      });
+
+      return;
+    }
+
+    doSaveFlowXml();
   });
 
   document.addEventListener('click', function (e) {
