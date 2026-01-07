@@ -52,6 +52,62 @@ function daysBetween(a,b){ const ms = (parseDate(fmtDate(b)) - parseDate(fmtDate
 function clamp(n,min,max){ return Math.max(min, Math.min(max,n)) }
 
 
+function normalizeScopeNumericFields(scope){
+  if(!scope) return;
+  const SAFE_MAX = 1e12;
+
+  // Cost (weighting) must be >= 0, no upper bound except safety cap
+  let costVal = Number(scope.cost);
+  if (!isFinite(costVal)) costVal = 0;
+  scope.cost = clamp(costVal, 0, SAFE_MAX);
+
+  // Total Units must be >= 0, allow '' to represent unset
+  let tuRaw = scope.totalUnits;
+  let hasTotalUnits = false;
+  if (tuRaw === '' || tuRaw == null) {
+    scope.totalUnits = '';
+  } else {
+    let tuNum = Number(tuRaw);
+    if (!isFinite(tuNum)) tuNum = 0;
+    tuNum = clamp(tuNum, 0, SAFE_MAX);
+    scope.totalUnits = tuNum;
+    hasTotalUnits = tuNum > 0;
+  }
+
+  const unitsLabel = (scope.unitsLabel || '').trim();
+  const isPercentMode = (!hasTotalUnits && (unitsLabel === '%' || unitsLabel === ''));
+
+  if (isPercentMode) {
+    // Daily progress is treated as percentage
+    let ap = Number(scope.actualPct);
+    if (!isFinite(ap)) ap = 0;
+    scope.actualPct = clamp(ap, 0, 100);
+    scope.unitsToDate = 0;
+  } else {
+    // Daily progress is in units, clamp to >= 0 (no explicit upper bound beyond safety cap)
+    let ud = Number(scope.unitsToDate);
+    if (!isFinite(ud)) ud = 0;
+    scope.unitsToDate = clamp(ud, 0, SAFE_MAX);
+
+    if (hasTotalUnits && scope.totalUnits > 0) {
+      const ratio = (scope.unitsToDate / scope.totalUnits) * 100;
+      const pct = isFinite(ratio) ? ratio : 0;
+      scope.actualPct = clamp(pct, 0, 100);
+    } else {
+      let ap = Number(scope.actualPct);
+      if (!isFinite(ap)) ap = 0;
+      scope.actualPct = clamp(ap, 0, 100);
+    }
+  }
+}
+
+function normalizeAllScopeNumericFields(){
+  if (!model || !Array.isArray(model.scopes)) return;
+  model.scopes.forEach(normalizeScopeNumericFields);
+}
+
+
+
 
 
 function generateScopeId(){
@@ -183,24 +239,78 @@ function onScopeChange(e){
     totalUnitsRaw: realRow.querySelector('[data-k="totalUnits"]').value,
     unitsLabel: realRow.querySelector('[data-k="unitsLabel"]').value.trim()
   };
+
   s.label = inputs.label || `Scope #${i+1}`;
   s.start = inputs.start;
   s.end = inputs.end;
-  s.cost = isFinite(inputs.cost) ? inputs.cost : 0;
-  const tu = inputs.totalUnitsRaw === '' ? '' : clamp(parseFloat(inputs.totalUnitsRaw)||0,0,1e12);
-  s.totalUnits = tu;
-  if(tu!=='' && tu>0){
-    s.unitsLabel = (inputs.unitsLabel || 'Feet');
+
+  // Cost / weighting: clamp to >= 0, no explicit upper bound beyond safety cap
+  const SAFE_MAX = 1e12;
+  const costVal = isFinite(inputs.cost) ? inputs.cost : 0;
+  s.cost = clamp(costVal, 0, SAFE_MAX);
+
+  // Total Units: allow '' for unset, otherwise clamp to >= 0
+  let totalUnitsValue;
+  if (inputs.totalUnitsRaw === '' || inputs.totalUnitsRaw == null) {
+    totalUnitsValue = '';
+    s.totalUnits = '';
   } else {
-    s.unitsLabel = (inputs.unitsLabel || '%');
+    const parsedTU = parseFloat(inputs.totalUnitsRaw);
+    const tuNum = clamp(isFinite(parsedTU) ? parsedTU : 0, 0, SAFE_MAX);
+    totalUnitsValue = tuNum;
+    s.totalUnits = tuNum;
   }
-  if(tu!=='' && tu>0){
-    s.unitsToDate = clamp(inputs.progressVal,0,1e12);
-    s.actualPct = tu>0 ? (s.unitsToDate/tu*100) : 0;
+
+  const unitsLabelTrimmed = inputs.unitsLabel;
+  const hasTotalUnits = (totalUnitsValue !== '' && totalUnitsValue > 0);
+  const isPercentMode = (!hasTotalUnits && (unitsLabelTrimmed === '%' || unitsLabelTrimmed === ''));
+
+  // Persist units label with existing defaults
+  if (hasTotalUnits) {
+    s.unitsLabel = (unitsLabelTrimmed || 'Feet');
   } else {
+    s.unitsLabel = (unitsLabelTrimmed || '%');
+  }
+
+  // Daily progress entry rules
+  let rawProgress = isFinite(inputs.progressVal) ? inputs.progressVal : 0;
+  if (isPercentMode) {
+    // Percent scopes: model stores percentage in actualPct, unitsToDate forced to 0
+    s.actualPct = rawProgress;
     s.unitsToDate = 0;
-    s.actualPct = clamp(inputs.progressVal,0,100);
+  } else {
+    // Unit scopes: model stores daily entry in unitsToDate
+    s.unitsToDate = rawProgress;
+    // actualPct will be derived from units/totalUnits in the normalizer
   }
+
+  // Apply shared numeric rules (clamping progress, totalUnits, cost and actualPct)
+  normalizeScopeNumericFields(s);
+
+  // Snap clamped values back into inputs (no formatting changes beyond the clamp)
+  const costInputEl = realRow.querySelector('[data-k="cost"]');
+  if (costInputEl) {
+    costInputEl.value = (s.cost != null ? s.cost : 0);
+  }
+
+  const totalUnitsInputEl = realRow.querySelector('[data-k="totalUnits"]');
+  if (totalUnitsInputEl) {
+    if (s.totalUnits === '' || s.totalUnits == null) {
+      totalUnitsInputEl.value = '';
+    } else {
+      totalUnitsInputEl.value = s.totalUnits;
+    }
+  }
+
+  const progressInputEl = realRow.querySelector('[data-k="progress"]');
+  if (progressInputEl) {
+    if (isPercentMode) {
+      progressInputEl.value = s.actualPct;
+    } else {
+      progressInputEl.value = s.unitsToDate;
+    }
+  }
+
   updatePlannedCell(realRow, s);
   armHistoryDatePrompt();
   computeAndRender();
@@ -215,6 +325,7 @@ function onScopeChange(e){
 }
 
 /*****************
+**********
  * Row +/- actions
  *****************/
 /*****************
@@ -709,18 +820,60 @@ function syncActualFromDOM(){
     const totalUnitsEl = row.querySelector('[data-k="totalUnits"]');
     const unitsLabelEl = row.querySelector('[data-k="unitsLabel"]');
 
-    let progressVal = parseFloat(progressEl?.value || '0') || 0;
-    let totalUnits = parseFloat(totalUnitsEl?.value || '0') || 0;
-    let unitsLabel = unitsLabelEl?.value || '%';
+    const rawProgress = parseFloat(progressEl?.value || '0');
+    let progressVal = isFinite(rawProgress) ? rawProgress : 0;
+    // Daily progress entry: clamp to minimum 0, unconstrained upper bound except safety cap
+    progressVal = clamp(progressVal, 0, 1e12);
 
-    if(totalUnits > 0){
-      scope.unitsToDate = progressVal;
-      scope.actualPct = (progressVal / totalUnits) * 100;
-      scope.unitsLabel = unitsLabel;
+    const totalUnitsRaw = totalUnitsEl ? totalUnitsEl.value : '';
+    const unitsLabelRaw = (unitsLabelEl?.value || '').trim();
+
+    let totalUnitsVal;
+    if (totalUnitsRaw === '' || totalUnitsRaw == null) {
+      totalUnitsVal = '';
+      scope.totalUnits = '';
     } else {
+      const parsedTU = parseFloat(totalUnitsRaw);
+      totalUnitsVal = clamp(isFinite(parsedTU) ? parsedTU : 0, 0, 1e12);
+      scope.totalUnits = totalUnitsVal;
+    }
+
+    const hasTotalUnits = (totalUnitsVal !== '' && totalUnitsVal > 0);
+    const isPercentMode = (!hasTotalUnits && (unitsLabelRaw === '%' || unitsLabelRaw === ''));
+
+    if (hasTotalUnits) {
+      scope.unitsLabel = (unitsLabelRaw || 'Feet');
+    } else {
+      scope.unitsLabel = (unitsLabelRaw || '%');
+    }
+
+    if (isPercentMode) {
+      // Percent scopes: progress is stored in actualPct, unitsToDate forced to 0
       scope.actualPct = progressVal;
       scope.unitsToDate = 0;
-      scope.unitsLabel = unitsLabel;
+    } else {
+      // Unit scopes: progress is stored in unitsToDate
+      scope.unitsToDate = progressVal;
+      // actualPct will be derived from units/totalUnits in the normalizer
+    }
+
+    // Apply shared numeric rules including final actualPct clamp to 0–100
+    normalizeScopeNumericFields(scope);
+
+    // Snap clamped values back into DOM inputs
+    if (progressEl) {
+      if (isPercentMode) {
+        progressEl.value = scope.actualPct;
+      } else {
+        progressEl.value = scope.unitsToDate;
+      }
+    }
+    if (totalUnitsEl) {
+      if (scope.totalUnits === '' || scope.totalUnits == null) {
+        totalUnitsEl.value = '';
+      } else {
+        totalUnitsEl.value = scope.totalUnits;
+      }
     }
   });
 
@@ -1240,7 +1393,7 @@ function restoreUiTogglesFromSession(){
 initSaveLoad({
   // State
   getModel: ()=>model,
-  setModel: (m)=>{ model = m; window.model = model; },
+  setModel: (m)=>{ model = m; window.model = model; normalizeAllScopeNumericFields(); },
 
   // Render / recompute
   syncScopeRowsToModel,
@@ -1317,6 +1470,7 @@ function hydrateFromSession(){
 
     model = stored;
     window.model = model;
+    normalizeAllScopeNumericFields();
 
     const nameEl = document.getElementById('projectName');
     const startupEl = document.getElementById('projectStartup');
