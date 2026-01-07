@@ -222,6 +222,13 @@ export function renderDailyTable(days, baseline, planned, actual, opts = {}) {
         model.dailyActuals[day] = v;
         window.model = model;
 
+    // Clear dirty flag after successful history snapshot
+    try {
+      if (window.RPWarnings && typeof window.RPWarnings.clearScopesDirtySinceLastHistory === 'function') {
+        window.RPWarnings.clearScopesDirtySinceLastHistory();
+      }
+    } catch(e) {}
+
         if (typeof computeAndRender === "function") {
           computeAndRender();
         }

@@ -249,6 +249,13 @@ function onScopeChange(e){
   const costVal = isFinite(inputs.cost) ? inputs.cost : 0;
   s.cost = clamp(costVal, 0, SAFE_MAX);
 
+  if (window.RPWarnings && typeof window.RPWarnings.maybeWarnOnSectionWeightChange === 'function') {
+    window.RPWarnings.maybeWarnOnSectionWeightChange({
+      model,
+      scope: s
+    });
+  }
+
   // Total Units: allow '' for unset, otherwise clamp to >= 0
   let totalUnitsValue;
   if (inputs.totalUnitsRaw === '' || inputs.totalUnitsRaw == null) {
@@ -311,7 +318,41 @@ function onScopeChange(e){
     }
   }
 
+  const rowEl = realRow;
+  if (window.RPWarnings && typeof window.RPWarnings.handleProgressVsTotalUnitsWarning === 'function') {
+    const adjusted = !!window.RPWarnings.handleProgressVsTotalUnitsWarning({
+      scope: s,
+      rowElement: rowEl
+    });
+    if (adjusted) {
+      // Re-apply shared numeric normalization and snap values back to inputs.
+      normalizeScopeNumericFields(s);
+
+      const totalUnitsInputEl = realRow.querySelector('[data-k="totalUnits"]');
+      if (totalUnitsInputEl) {
+        if (s.totalUnits === '' || s.totalUnits == null) {
+          totalUnitsInputEl.value = '';
+        } else {
+          totalUnitsInputEl.value = s.totalUnits;
+        }
+      }
+
+      if (progressInputEl) {
+        if (isPercentMode) {
+          progressInputEl.value = s.actualPct;
+        } else {
+          progressInputEl.value = s.unitsToDate;
+        }
+      }
+    }
+  }
+
   updatePlannedCell(realRow, s);
+
+  if (window.RPWarnings && typeof window.RPWarnings.markScopesDirtySinceLastHistory === 'function') {
+    window.RPWarnings.markScopesDirtySinceLastHistory();
+  }
+
   armHistoryDatePrompt();
   computeAndRender();
   sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
@@ -959,6 +1000,11 @@ try {
     window.__warningsLoaded = true;
     import('./warnings.js').then(m => {
       window.applyScopeWarnings = m.applyScopeWarnings;
+      if (typeof m.registerWarningsGlobals === 'function') {
+        try {
+          m.registerWarningsGlobals();
+        } catch (e) {}
+      }
       // Apply immediately after module loads (covers initial project load)
       try {
         window.applyScopeWarnings({ model, container: document.getElementById('scopeRows') });

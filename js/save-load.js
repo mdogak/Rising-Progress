@@ -711,7 +711,10 @@ function buildAllCSV(isUserSave=false) {
 export async function saveAll(){
   const d = requireDeps();
   const model = getModel();
-  try{
+  const isUserSave = !(typeof window !== 'undefined' && window._autoSaving);
+
+  async function performProjectSave(){
+
     const isUserSave = !(typeof window !== 'undefined' && window._autoSaving);
     const csv = buildAllCSV(isUserSave);
     if(!window._autoSaving && window.showSaveFilePicker){
@@ -723,8 +726,53 @@ export async function saveAll(){
       const blob = new Blob([csv], {type:'text/plain'}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = (model.project.name? model.project.name.replace(/\s+/g,'_')+'_': '') + 'progress_all.prgs'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
       if (window.sessionStorage) sessionStorage.setItem(d.COOKIE_KEY, JSON.stringify(model));
     }
-  }catch(e){ alert('Save failed: ' + e.message); }
+  
+  }
+
+  // Auto-saving and other non-interactive flows should bypass the guard.
+  if (!isUserSave) {
+    return performProjectSave();
+  }
+
+  const guardFn = (window.RPWarnings && window.RPWarnings.guardSaveWithTimeseries);
+  if (typeof guardFn === 'function') {
+    const doSaveOnly = () => { performProjectSave(); };
+    const doAddAndSave = () => {
+      try {
+        if (window.RPHistory && typeof window.RPHistory.addToHistory === 'function') {
+          window.RPHistory.addToHistory();
+        } else if (typeof window.addToHistory === 'function') {
+          window.addToHistory();
+        }
+      } catch (err) {
+        console.error('Failed to add to history before save', err);
+      }
+
+      if (window.RPWarnings && typeof window.RPWarnings.clearScopesDirtySinceLastHistory === 'function') {
+        window.RPWarnings.clearScopesDirtySinceLastHistory();
+      }
+
+      performProjectSave();
+    };
+    const doCancel = () => {
+      // User dismissed the guard; intentionally do nothing.
+    };
+
+    guardFn({
+      model: (window.model || model),
+      onAddAndSave: doAddAndSave,
+      onSaveOnly: doSaveOnly,
+      onCancel: doCancel
+    });
+
+    // Guard takes over control flow.
+    return;
+  }
+
+  // Fallback: behave exactly as before when no guard is registered.
+  return performProjectSave();
 }
+
 
 function parseCSV(text){
   const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
