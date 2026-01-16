@@ -1,5 +1,14 @@
+#SECTION:FORMAT
+key,value
+
+version,2
+
+
 #SECTION:PROJECT
 key,value
+
+datesaved,2026-01-15
+timesaved,11:00
 name,Well Connect
 startup,
 markerLabel,Original Complete
@@ -9,46 +18,52 @@ legendPlannedCheckbox,true
 legendActualCheckbox,true
 legendForecastCheckbox,true
 
+
 #SECTION:SCOPES
-label,start,end,cost,progressValue,totalUnits,unitsLabel,sectionName
-Clearing,,,10,0,,%,Pipeline
-Grading,,,10,4,,%,Pipeline
-Stringing,,,10,0,,%,Pipeline
-Bending,,,10,0,,%,Pipeline
-Ditching,,,10,0,,%,Pipeline
-Welding,,,10,0,,%,Pipeline
-Coating,,,10,0,,%,Pipeline
-Lower-in,,,10,0,,%,Pipeline
-Backfill,,,10,0,,%,Pipeline
-Pressure Testing,,,5,0,,%,Pipeline
-Commissioning,,,5,0,,%,Pipeline
-Land Acquisition,,,5,0,,%,Facility-Site
-Permitting,,,5,0,,%,Facility-Site
-Engineering,,,15,0,,%,Facility-Site
-Site Work,,,15,0,,%,Facility-Site
-Foundations,,,15,0,,%,Facility-Site
-Structural Steel,,,5,0,,%,Facility-Site
-Mechanical Install,,,20,0,,%,Facility-Site
-Building,,,5,0,,%,Facility-Site
-Electrical Instrumentation,,,10,0,,%,Facility-Site
-Pressure Testing,,,2.5,0,,%,Facility-Site
-Commissioning,,,2.5,0,,%,Facility-Site
+scopeId,label,start,end,cost,progressValue,unitsToDate,totalUnits,unitsLabel,sectionName,sectionID
 
-#SECTION:DAILY_ACTUALS
-date,value
+sc_my4q2g,Clearing,,,10,0,,,Feet,Pipeline,sec_dab657
+sc_95th15,Grading,,,10,0,,,Feet,Pipeline,sec_dab657
+sc_fph1h9,Stringing,,,10,0,,,Feet,Pipeline,sec_dab657
+sc_xboq62,Bending,,,10,0,,,Feet,Pipeline,sec_dab657
+sc_wyo42k,Ditching,,,10,0,,,Feet,Pipeline,sec_dab657
+sc_q6f3b3,Welding,,,10,0,,,Feet,Pipeline,sec_dab657
+sc_2ssxee,Coating,,,10,0,,,Feet,Pipeline,sec_dab657
+sc_lk90az,Lower-in,,,10,0,,,Feet,Pipeline,sec_dab657
+sc_6eqytm,Backfill,,,10,0,,,Feet,Pipeline,sec_dab657
+sc_jdofx7,Crossing,,,0,0,,,%,Pipeline,sec_dab657
+sc_0hl7fe,Pressure Testing,,,5,0,,,%,Pipeline,sec_dab657
+sc_05dd5q,Commissioning,,,5,0,,,%,Pipeline,sec_dab657
+sc_gvej71,Restoration,,,0,0,,,Feet,Pipeline,sec_dab657
+sc_ud2w5i,Land Acquisition,,,5,0,,,%,Facility-Site,sec_c5b98f
+sc_z0beh5,Permitting,,,5,0,,,%,Facility-Site,sec_c5b98f
+sc_4fil7h,Engineering,,,15,0,,,%,Facility-Site,sec_c5b98f
+sc_5mh241,Site Work,,,15,0,,,%,Facility-Site,sec_c5b98f
+sc_xmcodh,Foundations,,,15,0,,,Qty,Facility-Site,sec_c5b98f
+sc_myy34v,Mechanical Install,,,20,0,,,%,Facility-Site,sec_c5b98f
+sc_x8kif9,Building,,,5,0,,,%,Facility-Site,sec_c5b98f
+sc_5g1v99,Electrical Instrumentation,,,10,0,,,%,Facility-Site,sec_c5b98f
+sc_r17u6s,Pressure Testing,,,2.5,0,,,%,Facility-Site,sec_c5b98f
+sc_m3o045,Structural Steel,,,5,0,,,%,Facility-Site,sec_c5b98f
+sc_ddzmvs,Commissioning,,,2.5,0,,,%,Facility-Site,sec_c5b98f
+sc_bbqar4,Project Close-out,,,0,0,,,%,Facility-Site,sec_c5b98f
 
-#SECTION:HISTORY
-date,actualPct
 
-#SECTION:BASELINE
-date,baselinePct
-2025-11-14,0
-2025-11-15,12.5
-2025-11-16,25
-2025-11-17,37.5
-2025-11-18,50
-2025-11-19,62.5
-2025-11-20,75
-2025-11-21,87.5
-2025-11-22,100
+#SECTION:TIMESERIES
+date,baselinePct,plannedPct,dailyActual,actualPct
+
+
+
+#SECTION:TIMESERIES_PROJECT
+historyDate,key,value
+
+
+
+#SECTION:TIMESERIES_SCOPES
+historyDate,scopeId,label,start,end,cost,perDay,actualPct,unitsToDate,totalUnits,unitsLabel,plannedtodate,sectionName,sectionID
+
+
+
+#SECTION:TIMESERIES_SECTIONS
+historyDate,sectionID,sectionTitle,sectionWeight,sectionPct,sectionPlannedPct
 
