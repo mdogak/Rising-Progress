@@ -136,8 +136,6 @@ let model = {
   daysRelativeToPlan: null
 };
 window.model = model;
-// Request an initial scopes-baseline capture once warnings globals are available.
-try { window.__rpBaselinePending = true; } catch(e) {}
 
 function defaultScope(i){
   if(i===0){ const startDate = new Date(today); startDate.setDate(startDate.getDate()-1); const endDate = new Date(startDate); endDate.setDate(endDate.getDate()+7); const start = fmtDate(startDate); const end = fmtDate(endDate); return { scopeId: generateScopeId(), label:`Scope #${i+1}`, start, end, cost:100, actualPct:0, unitsToDate:0, totalUnits:'', unitsLabel:'%', sectionName:'' }; }
@@ -1073,11 +1071,17 @@ try {
       try {
         window.applyScopeWarnings({ model, container: document.getElementById('scopeRows') });
       } catch(e) {}
-      // If a baseline capture was requested earlier (e.g., PRGS load or session hydrate), capture it now.
+
+      // Capture dirty-since-load baseline after warnings globals are registered.
+      // This is triggered after PRGS load and after session hydration.
       try {
         if (window.__rpBaselinePending && window.RPWarnings && typeof window.RPWarnings.setScopesBaseline === 'function') {
-          window.RPWarnings.setScopesBaseline(window.model || model);
+          window.RPWarnings.setScopesBaseline(model);
           window.__rpBaselinePending = false;
+        }
+        // If no baseline exists yet (fresh load), capture one once.
+        if (!window.__rpScopesBaseline && window.RPWarnings && typeof window.RPWarnings.setScopesBaseline === 'function') {
+          window.RPWarnings.setScopesBaseline(model);
         }
       } catch(e) {}
     }).catch(()=>{});
@@ -1587,7 +1591,8 @@ function hydrateFromSession(){
 
     model = stored;
     window.model = model;
-    // Request a scopes-baseline capture for dirty-since-load guard (may complete once warnings globals are available).
+    // Baseline (dirty-since-load) should be captured after hydration once warnings module is available.
+    // Flag for computeAndRender's lazy warning loader to capture the baseline.
     try { window.__rpBaselinePending = true; } catch(e) {}
     normalizeAllScopeNumericFields();
 
@@ -1612,13 +1617,7 @@ function hydrateFromSession(){
         container: document.getElementById('scopeRows')
       });
     } catch(e) {}
-  }    // Capture a scopes baseline snapshot after hydrate completes (dirty-since-load guard).
-    try {
-      if (window.RPWarnings && typeof window.RPWarnings.setScopesBaseline === 'function') {
-        window.RPWarnings.setScopesBaseline(model);
-        window.__rpBaselinePending = false;
-      }
-    } catch(e) {}
+  }
 
     return true;
   }catch(e){
@@ -1685,13 +1684,6 @@ if (hd) {
 
 
     initHistory({ calcTotalActualProgress, fmtDate, today, computeAndRender });
-
-    // Establish a "dirty since load" baseline on first load. Later PRGS loads/hydration may overwrite it.
-    try {
-      if (window.RPWarnings && typeof window.RPWarnings.setScopesBaseline === 'function') {
-        window.RPWarnings.setScopesBaseline(window.model || model);
-      }
-    } catch(e) {}
   } catch (e) {
     console.error('Failed to initialize history module', e);
   }

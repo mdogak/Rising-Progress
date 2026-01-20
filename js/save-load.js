@@ -380,14 +380,13 @@ function buildMSPXML() {
 export async function saveXml(){
   const d = requireDeps();
   const model = getModel();
-
   const isUserSave = !(typeof window !== 'undefined' && window._autoSaving);
 
   async function performXmlSave(){
-    try{
-      const xml = buildMSPXML();
-      const suggested = (model.project.name ? model.project.name.replace(/\s+/g,'_') + '_' : '') + 'progress_all.xml';
-      if(!window._autoSaving && window.showSaveFilePicker){
+    const xml = buildMSPXML();
+    const suggested = (model.project.name ? model.project.name.replace(/\s+/g,'_') + '_' : '') + 'progress_all.xml';
+    if(!window._autoSaving && window.showSaveFilePicker){
+      try {
         const handle = await window.showSaveFilePicker({
           suggestedName: suggested,
           types:[{
@@ -398,66 +397,71 @@ export async function saveXml(){
         const writable = await handle.createWritable();
         await writable.write(new Blob([xml], {type:'application/xml'}));
         await writable.close();
-      } else {
-        const blob = new Blob([xml], {type:'application/xml'});
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = suggested;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
+      } catch (e) {
+        // User canceled the file picker — do not throw or alert.
+        if (e && e.name === 'AbortError') return;
+        throw e;
       }
-    }catch(e){
-      alert('XML save failed: ' + e.message);
+    } else {
+      const blob = new Blob([xml], {type:'application/xml'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = suggested;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
     }
   }
 
   // Auto-saving and other non-interactive flows should bypass the guard.
   if (!isUserSave) {
-    return performXmlSave();
+    try { return await performXmlSave(); } catch(e){ alert('XML save failed: ' + e.message); return; }
   }
 
-  const guardFn = (window.RPWarnings && (window.RPWarnings.guardSaveWithDirtyScopes || window.RPWarnings.guardSaveWithTimeseries));
+  const guardFn = (window.RPWarnings && window.RPWarnings.guardSaveWithDirtyScopes);
   if (typeof guardFn === 'function') {
-    const doSaveOnly = () => { performXmlSave(); };
+    const doSaveOnly = () => { performXmlSave().catch(e=> alert('XML save failed: ' + e.message)); };
     const doAddAndSave = () => {
-      let failed = false;
+      let historyOk = true;
       try {
         if (window.RPHistory && typeof window.RPHistory.addToHistory === 'function') {
-          const r = window.RPHistory.addToHistory();
-          if (r === false) failed = true;
+          const res = window.RPHistory.addToHistory();
+          if (res === false) historyOk = false;
         } else if (typeof window.addToHistory === 'function') {
-          const r = window.addToHistory();
-          if (r === false) failed = true;
-        } else {
-          failed = true;
+          const res = window.addToHistory();
+          if (res === false) historyOk = false;
         }
       } catch (err) {
-        failed = true;
+        historyOk = false;
       }
 
-      performXmlSave();
-
-      if (failed) {
-        try { alert("Warning: History did not update successfully."); } catch(e) {}
+      if (!historyOk) {
+        try { alert('Warning: History did not update successfully.'); } catch(_) {}
       }
-    };
-    const doCancel = () => {
-      // User dismissed the guard; intentionally do nothing.
-    };
 
-    guardFn({
-      model: (window.model || model),
-      onAddAndSave: doAddAndSave,
-      onSaveOnly: doSaveOnly,
-      onCancel: doCancel
-    });
+      if (window.RPWarnings && typeof window.RPWarnings.clearScopesDirtySinceLastHistory === 'function') {
+        window.RPWarnings.clearScopesDirtySinceLastHistory();
+      }
+
+      performXmlSave().catch(e=> alert('XML save failed: ' + e.message));
+    };
+    const doCancel = () => {};
+
+    try {
+      guardFn({ model, onAddAndSave: doAddAndSave, onSaveOnly: doSaveOnly, onCancel: doCancel });
+    } catch(e) {
+      return doSaveOnly();
+    }
     return;
   }
 
-  return performXmlSave();
+  try{
+    await performXmlSave();
+  }catch(e){
+    alert('XML save failed: ' + e.message);
+  }
 }
 
 function csvEsc(v){ if(v==null) return ''; const s = String(v); return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; }
@@ -768,9 +772,17 @@ export async function saveAll(){
     const isUserSave = !(typeof window !== 'undefined' && window._autoSaving);
     const csv = buildAllCSV(isUserSave);
     if(!window._autoSaving && window.showSaveFilePicker){
-      const handle = await window.showSaveFilePicker({ suggestedName: (model.project.name? model.project.name.replace(/\s+/g,'_')+'_': '') + 'progress_all.prgs', types:[{ description:'CSV', accept:{ 'text/plain':['.prgs'] } }] });
-      const writable = await handle.createWritable(); await writable.write(new Blob([csv], {type:'text/plain'})); await writable.close();
-      if (window.sessionStorage) sessionStorage.setItem(d.COOKIE_KEY, JSON.stringify(model));
+      try {
+        const handle = await window.showSaveFilePicker({ suggestedName: (model.project.name? model.project.name.replace(/\s+/g,'_')+'_': '') + 'progress_all.prgs', types:[{ description:'CSV', accept:{ 'text/plain':['.prgs'] } }] });
+        const writable = await handle.createWritable();
+        await writable.write(new Blob([csv], {type:'text/plain'}));
+        await writable.close();
+        if (window.sessionStorage) sessionStorage.setItem(d.COOKIE_KEY, JSON.stringify(model));
+      } catch (e) {
+        // User canceled the file picker — do not throw or create console noise.
+        if (e && e.name === 'AbortError') return;
+        throw e;
+      }
     } else {
       // Fallback download
       const blob = new Blob([csv], {type:'text/plain'}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = (model.project.name? model.project.name.replace(/\s+/g,'_')+'_': '') + 'progress_all.prgs'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
@@ -784,30 +796,32 @@ export async function saveAll(){
     return performProjectSave();
   }
 
-  const guardFn = (window.RPWarnings && (window.RPWarnings.guardSaveWithDirtyScopes || window.RPWarnings.guardSaveWithTimeseries));
+  const guardFn = (window.RPWarnings && window.RPWarnings.guardSaveWithDirtyScopes);
   if (typeof guardFn === 'function') {
     const doSaveOnly = () => { performProjectSave(); };
     const doAddAndSave = () => {
-      let failed = false;
+      let historyOk = true;
       try {
         if (window.RPHistory && typeof window.RPHistory.addToHistory === 'function') {
-          const r = window.RPHistory.addToHistory();
-          if (r === false) failed = true;
+          const res = window.RPHistory.addToHistory();
+          if (res === false) historyOk = false;
         } else if (typeof window.addToHistory === 'function') {
-          const r = window.addToHistory();
-          if (r === false) failed = true;
-        } else {
-          failed = true;
+          const res = window.addToHistory();
+          if (res === false) historyOk = false;
         }
       } catch (err) {
-        failed = true;
+        historyOk = false;
+      }
+
+      if (!historyOk) {
+        try { alert('Warning: History did not update successfully.'); } catch(_) {}
+      }
+
+      if (window.RPWarnings && typeof window.RPWarnings.clearScopesDirtySinceLastHistory === 'function') {
+        window.RPWarnings.clearScopesDirtySinceLastHistory();
       }
 
       performProjectSave();
-
-      if (failed) {
-        try { alert("Warning: History did not update successfully."); } catch(e) {}
-      }
     };
     const doCancel = () => {
       // User dismissed the guard; intentionally do nothing.
@@ -898,12 +912,6 @@ export function uploadCSVAndLoad(){
             if(dd && a!=='' && !isNaN(parseFloat(a))) model.dailyActuals[dd] = d.clamp(parseFloat(a),0,100);
           }
           d.computeAndRender();
-          // Capture a scopes baseline snapshot after loading data from file.
-          try {
-            if (window.RPWarnings && typeof window.RPWarnings.setScopesBaseline === 'function') {
-              window.RPWarnings.setScopesBaseline(model);
-            }
-          } catch(e) {}
           if (window.sessionStorage) sessionStorage.setItem(d.COOKIE_KEY, JSON.stringify(model));
           return;
         }
@@ -1534,11 +1542,13 @@ export function loadFromPrgsText(text){
 
   if(window.Sections && typeof window.Sections.ensureSectionNameField === 'function'){ window.Sections.ensureSectionNameField(fresh); }
   d.syncScopeRowsToModel();
+  // Capture dirty-since-load baseline after PRGS load (once warnings module is available).
+  try { window.__rpBaselinePending = true; } catch(e) {}
   d.computeAndRender();
-  // Capture a scopes baseline snapshot after PRGS load completes.
   try {
     if (window.RPWarnings && typeof window.RPWarnings.setScopesBaseline === 'function') {
-      window.RPWarnings.setScopesBaseline(fresh);
+      window.RPWarnings.setScopesBaseline(getModel());
+      window.__rpBaselinePending = false;
     }
   } catch(e) {}
   if (window.sessionStorage) sessionStorage.setItem(d.COOKIE_KEY, JSON.stringify(fresh));
@@ -1585,16 +1595,47 @@ function initSaveDropdown(){
     closeDropdown();
 
     const doSaveFlow = () => {
-      // Prefer any auth wrapper if present. Otherwise, prefer the global saveAll
-      // (which may itself be wrapped) before falling back to the module function.
       if (typeof window.requireAuthForSaveAll === 'function') window.requireAuthForSaveAll();
-      else if (typeof window.saveAll === 'function') window.saveAll();
       else if (typeof saveAll === 'function') saveAll();
       else if (typeof window.saveCsv === 'function') window.saveCsv();
     };
 
-    // Guard (dirty scopes / add-to-history) is handled inside saveAll() so it
-    // runs AFTER any required auth flow and without duplicating modals.
+    const guardFn = (window.RPWarnings && window.RPWarnings.guardSaveWithDirtyScopes);
+    const model = (typeof getModel === 'function') ? getModel() : (window.model || null);
+
+    if (typeof guardFn === 'function') {
+      const doSaveOnly = () => { doSaveFlow(); };
+      const doAddAndSave = () => {
+        try {
+          if (window.RPHistory && typeof window.RPHistory.addToHistory === 'function') {
+            window.RPHistory.addToHistory();
+          } else if (typeof window.addToHistory === 'function') {
+            window.addToHistory();
+          }
+        } catch (err) {
+          try { console.error('Failed to add to history before save', err); } catch(_) {}
+        }
+
+        if (window.RPWarnings && typeof window.RPWarnings.clearScopesDirtySinceLastHistory === 'function') {
+          window.RPWarnings.clearScopesDirtySinceLastHistory();
+        }
+
+        doSaveFlow();
+      };
+      const doCancel = () => {
+        // User dismissed the guard; do nothing.
+      };
+
+      guardFn({
+        model: (window.model || model),
+        onAddAndSave: doAddAndSave,
+        onSaveOnly: doSaveOnly,
+        onCancel: doCancel
+      });
+
+      return;
+    }
+
     doSaveFlow();
   });
 
@@ -1603,15 +1644,46 @@ function initSaveDropdown(){
     closeDropdown();
 
     const doSaveFlowXml = () => {
-      // Prefer any auth wrapper if present. Otherwise, prefer the global saveXml
-      // (which may itself be wrapped) before falling back to the module function.
       if (typeof window.requireAuthForSaveXml === 'function') window.requireAuthForSaveXml();
-      else if (typeof window.saveXml === 'function') window.saveXml();
       else if (typeof saveXml === 'function') saveXml();
     };
 
-    // Guard (dirty scopes / add-to-history) is handled inside saveXml() so it
-    // runs AFTER any required auth flow and without duplicating modals.
+    const guardFn = (window.RPWarnings && window.RPWarnings.guardSaveWithDirtyScopes);
+    const model = (typeof getModel === 'function') ? getModel() : (window.model || null);
+
+    if (typeof guardFn === 'function') {
+      const doSaveOnly = () => { doSaveFlowXml(); };
+      const doAddAndSave = () => {
+        try {
+          if (window.RPHistory && typeof window.RPHistory.addToHistory === 'function') {
+            window.RPHistory.addToHistory();
+          } else if (typeof window.addToHistory === 'function') {
+            window.addToHistory();
+          }
+        } catch (err) {
+          try { console.error('Failed to add to history before save', err); } catch(_) {}
+        }
+
+        if (window.RPWarnings && typeof window.RPWarnings.clearScopesDirtySinceLastHistory === 'function') {
+          window.RPWarnings.clearScopesDirtySinceLastHistory();
+        }
+
+        doSaveFlowXml();
+      };
+      const doCancel = () => {
+        // User dismissed the guard; do nothing.
+      };
+
+      guardFn({
+        model: (window.model || model),
+        onAddAndSave: doAddAndSave,
+        onSaveOnly: doSaveOnly,
+        onCancel: doCancel
+      });
+
+      return;
+    }
+
     doSaveFlowXml();
   });
 
@@ -1717,10 +1789,8 @@ export function initSaveLoad(d){
   deps = d;
 
   // Globals for compatibility (clear.js, auth wrappers, etc.)
-  // IMPORTANT: Do not clobber any auth-wrapped save functions that may have been
-  // registered earlier by other scripts. Only set globals if missing.
-  if (typeof window.saveAll !== 'function') window.saveAll = saveAll;
-  if (typeof window.saveXml !== 'function') window.saveXml = saveXml;
+  window.saveAll = saveAll;
+  window.saveXml = saveXml;
   window.loadFromPresetCsv = loadFromPresetCsv;
 
   if (!__saveLoadDomBound) {
