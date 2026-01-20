@@ -328,6 +328,13 @@ function onScopeChange(e){
 
   // Daily progress entry rules
   let rawProgress = isFinite(inputs.progressVal) ? inputs.progressVal : 0;
+
+  // If user entered an out-of-range percent, we will clamp and show a warning once this change is applied.
+  // Only applies to percent-mode and only for direct edits to the progress field.
+  const _progressEdited = !!(e && e.target && e.target.matches && e.target.matches('[data-k="progress"]'));
+  const _rawPercentOutOfRange = (_progressEdited && isPercentMode && isFinite(rawProgress) && (rawProgress < 0 || rawProgress > 100));
+  const _rawPercentClamped = (isFinite(rawProgress) ? clamp(rawProgress, 0, 100) : 0);
+
   if (isPercentMode) {
     // Percent scopes: model stores percentage in actualPct, unitsToDate forced to 0
     s.actualPct = rawProgress;
@@ -363,6 +370,14 @@ function onScopeChange(e){
     } else {
       progressInputEl.value = s.unitsToDate;
     }
+  }
+
+  // If we auto-corrected an out-of-range percent entry, show a warning after the value is set.
+  if (_rawPercentOutOfRange && isPercentMode) {
+    const xx = (_rawPercentClamped <= 0) ? 0 : 100;
+    try {
+      window.alert(`Warning: Only percentages between 0 and 100% are allowed. The % is now set to ${xx}%.`);
+    } catch(_) {}
   }
 
   const rowEl = realRow;

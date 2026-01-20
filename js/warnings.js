@@ -236,7 +236,7 @@ export function maybeWarnOnSectionWeightChange({ model, oldId, newId } = {}) {
   if (a === b) return;
 
   window.alert(
-    "Changes have been made to modify the weight of this section. The historical values for this section will still be based on the previous configuration."
+    "Warning: A scope has moved between sections, changing the weight of the section. Section history will still be based on the previous configuration when scopes are moved."
   );
   window._sectionWeightWarningAcknowledged = true;
 }
