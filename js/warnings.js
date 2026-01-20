@@ -62,33 +62,86 @@ export function applyScopeWarnings({ model, container }) {
   });
 }
 
-function hasAnyTimeseries(model){
-  if (!model) return false;
-  const candidates = [];
-  try {
-    if (model.timeSeriesScopes) candidates.push(model.timeSeriesScopes);
-    if (model.timeseriesScopes) candidates.push(model.timeseriesScopes);
-    if (model.timeSeries) candidates.push(model.timeSeries);
-    if (model.timeseries) candidates.push(model.timeseries);
-    if (model.timeSeriesSections) candidates.push(model.timeSeriesSections);
-    if (model.timeseries && model.timeseries.sections) candidates.push(model.timeseries.sections);
-  } catch (e) {}
+// ------------------------------
+// Scopes dirty-since-load baseline
+// ------------------------------
 
-  for (const v of candidates) {
-    if (!v) continue;
-    if (Array.isArray(v) && v.length > 0) return true;
-    if (typeof v === 'object' && v && Object.keys(v).length > 0) return true;
-  }
-  return false;
+// Stored outside the model (no structure changes).
+let __rpScopesBaseline = '';
+
+function __scopeSectionKey(s){
+  if (!s) return '';
+  // Include whatever section identifiers might exist.
+  const v = (
+    s.sectionID ?? s.sectionId ?? s.sectionUid ?? s.sectionUID ??
+    s.sectionName ?? s.section ?? ''
+  );
+  return (v == null ? '' : String(v));
 }
 
-export function guardSaveWithTimeseries({ model, onAddAndSave, onSaveOnly, onCancel } = {}) {
+function __safeNum(v){
+  if (v === '' || v == null) return '';
+  const n = Number(v);
+  if (!isFinite(n)) return '';
+  // Keep numbers stable with minimal rounding to avoid false diffs from float noise.
+  return Math.round(n * 1000000) / 1000000;
+}
+
+function __serializeScopes(model){
+  const scopes = (model && Array.isArray(model.scopes)) ? model.scopes : [];
+  const rows = [];
+  for (let i = 0; i < scopes.length; i++) {
+    const s = scopes[i] || {};
+    const id = (s.scopeId || s.id || String(i));
+    rows.push({
+      id: String(id),
+      // Only scope-level fields.
+      label: String(s.label || ''),
+      start: String(s.start || ''),
+      end: String(s.end || ''),
+      cost: __safeNum(s.cost),
+      actualPct: __safeNum(s.actualPct),
+      unitsToDate: __safeNum(s.unitsToDate),
+      totalUnits: __safeNum(s.totalUnits),
+      unitsLabel: String(s.unitsLabel || ''),
+      sectionKey: __scopeSectionKey(s)
+    });
+  }
+
+  // Sort by stable identifier to avoid false positives from reorder.
+  rows.sort((a, b) => (a.id < b.id ? -1 : (a.id > b.id ? 1 : 0)));
+  try {
+    return JSON.stringify(rows);
+  } catch (e) {
+    // Ultra-defensive fallback.
+    return String(rows.length);
+  }
+}
+
+export function setScopesBaseline(model){
+  try {
+    __rpScopesBaseline = __serializeScopes(model);
+  } catch (e) {
+    __rpScopesBaseline = '';
+  }
+}
+
+export function scopesDifferFromBaseline(model){
+  try {
+    const cur = __serializeScopes(model);
+    return !!(__rpScopesBaseline && cur !== __rpScopesBaseline);
+  } catch (e) {
+    return false;
+  }
+}
+
+export function guardSaveWithDirtyScopes({ model, onAddAndSave, onSaveOnly, onCancel } = {}) {
   const saveOnly = (typeof onSaveOnly === 'function') ? onSaveOnly : function(){};
   const addAndSave = (typeof onAddAndSave === 'function') ? onAddAndSave : saveOnly;
   const cancel = (typeof onCancel === 'function') ? onCancel : function(){};
 
   try {
-    if (!hasAnyTimeseries(model) || window._scopesDirtySinceLastHistory !== true) {
+    if (!scopesDifferFromBaseline(model)) {
       saveOnly();
       return;
     }
@@ -98,12 +151,11 @@ export function guardSaveWithTimeseries({ model, onAddAndSave, onSaveOnly, onCan
     return;
   }
 
+  // Current historyDate (for defaulting the selector)
   let historyDateText = '';
   try {
     const historyInput = document.getElementById('historyDate');
-    if (historyInput && historyInput.value) {
-      historyDateText = historyInput.value;
-    }
+    if (historyInput && historyInput.value) historyDateText = String(historyInput.value);
   } catch (e) {}
 
   // Ensure only one instance of this modal exists.
@@ -134,13 +186,15 @@ export function guardSaveWithTimeseries({ model, onAddAndSave, onSaveOnly, onCan
     </div>
     <div class="rp-hd-body">
       <p class="rp-hd-instructions">
-        There are scope changes since history was last updated.
-        Do you want to add these changes to history for date
-        <strong>${historyDateText || ''}</strong> before saving?
+        There are scope changes since the file was loaded.
+        Do you want to add these changes to history before saving?
       </p>
     </div>
     <div class="rp-hd-foot">
-      <button type="button" class="rp-hd-btn rp-ts-guard-add">Add to History and Save</button>
+      <div style="display:flex; align-items:center; gap:10px; justify-content:flex-end; flex-wrap:wrap;">
+        <button type="button" class="rp-hd-btn rp-ts-guard-add">Add to History and Save</button>
+        <input type="date" class="rp-hd-input rp-ts-guard-date" value="${historyDateText || ''}" />
+      </div>
       <button type="button" class="rp-hd-btn rp-ts-guard-save-only">Save without adding to History</button>
     </div>
   `;
@@ -157,6 +211,12 @@ export function guardSaveWithTimeseries({ model, onAddAndSave, onSaveOnly, onCan
   }
 
   function handleAddAndSave() {
+    // Ensure historyDate is updated immediately before callbacks.
+    try {
+      const dateInput = modal.querySelector('.rp-ts-guard-date');
+      const hd = document.getElementById('historyDate');
+      if (dateInput && hd) hd.value = String(dateInput.value || '');
+    } catch (e) {}
     cleanup();
     try { addAndSave(); } catch (e) {}
   }
@@ -191,6 +251,17 @@ export function guardSaveWithTimeseries({ model, onAddAndSave, onSaveOnly, onCan
       handleAddAndSave();
     });
   }
+
+  // Keep the app's historyDate in sync while the user changes the selector.
+  const dateEl = modal.querySelector('.rp-ts-guard-date');
+  if (dateEl) {
+    dateEl.addEventListener('change', function(){
+      try {
+        const hd = document.getElementById('historyDate');
+        if (hd) hd.value = String(dateEl.value || '');
+      } catch (e) {}
+    });
+  }
   const saveOnlyBtn = modal.querySelector('.rp-ts-guard-save-only');
   if (saveOnlyBtn) {
     saveOnlyBtn.addEventListener('click', function(){
@@ -201,6 +272,11 @@ export function guardSaveWithTimeseries({ model, onAddAndSave, onSaveOnly, onCan
   document.body.appendChild(overlay);
   document.body.appendChild(modal);
   document.addEventListener('keydown', onKeydown, true);
+}
+
+// Backward-compatible alias (timeseries gating removed).
+export function guardSaveWithTimeseries(opts = {}) {
+  return guardSaveWithDirtyScopes(opts);
 }
 
 export function markScopesDirtySinceLastHistory() {
@@ -275,6 +351,10 @@ export function handleProgressVsTotalUnitsWarning({ scope, rowElement } = {}) {
 export function registerWarningsGlobals() {
   if (typeof window === 'undefined') return;
   if (!window.RPWarnings) window.RPWarnings = {};
+  window.RPWarnings.setScopesBaseline = setScopesBaseline;
+  window.RPWarnings.scopesDifferFromBaseline = scopesDifferFromBaseline;
+  window.RPWarnings.guardSaveWithDirtyScopes = guardSaveWithDirtyScopes;
+  // Keep legacy name for older call sites.
   window.RPWarnings.guardSaveWithTimeseries = guardSaveWithTimeseries;
   window.RPWarnings.markScopesDirtySinceLastHistory = markScopesDirtySinceLastHistory;
   window.RPWarnings.clearScopesDirtySinceLastHistory = clearScopesDirtySinceLastHistory;

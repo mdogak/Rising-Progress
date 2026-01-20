@@ -734,25 +734,30 @@ export async function saveAll(){
     return performProjectSave();
   }
 
-  const guardFn = (window.RPWarnings && window.RPWarnings.guardSaveWithTimeseries);
+  const guardFn = (window.RPWarnings && (window.RPWarnings.guardSaveWithDirtyScopes || window.RPWarnings.guardSaveWithTimeseries));
   if (typeof guardFn === 'function') {
     const doSaveOnly = () => { performProjectSave(); };
     const doAddAndSave = () => {
+      let failed = false;
       try {
         if (window.RPHistory && typeof window.RPHistory.addToHistory === 'function') {
-          window.RPHistory.addToHistory();
+          const r = window.RPHistory.addToHistory();
+          if (r === false) failed = true;
         } else if (typeof window.addToHistory === 'function') {
-          window.addToHistory();
+          const r = window.addToHistory();
+          if (r === false) failed = true;
+        } else {
+          failed = true;
         }
       } catch (err) {
-        console.error('Failed to add to history before save', err);
-      }
-
-      if (window.RPWarnings && typeof window.RPWarnings.clearScopesDirtySinceLastHistory === 'function') {
-        window.RPWarnings.clearScopesDirtySinceLastHistory();
+        failed = true;
       }
 
       performProjectSave();
+
+      if (failed) {
+        try { alert("Warning: History did not update successfully."); } catch(e) {}
+      }
     };
     const doCancel = () => {
       // User dismissed the guard; intentionally do nothing.
@@ -843,6 +848,12 @@ export function uploadCSVAndLoad(){
             if(dd && a!=='' && !isNaN(parseFloat(a))) model.dailyActuals[dd] = d.clamp(parseFloat(a),0,100);
           }
           d.computeAndRender();
+          // Capture a scopes baseline snapshot after loading data from file.
+          try {
+            if (window.RPWarnings && typeof window.RPWarnings.setScopesBaseline === 'function') {
+              window.RPWarnings.setScopesBaseline(model);
+            }
+          } catch(e) {}
           if (window.sessionStorage) sessionStorage.setItem(d.COOKIE_KEY, JSON.stringify(model));
           return;
         }
@@ -1474,6 +1485,12 @@ export function loadFromPrgsText(text){
   if(window.Sections && typeof window.Sections.ensureSectionNameField === 'function'){ window.Sections.ensureSectionNameField(fresh); }
   d.syncScopeRowsToModel();
   d.computeAndRender();
+  // Capture a scopes baseline snapshot after PRGS load completes.
+  try {
+    if (window.RPWarnings && typeof window.RPWarnings.setScopesBaseline === 'function') {
+      window.RPWarnings.setScopesBaseline(fresh);
+    }
+  } catch(e) {}
   if (window.sessionStorage) sessionStorage.setItem(d.COOKIE_KEY, JSON.stringify(fresh));
   return true;
 }
@@ -1523,27 +1540,32 @@ function initSaveDropdown(){
       else if (typeof window.saveCsv === 'function') window.saveCsv();
     };
 
-    const guardFn = (window.RPWarnings && window.RPWarnings.guardSaveWithTimeseries);
+    const guardFn = (window.RPWarnings && (window.RPWarnings.guardSaveWithDirtyScopes || window.RPWarnings.guardSaveWithTimeseries));
     const model = (typeof getModel === 'function') ? getModel() : (window.model || null);
 
     if (typeof guardFn === 'function') {
       const doSaveOnly = () => { doSaveFlow(); };
       const doAddAndSave = () => {
+        let failed = false;
         try {
           if (window.RPHistory && typeof window.RPHistory.addToHistory === 'function') {
-            window.RPHistory.addToHistory();
+            const r = window.RPHistory.addToHistory();
+            if (r === false) failed = true;
           } else if (typeof window.addToHistory === 'function') {
-            window.addToHistory();
+            const r = window.addToHistory();
+            if (r === false) failed = true;
+          } else {
+            failed = true;
           }
         } catch (err) {
-          try { console.error('Failed to add to history before save', err); } catch(_) {}
-        }
-
-        if (window.RPWarnings && typeof window.RPWarnings.clearScopesDirtySinceLastHistory === 'function') {
-          window.RPWarnings.clearScopesDirtySinceLastHistory();
+          failed = true;
         }
 
         doSaveFlow();
+
+        if (failed) {
+          try { alert("Warning: History did not update successfully."); } catch(e) {}
+        }
       };
       const doCancel = () => {
         // User dismissed the guard; do nothing.
@@ -1571,27 +1593,32 @@ function initSaveDropdown(){
       else if (typeof saveXml === 'function') saveXml();
     };
 
-    const guardFn = (window.RPWarnings && window.RPWarnings.guardSaveWithTimeseries);
+    const guardFn = (window.RPWarnings && (window.RPWarnings.guardSaveWithDirtyScopes || window.RPWarnings.guardSaveWithTimeseries));
     const model = (typeof getModel === 'function') ? getModel() : (window.model || null);
 
     if (typeof guardFn === 'function') {
       const doSaveOnly = () => { doSaveFlowXml(); };
       const doAddAndSave = () => {
+        let failed = false;
         try {
           if (window.RPHistory && typeof window.RPHistory.addToHistory === 'function') {
-            window.RPHistory.addToHistory();
+            const r = window.RPHistory.addToHistory();
+            if (r === false) failed = true;
           } else if (typeof window.addToHistory === 'function') {
-            window.addToHistory();
+            const r = window.addToHistory();
+            if (r === false) failed = true;
+          } else {
+            failed = true;
           }
         } catch (err) {
-          try { console.error('Failed to add to history before save', err); } catch(_) {}
-        }
-
-        if (window.RPWarnings && typeof window.RPWarnings.clearScopesDirtySinceLastHistory === 'function') {
-          window.RPWarnings.clearScopesDirtySinceLastHistory();
+          failed = true;
         }
 
         doSaveFlowXml();
+
+        if (failed) {
+          try { alert("Warning: History did not update successfully."); } catch(e) {}
+        }
       };
       const doCancel = () => {
         // User dismissed the guard; do nothing.

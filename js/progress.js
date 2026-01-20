@@ -1603,6 +1603,13 @@ function hydrateFromSession(){
     } catch(e) {}
   }
 
+    // Capture a scopes baseline snapshot after hydrate completes (dirty-since-load guard).
+    try {
+      if (window.RPWarnings && typeof window.RPWarnings.setScopesBaseline === 'function') {
+        window.RPWarnings.setScopesBaseline(model);
+      }
+    } catch(e) {}
+
     return true;
   }catch(e){
     console.error('Failed to hydrate model from sessionStorage', e);
@@ -1668,6 +1675,13 @@ if (hd) {
 
 
     initHistory({ calcTotalActualProgress, fmtDate, today, computeAndRender });
+
+    // Establish a "dirty since load" baseline on first load. Later PRGS loads/hydration may overwrite it.
+    try {
+      if (window.RPWarnings && typeof window.RPWarnings.setScopesBaseline === 'function') {
+        window.RPWarnings.setScopesBaseline(window.model || model);
+      }
+    } catch(e) {}
   } catch (e) {
     console.error('Failed to initialize history module', e);
   }
