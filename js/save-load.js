@@ -380,34 +380,84 @@ function buildMSPXML() {
 export async function saveXml(){
   const d = requireDeps();
   const model = getModel();
-  try{
-    const xml = buildMSPXML();
-    const suggested = (model.project.name ? model.project.name.replace(/\s+/g,'_') + '_' : '') + 'progress_all.xml';
-    if(!window._autoSaving && window.showSaveFilePicker){
-      const handle = await window.showSaveFilePicker({
-        suggestedName: suggested,
-        types:[{
-          description:'MS Project XML',
-          accept:{ 'application/xml':['.xml'] }
-        }]
-      });
-      const writable = await handle.createWritable();
-      await writable.write(new Blob([xml], {type:'application/xml'}));
-      await writable.close();
-    } else {
-      const blob = new Blob([xml], {type:'application/xml'});
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = suggested;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
+
+  const isUserSave = !(typeof window !== 'undefined' && window._autoSaving);
+
+  async function performXmlSave(){
+    try{
+      const xml = buildMSPXML();
+      const suggested = (model.project.name ? model.project.name.replace(/\s+/g,'_') + '_' : '') + 'progress_all.xml';
+      if(!window._autoSaving && window.showSaveFilePicker){
+        const handle = await window.showSaveFilePicker({
+          suggestedName: suggested,
+          types:[{
+            description:'MS Project XML',
+            accept:{ 'application/xml':['.xml'] }
+          }]
+        });
+        const writable = await handle.createWritable();
+        await writable.write(new Blob([xml], {type:'application/xml'}));
+        await writable.close();
+      } else {
+        const blob = new Blob([xml], {type:'application/xml'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = suggested;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }
+    }catch(e){
+      alert('XML save failed: ' + e.message);
     }
-  }catch(e){
-    alert('XML save failed: ' + e.message);
   }
+
+  // Auto-saving and other non-interactive flows should bypass the guard.
+  if (!isUserSave) {
+    return performXmlSave();
+  }
+
+  const guardFn = (window.RPWarnings && (window.RPWarnings.guardSaveWithDirtyScopes || window.RPWarnings.guardSaveWithTimeseries));
+  if (typeof guardFn === 'function') {
+    const doSaveOnly = () => { performXmlSave(); };
+    const doAddAndSave = () => {
+      let failed = false;
+      try {
+        if (window.RPHistory && typeof window.RPHistory.addToHistory === 'function') {
+          const r = window.RPHistory.addToHistory();
+          if (r === false) failed = true;
+        } else if (typeof window.addToHistory === 'function') {
+          const r = window.addToHistory();
+          if (r === false) failed = true;
+        } else {
+          failed = true;
+        }
+      } catch (err) {
+        failed = true;
+      }
+
+      performXmlSave();
+
+      if (failed) {
+        try { alert("Warning: History did not update successfully."); } catch(e) {}
+      }
+    };
+    const doCancel = () => {
+      // User dismissed the guard; intentionally do nothing.
+    };
+
+    guardFn({
+      model: (window.model || model),
+      onAddAndSave: doAddAndSave,
+      onSaveOnly: doSaveOnly,
+      onCancel: doCancel
+    });
+    return;
+  }
+
+  return performXmlSave();
 }
 
 function csvEsc(v){ if(v==null) return ''; const s = String(v); return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; }
@@ -1535,52 +1585,16 @@ function initSaveDropdown(){
     closeDropdown();
 
     const doSaveFlow = () => {
+      // Prefer any auth wrapper if present. Otherwise, prefer the global saveAll
+      // (which may itself be wrapped) before falling back to the module function.
       if (typeof window.requireAuthForSaveAll === 'function') window.requireAuthForSaveAll();
+      else if (typeof window.saveAll === 'function') window.saveAll();
       else if (typeof saveAll === 'function') saveAll();
       else if (typeof window.saveCsv === 'function') window.saveCsv();
     };
 
-    const guardFn = (window.RPWarnings && (window.RPWarnings.guardSaveWithDirtyScopes || window.RPWarnings.guardSaveWithTimeseries));
-    const model = (typeof getModel === 'function') ? getModel() : (window.model || null);
-
-    if (typeof guardFn === 'function') {
-      const doSaveOnly = () => { doSaveFlow(); };
-      const doAddAndSave = () => {
-        let failed = false;
-        try {
-          if (window.RPHistory && typeof window.RPHistory.addToHistory === 'function') {
-            const r = window.RPHistory.addToHistory();
-            if (r === false) failed = true;
-          } else if (typeof window.addToHistory === 'function') {
-            const r = window.addToHistory();
-            if (r === false) failed = true;
-          } else {
-            failed = true;
-          }
-        } catch (err) {
-          failed = true;
-        }
-
-        doSaveFlow();
-
-        if (failed) {
-          try { alert("Warning: History did not update successfully."); } catch(e) {}
-        }
-      };
-      const doCancel = () => {
-        // User dismissed the guard; do nothing.
-      };
-
-      guardFn({
-        model: (window.model || model),
-        onAddAndSave: doAddAndSave,
-        onSaveOnly: doSaveOnly,
-        onCancel: doCancel
-      });
-
-      return;
-    }
-
+    // Guard (dirty scopes / add-to-history) is handled inside saveAll() so it
+    // runs AFTER any required auth flow and without duplicating modals.
     doSaveFlow();
   });
 
@@ -1589,51 +1603,15 @@ function initSaveDropdown(){
     closeDropdown();
 
     const doSaveFlowXml = () => {
+      // Prefer any auth wrapper if present. Otherwise, prefer the global saveXml
+      // (which may itself be wrapped) before falling back to the module function.
       if (typeof window.requireAuthForSaveXml === 'function') window.requireAuthForSaveXml();
+      else if (typeof window.saveXml === 'function') window.saveXml();
       else if (typeof saveXml === 'function') saveXml();
     };
 
-    const guardFn = (window.RPWarnings && (window.RPWarnings.guardSaveWithDirtyScopes || window.RPWarnings.guardSaveWithTimeseries));
-    const model = (typeof getModel === 'function') ? getModel() : (window.model || null);
-
-    if (typeof guardFn === 'function') {
-      const doSaveOnly = () => { doSaveFlowXml(); };
-      const doAddAndSave = () => {
-        let failed = false;
-        try {
-          if (window.RPHistory && typeof window.RPHistory.addToHistory === 'function') {
-            const r = window.RPHistory.addToHistory();
-            if (r === false) failed = true;
-          } else if (typeof window.addToHistory === 'function') {
-            const r = window.addToHistory();
-            if (r === false) failed = true;
-          } else {
-            failed = true;
-          }
-        } catch (err) {
-          failed = true;
-        }
-
-        doSaveFlowXml();
-
-        if (failed) {
-          try { alert("Warning: History did not update successfully."); } catch(e) {}
-        }
-      };
-      const doCancel = () => {
-        // User dismissed the guard; do nothing.
-      };
-
-      guardFn({
-        model: (window.model || model),
-        onAddAndSave: doAddAndSave,
-        onSaveOnly: doSaveOnly,
-        onCancel: doCancel
-      });
-
-      return;
-    }
-
+    // Guard (dirty scopes / add-to-history) is handled inside saveXml() so it
+    // runs AFTER any required auth flow and without duplicating modals.
     doSaveFlowXml();
   });
 
@@ -1739,8 +1717,10 @@ export function initSaveLoad(d){
   deps = d;
 
   // Globals for compatibility (clear.js, auth wrappers, etc.)
-  window.saveAll = saveAll;
-  window.saveXml = saveXml;
+  // IMPORTANT: Do not clobber any auth-wrapped save functions that may have been
+  // registered earlier by other scripts. Only set globals if missing.
+  if (typeof window.saveAll !== 'function') window.saveAll = saveAll;
+  if (typeof window.saveXml !== 'function') window.saveXml = saveXml;
   window.loadFromPresetCsv = loadFromPresetCsv;
 
   if (!__saveLoadDomBound) {
