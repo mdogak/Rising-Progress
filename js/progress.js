@@ -136,6 +136,8 @@ let model = {
   daysRelativeToPlan: null
 };
 window.model = model;
+// Request an initial scopes-baseline capture once warnings globals are available.
+try { window.__rpBaselinePending = true; } catch(e) {}
 
 function defaultScope(i){
   if(i===0){ const startDate = new Date(today); startDate.setDate(startDate.getDate()-1); const endDate = new Date(startDate); endDate.setDate(endDate.getDate()+7); const start = fmtDate(startDate); const end = fmtDate(endDate); return { scopeId: generateScopeId(), label:`Scope #${i+1}`, start, end, cost:100, actualPct:0, unitsToDate:0, totalUnits:'', unitsLabel:'%', sectionName:'' }; }
@@ -1071,6 +1073,13 @@ try {
       try {
         window.applyScopeWarnings({ model, container: document.getElementById('scopeRows') });
       } catch(e) {}
+      // If a baseline capture was requested earlier (e.g., PRGS load or session hydrate), capture it now.
+      try {
+        if (window.__rpBaselinePending && window.RPWarnings && typeof window.RPWarnings.setScopesBaseline === 'function') {
+          window.RPWarnings.setScopesBaseline(window.model || model);
+          window.__rpBaselinePending = false;
+        }
+      } catch(e) {}
     }).catch(()=>{});
   }
 } catch(e) {}
@@ -1578,6 +1587,8 @@ function hydrateFromSession(){
 
     model = stored;
     window.model = model;
+    // Request a scopes-baseline capture for dirty-since-load guard (may complete once warnings globals are available).
+    try { window.__rpBaselinePending = true; } catch(e) {}
     normalizeAllScopeNumericFields();
 
     const nameEl = document.getElementById('projectName');
@@ -1601,12 +1612,11 @@ function hydrateFromSession(){
         container: document.getElementById('scopeRows')
       });
     } catch(e) {}
-  }
-
-    // Capture a scopes baseline snapshot after hydrate completes (dirty-since-load guard).
+  }    // Capture a scopes baseline snapshot after hydrate completes (dirty-since-load guard).
     try {
       if (window.RPWarnings && typeof window.RPWarnings.setScopesBaseline === 'function') {
         window.RPWarnings.setScopesBaseline(model);
+        window.__rpBaselinePending = false;
       }
     } catch(e) {}
 
