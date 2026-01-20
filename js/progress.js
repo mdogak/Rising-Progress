@@ -147,17 +147,18 @@ function syncScopeRowsToModel(){
   ensureScopeIds();
   const cont = $('#scopeRows');
   if(window.Sections && typeof window.Sections.render === 'function'){
-    // Track section membership changes for drag/drop moves (for section-timeseries warning).
+    // Track section membership changes for drag/drop moves (for section membership warning).
+    // IMPORTANT: refresh this map on every render so it always reflects the last rendered state
+    // of the current model (not a previous project/session).
     try {
-      if (!window.Sections._rpPrevSectionKeyByScopeId) {
-        window.Sections._rpPrevSectionKeyByScopeId = {};
-        for (let i = 0; i < (model.scopes || []).length; i++) {
-          const s = model.scopes[i];
-          const sid = (s && (s.scopeId || s.id || String(i))) || String(i);
-          const sk = s && (s.sectionID ?? s.sectionId ?? s.sectionUid ?? s.sectionUID ?? s.sectionName ?? s.section ?? '');
-          window.Sections._rpPrevSectionKeyByScopeId[sid] = (sk == null ? '' : String(sk));
-        }
+      const map = {};
+      for (let i = 0; i < (model.scopes || []).length; i++) {
+        const s = model.scopes[i];
+        const sid = (s && (s.scopeId || s.id || String(i))) || String(i);
+        const sk = s && (s.sectionID ?? s.sectionId ?? s.sectionUid ?? s.sectionUID ?? s.sectionName ?? s.section ?? '');
+        map[sid] = (sk == null ? '' : String(sk));
       }
+      window.Sections._rpPrevSectionKeyByScopeId = map;
     } catch(e) {}
 
     window.Sections.render(cont, model, renderScopeRow, { calcScopeWeightings, calcScopePlannedPctToDate, parseDate });

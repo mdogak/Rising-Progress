@@ -407,15 +407,16 @@ function hasSectionTimeseries(model){
 
 export function maybeWarnOnSectionWeightChange({ model, oldId, newId } = {}) {
   if (window._sectionWeightWarningAcknowledged) return;
+  // This warning is about structural section membership changes (a scope moved between sections).
+  // It should not be gated on timeseries existence; the user needs the warning even on new files.
   if (!model) return;
-  if (!hasSectionTimeseries(model)) return;
 
   const a = (oldId == null ? '' : String(oldId));
   const b = (newId == null ? '' : String(newId));
   if (a === b) return;
 
   window.alert(
-    "Warning: A scope has moved between sections, changing the weight of the section. Section history will still be based on the previous configuration when scopes are moved."
+    "Warning: A scope moved to a different section. Section weights changed, and existing section history may no longer match the updated section configuration."
   );
   window._sectionWeightWarningAcknowledged = true;
 }
