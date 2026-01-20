@@ -147,10 +147,64 @@ function syncScopeRowsToModel(){
   ensureScopeIds();
   const cont = $('#scopeRows');
   if(window.Sections && typeof window.Sections.render === 'function'){
+    // Track section membership changes for drag/drop moves (for section-timeseries warning).
+    try {
+      if (!window.Sections._rpPrevSectionKeyByScopeId) {
+        window.Sections._rpPrevSectionKeyByScopeId = {};
+        for (let i = 0; i < (model.scopes || []).length; i++) {
+          const s = model.scopes[i];
+          const sid = (s && (s.scopeId || s.id || String(i))) || String(i);
+          const sk = s && (s.sectionID ?? s.sectionId ?? s.sectionUid ?? s.sectionUID ?? s.sectionName ?? s.section ?? '');
+          window.Sections._rpPrevSectionKeyByScopeId[sid] = (sk == null ? '' : String(sk));
+        }
+      }
+    } catch(e) {}
+
     window.Sections.render(cont, model, renderScopeRow, { calcScopeWeightings, calcScopePlannedPctToDate, parseDate });
     if(typeof window.Sections.attachContainerHandlers === 'function'){
       window.Sections.attachContainerHandlers(cont, model, ()=>{
+        // Compare pre/post section membership after drag/drop updates.
+        let prevMap = null;
+        try { prevMap = window.Sections._rpPrevSectionKeyByScopeId || null; } catch(e) { prevMap = null; }
+
         syncScopeRowsToModel();
+
+        try {
+          const nextMap = {};
+          for (let i = 0; i < (model.scopes || []).length; i++) {
+            const s = model.scopes[i];
+            const sid = (s && (s.scopeId || s.id || String(i))) || String(i);
+            const sk = s && (s.sectionID ?? s.sectionId ?? s.sectionUid ?? s.sectionUID ?? s.sectionName ?? s.section ?? '');
+            nextMap[sid] = (sk == null ? '' : String(sk));
+          }
+
+          let changedOld = null;
+          let changedNew = null;
+          if (prevMap) {
+            for (const sid in nextMap) {
+              const oldVal = (prevMap[sid] == null ? '' : String(prevMap[sid]));
+              const newVal = (nextMap[sid] == null ? '' : String(nextMap[sid]));
+              if (oldVal !== newVal) {
+                changedOld = oldVal;
+                changedNew = newVal;
+                break;
+              }
+            }
+          }
+
+          if (changedOld !== null && changedNew !== null) {
+            if (window.RPWarnings && typeof window.RPWarnings.maybeWarnOnSectionWeightChange === 'function') {
+              window.RPWarnings.maybeWarnOnSectionWeightChange({
+                model,
+                oldId: changedOld,
+                newId: changedNew
+              });
+            }
+          }
+
+          window.Sections._rpPrevSectionKeyByScopeId = nextMap;
+        } catch(e) {}
+
         computeAndRender();
         sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
       });
