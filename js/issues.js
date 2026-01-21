@@ -1,5 +1,5 @@
 /*
-© 2025 Rising Progress LLC. All rights reserved.
+(c) 2025 Rising Progress LLC. All rights reserved.
 */
 
 // issues.js
@@ -401,65 +401,131 @@ function closeIssuesModal(){
 
   
   function copyIssuesToClipboard(){
-      const overlay = document.getElementById('issuesOverlay') || ensureOverlay();
-        const listEl = overlay.querySelector('#issuesList');
-        const titleEl = overlay.querySelector('#issuesTitle');
-        const subtitleEl = overlay.querySelector('.issues-modal-subtitle');
-        const dateEl = overlay.querySelector('#issuesLastHistory'); // New
-      
-        // Build HTML manually so CSS formatting survives pasting
-        let html = '<div>';
-      
-        // Title (bold)
-        if (titleEl) {
-          html += `<div style="font-size:18px; font-weight:700; margin-bottom:4px;">${titleEl.textContent}</div>`;
+    const overlay = document.getElementById('issuesOverlay') || ensureOverlay();
+    const listEl = overlay.querySelector('#issuesList');
+    const titleEl = overlay.querySelector('#issuesTitle');
+    const subtitleEl = overlay.querySelector('.issues-modal-subtitle');
+    const dateEl = overlay.querySelector('#issuesLastHistory');
+
+    // Helper to safely embed textContent into HTML
+    function esc(s){
+      return String(s == null ? '' : s)
+        .replace(/&/g,'&amp;')
+        .replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;')
+        .replace(/"/g,'&quot;')
+        .replace(/'/g,'&#39;');
+    }
+
+    // -------- Build plain-text (fallback-friendly) --------
+    let plainLines = [];
+    const titleTxt = titleEl ? (titleEl.textContent || '').trim() : '';
+    const subtitleTxt = subtitleEl ? (subtitleEl.textContent || '').trim() : '';
+    const dateTxt = (dateEl && dateEl.textContent) ? dateEl.textContent.trim() : '';
+
+    if (titleTxt) plainLines.push(titleTxt);
+    if (subtitleTxt) plainLines.push(subtitleTxt);
+    if (dateTxt) plainLines.push(dateTxt);
+    if (titleTxt || subtitleTxt || dateTxt) plainLines.push(''); // spacer
+
+    // -------- Build HTML using semantic lists (email-client friendly) --------
+    let html = '<div>';
+
+    if (titleTxt) {
+      html += '<div style="font-size:18px; font-weight:700; margin:0 0 4px 0;">' + esc(titleTxt) + '</div>';
+    }
+    if (subtitleTxt) {
+      html += '<div style="font-weight:400; color:#ea580c; margin:0 0 4px 0;">' + esc(subtitleTxt) + '</div>';
+    }
+    if (dateTxt) {
+      html += '<div style="font-weight:400; font-size:13px; color:#4b5563; margin:0 0 12px 0;">' + esc(dateTxt) + '</div>';
+    }
+
+    // List serialization:
+    // - Scope titles: bold, unbulleted
+    // - Issues: bulleted list
+    let scopeOpen = false;
+
+    function closeScope(){
+      if (scopeOpen){
+        html += '</ul>';
+      }
+      scopeOpen = false;
+    }
+
+    function openScope(scopeTitle){
+      closeScope();
+      html += '<div style="font-weight:700; margin:0 0 6px 0;">' + esc(scopeTitle) + '</div>';
+      html += '<ul style="margin:0 0 8px 18px;">';
+      scopeOpen = true;
+
+      // plain text: bullet + scope title
+      plainLines.push('- ' + scopeTitle);
+    }
+
+    function addIssueLine(issueText){
+      if (!scopeOpen){
+        // If an issue line appears without a scope header, keep output readable.
+        html += '<li style="margin:0 0 4px 0; font-weight:400;">' + esc(issueText) + '</li>';
+        // ASCII-only bullet
+        plainLines.push('- ' + issueText);
+        return;
+      }
+
+      html += '<li style="margin:0 0 4px 0; font-weight:400;">' + esc(issueText) + '</li>';
+
+      // plain text: indent issues under scope (ASCII-only)
+      plainLines.push('  - ' + issueText);
+    }
+
+    if (listEl && listEl.children && listEl.children.length) {
+      Array.from(listEl.children).forEach(function(li){
+        const raw = (li.textContent || '').trim();
+        if (!raw) return;
+
+        if (li.classList.contains('issues-scope-title')) {
+          // Remove trailing ":" for copied output (modal UI stays unchanged)
+          const title = raw.endsWith(':') ? raw.slice(0, -1).trim() : raw;
+          openScope(title || raw);
+        } else {
+          addIssueLine(raw);
         }
-      
-        // Subtitle (orange)
-        if (subtitleEl) {
-          html += `<div style="font-weight:400;color:#ea580c; margin-bottom:4px;">${subtitleEl.textContent}</div>`;
-        }
-      
-        // 🔹 UPDATED DATE (same style used in modal, NOT bold)
-        if (dateEl && dateEl.textContent.trim() !== '') {
-          html += `<div style="font-weight:400;font-size:13px; color:#4b5563; margin-bottom:12px;">${dateEl.textContent}</div>`;
-        }
-      
-        html += '<div>';
-      
-        // Issues list (headers + indented bullets)
-        Array.from(listEl.children).forEach(li => {
-          const text = li.textContent.trim();
-      
-          if (li.classList.contains('issues-scope-title')) {
-            // Scope header (bold, no bullet)
-            html += `<div style="font-weight:700; margin-top:10px;">${text}</div>`;
+      });
+    }
+
+    closeScope();
+    html += '</div>';
+
+    const plain = plainLines.join('\\n');
+
+    // -------- Clipboard write with robust fallbacks --------
+    try {
+      const canWriteRich = navigator.clipboard && navigator.clipboard.write && (typeof ClipboardItem !== 'undefined');
+      if (canWriteRich) {
+        navigator.clipboard.write([
+          new ClipboardItem({
+            "text/html": new Blob([html], { type: "text/html" }),
+            "text/plain": new Blob([plain], { type: "text/plain" })
+          })
+        ]).catch(function(){
+          // If rich write fails, try plain text before legacy fallback.
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(plain).catch(function(){ fallbackCopy(plain); });
           } else {
-            // Issue item (bullet + indent)
-            html += `
-              <div style="font-weight:400;margin-left:20px; display:flex; align-items:flex-start;">
-                <div style="margin-right:6px;">•</div>
-                <div>${text}</div>
-              </div>`;
+            fallbackCopy(plain);
           }
         });
-      
-        html += '</div></div>';
-      
-        // Copy with HTML first, and HTML fallback
-        if (navigator.clipboard && navigator.clipboard.write) {
-          navigator.clipboard.write([
-            new ClipboardItem({
-              "text/html": new Blob([html], { type: "text/html" }),
-              "text/plain": new Blob([html], { type: "text/plain" })
-            })
-          ]).catch(() => fallbackCopy(html));
-        } else {
-          fallbackCopy(html);
-  }
+      } else if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(plain).catch(function(){ fallbackCopy(plain); });
+      } else {
+        fallbackCopy(plain);
+      }
+    } catch(e){
+      fallbackCopy(plain);
+    }
   }
 
-function fallbackCopy(text){
+  function fallbackCopy(text){
     const ta = document.createElement('textarea');
     ta.value = text;
     ta.style.position = 'fixed';
