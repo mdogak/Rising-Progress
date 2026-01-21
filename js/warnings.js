@@ -180,16 +180,27 @@ export function guardSaveWithDirtyScopes({ model, onAddAndSave, onSaveOnly, onCa
         Do you want to add these changes to history before saving?
       </p>
     </div>
-    <div class="rp-hd-foot">
-      <div style="display:flex;align-items:center;gap:12px;justify-content:space-between;flex-wrap:wrap;">
-        <button type="button" class="rp-hd-btn rp-ts-guard-add">Add to History and Save</button>
-        <div style="display:flex;align-items:center;gap:8px;">
-          <label for="rp-ts-guard-date" class="rp-hd-label" style="margin:0;">Date</label>
-          <input id="rp-ts-guard-date" class="rp-hd-input" type="date" value="${historyDateText || ''}" />
-        </div>
+    <div class="rp-hd-foot" style="padding:12px 16px;">
+      <div style="display:flex;align-items:center;gap:12px;justify-content:flex-start;flex-wrap:wrap;">
+        <button type="button" class="rp-hd-btn rp-ts-guard-add">
+          Add to History and Save
+        </button>
+        <input
+          id="rp-ts-guard-date"
+          class="rp-hd-input"
+          type="date"
+          value="${historyDateText || ''}"
+          style="
+            border:2px solid #ea580c;
+            border-radius:6px;
+            padding:6px 8px;
+          "
+        />
       </div>
-      <div style="margin-top:10px;">
-        <button type="button" class="rp-hd-btn rp-ts-guard-save-only">Save without adding to History</button>
+      <div style="margin-top:14px;">
+        <button type="button" class="rp-hd-btn rp-ts-guard-save-only">
+          Save without adding to History
+        </button>
       </div>
     </div>
   `;
