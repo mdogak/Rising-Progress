@@ -472,10 +472,6 @@ function closeIssuesModal(){
         return;
       }
 
-      if (!scopeHasNested){
-        html += '<ul style="margin:4px 0 8px 0; padding-left:22px;">';
-        scopeHasNested = true;
-      }
       html += '<li style="margin:0 0 4px 0; font-weight:400;">' + esc(issueText) + '</li>';
 
       // plain text: indent issues under scope (ASCII-only)
