@@ -239,6 +239,23 @@ function renderScopeRow(i){
     </div>
   `;
   row.addEventListener('change', onScopeChange);
+
+  // Track last valid progress value on focus so invalid edits can revert.
+  // This is session-only and stored on the element (does not touch the model).
+  const progEl = row.querySelector('[data-k="progress"]');
+  if (progEl) {
+    progEl.addEventListener('focus', () => {
+      try {
+        const v = (progEl.value == null ? '' : String(progEl.value));
+        if (window.RPWarnings && typeof window.RPWarnings.captureLastValidProgress === 'function') {
+          window.RPWarnings.captureLastValidProgress(progEl, v);
+        } else {
+          progEl.dataset.lastValid = v;
+        }
+      } catch (e) {}
+    });
+  }
+
   const unitsEl=row.querySelector('[data-k="unitsLabel"]');
   if(unitsEl){
     // Clear default % on focus so the datalist opens immediately on click.
@@ -290,7 +307,8 @@ function onScopeChange(e){
     start: realRow.querySelector('[data-k="start"]').value,
     end: realRow.querySelector('[data-k="end"]').value,
     cost: parseFloat(realRow.querySelector('[data-k="cost"]').value||'0'),
-    progressVal: parseFloat(realRow.querySelector('[data-k="progress"]').value||'0'),
+    progressRaw: (realRow.querySelector('[data-k="progress"]').value || ''),
+    progressVal: parseFloat((realRow.querySelector('[data-k="progress"]').value || '').trim()),
     totalUnitsRaw: realRow.querySelector('[data-k="totalUnits"]').value,
     unitsLabel: realRow.querySelector('[data-k="unitsLabel"]').value.trim()
   };
@@ -328,21 +346,53 @@ function onScopeChange(e){
   }
 
   // Daily progress entry rules
-  let rawProgress = isFinite(inputs.progressVal) ? inputs.progressVal : 0;
-
-  // If user entered an out-of-range percent, we will clamp and show a warning once this change is applied.
-  // Only applies to percent-mode and only for direct edits to the progress field.
   const _progressEdited = !!(e && e.target && e.target.matches && e.target.matches('[data-k="progress"]'));
-  const _rawPercentOutOfRange = (_progressEdited && isPercentMode && isFinite(rawProgress) && (rawProgress < 0 || rawProgress > 100));
-  const _rawPercentClamped = (isFinite(rawProgress) ? clamp(rawProgress, 0, 100) : 0);
+  const progressInputEl = realRow.querySelector('[data-k="progress"]');
+  const rawStr = (inputs.progressRaw == null ? '' : String(inputs.progressRaw));
+  let rawProgress = (rawStr.trim() === '' || !isFinite(inputs.progressVal)) ? NaN : inputs.progressVal;
+
+  // Revert invalid progress edits to the last valid value (no clamping).
+  if (_progressEdited) {
+    const isInvalid = (rawStr.trim() === '') || (!isFinite(rawProgress)) || (rawProgress < 0) || (isPercentMode && rawProgress > 100);
+    if (isInvalid) {
+      let restored = null;
+      try {
+        if (window.RPWarnings && typeof window.RPWarnings.revertProgressToLastValid === 'function') {
+          restored = window.RPWarnings.revertProgressToLastValid(progressInputEl, s, isPercentMode);
+        }
+      } catch (e) { restored = null; }
+
+      if (!isFinite(restored)) {
+        // Defensive fallback: use current model value as the "last valid".
+        restored = isPercentMode ? (Number(s.actualPct) || 0) : (Number(s.unitsToDate) || 0);
+        try { if (progressInputEl) progressInputEl.value = restored; } catch (e) {}
+        try {
+          if (isPercentMode) {
+            s.actualPct = restored;
+            s.unitsToDate = 0;
+          } else {
+            s.unitsToDate = restored;
+          }
+        } catch (e) {}
+        try { if (progressInputEl) progressInputEl.dataset.lastValid = String(restored); } catch (e) {}
+      }
+
+      try {
+        const suffix = isPercentMode ? '%' : '';
+        window.alert(`Warning: Invalid progress value. Reverted to the previous value (${restored}${suffix}).`);
+      } catch (e) {}
+
+      rawProgress = restored;
+    }
+  }
 
   if (isPercentMode) {
     // Percent scopes: model stores percentage in actualPct, unitsToDate forced to 0
-    s.actualPct = rawProgress;
+    s.actualPct = isFinite(rawProgress) ? rawProgress : (Number(s.actualPct) || 0);
     s.unitsToDate = 0;
   } else {
     // Unit scopes: model stores daily entry in unitsToDate
-    s.unitsToDate = rawProgress;
+    s.unitsToDate = isFinite(rawProgress) ? rawProgress : (Number(s.unitsToDate) || 0);
     // actualPct will be derived from units/totalUnits in the normalizer
   }
 
@@ -364,7 +414,6 @@ function onScopeChange(e){
     }
   }
 
-  const progressInputEl = realRow.querySelector('[data-k="progress"]');
   if (progressInputEl) {
     if (isPercentMode) {
       progressInputEl.value = s.actualPct;
@@ -373,12 +422,16 @@ function onScopeChange(e){
     }
   }
 
-  // If we auto-corrected an out-of-range percent entry, show a warning after the value is set.
-  if (_rawPercentOutOfRange && isPercentMode) {
-    const xx = (_rawPercentClamped <= 0) ? 0 : 100;
+  // If progress was edited and is now valid, update the stored last-valid value.
+  if (_progressEdited && progressInputEl) {
     try {
-      window.alert(`Warning: Only percentages between 0 and 100% are allowed. The % is now set to ${xx}%.`);
-    } catch(_) {}
+      const v = (progressInputEl.value == null ? '' : String(progressInputEl.value));
+      if (window.RPWarnings && typeof window.RPWarnings.captureLastValidProgress === 'function') {
+        window.RPWarnings.captureLastValidProgress(progressInputEl, v);
+      } else {
+        progressInputEl.dataset.lastValid = v;
+      }
+    } catch (e) {}
   }
 
   const rowEl = realRow;
@@ -924,10 +977,9 @@ function syncActualFromDOM(){
     const totalUnitsEl = row.querySelector('[data-k="totalUnits"]');
     const unitsLabelEl = row.querySelector('[data-k="unitsLabel"]');
 
-    const rawProgress = parseFloat(progressEl?.value || '0');
-    let progressVal = isFinite(rawProgress) ? rawProgress : 0;
-    // Daily progress entry: clamp to minimum 0, unconstrained upper bound except safety cap
-    progressVal = clamp(progressVal, 0, 1e12);
+    const rawStr = progressEl ? (progressEl.value || '') : '';
+    const parsed = parseFloat((rawStr || '').trim());
+    let progressVal = (rawStr.trim() === '' || !isFinite(parsed)) ? NaN : parsed;
 
     const totalUnitsRaw = totalUnitsEl ? totalUnitsEl.value : '';
     const unitsLabelRaw = (unitsLabelEl?.value || '').trim();
@@ -951,13 +1003,36 @@ function syncActualFromDOM(){
       scope.unitsLabel = (unitsLabelRaw || '%');
     }
 
+    // If progress is invalid, revert to last valid value (do NOT clamp).
+    if (progressEl) {
+      const invalid = (rawStr.trim() === '') || (!isFinite(progressVal)) || (progressVal < 0) || (isPercentMode && progressVal > 100);
+      if (invalid) {
+        let restored = null;
+        try {
+          if (window.RPWarnings && typeof window.RPWarnings.revertProgressToLastValid === 'function') {
+            restored = window.RPWarnings.revertProgressToLastValid(progressEl, scope, isPercentMode);
+          }
+        } catch (e) { restored = null; }
+        if (!isFinite(restored)) {
+          restored = isPercentMode ? (Number(scope.actualPct) || 0) : (Number(scope.unitsToDate) || 0);
+          try { progressEl.value = restored; } catch (e) {}
+        }
+        progressVal = restored;
+      }
+    }
+
+    // For valid values, preserve existing safety cap behavior for unit scopes.
+    if (!isPercentMode && isFinite(progressVal)) {
+      progressVal = clamp(progressVal, 0, 1e12);
+    }
+
     if (isPercentMode) {
       // Percent scopes: progress is stored in actualPct, unitsToDate forced to 0
-      scope.actualPct = progressVal;
+      scope.actualPct = isFinite(progressVal) ? progressVal : (Number(scope.actualPct) || 0);
       scope.unitsToDate = 0;
     } else {
       // Unit scopes: progress is stored in unitsToDate
-      scope.unitsToDate = progressVal;
+      scope.unitsToDate = isFinite(progressVal) ? progressVal : (Number(scope.unitsToDate) || 0);
       // actualPct will be derived from units/totalUnits in the normalizer
     }
 
@@ -971,6 +1046,16 @@ function syncActualFromDOM(){
       } else {
         progressEl.value = scope.unitsToDate;
       }
+
+      // Keep last-valid in sync for subsequent invalid edits (covers hydration + programmatic sync).
+      try {
+        const v = (progressEl.value == null ? '' : String(progressEl.value));
+        if (window.RPWarnings && typeof window.RPWarnings.captureLastValidProgress === 'function') {
+          window.RPWarnings.captureLastValidProgress(progressEl, v);
+        } else {
+          progressEl.dataset.lastValid = v;
+        }
+      } catch (e) {}
     }
     if (totalUnitsEl) {
       if (scope.totalUnits === '' || scope.totalUnits == null) {

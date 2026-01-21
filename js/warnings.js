@@ -452,6 +452,55 @@ export function handleProgressVsTotalUnitsWarning({ scope, rowElement } = {}) {
   return true;
 }
 
+// --- Progress entry: last-valid capture + revert helpers ---
+// Lightweight utilities to support "revert to last valid" behavior for progress inputs.
+// These are UI-agnostic and MUST NOT introduce any save/history/baseline logic.
+function captureLastValidProgress(input, value) {
+  if (!input || !input.dataset) return;
+  // Store as string to preserve integers/decimals exactly as shown in the input.
+  const v = (value == null) ? '' : String(value);
+  input.dataset.lastValid = v;
+}
+
+function revertProgressToLastValid(input, scope, isPercentMode) {
+  if (!input || !input.dataset || !scope) return null;
+
+  let lv = input.dataset.lastValid;
+
+  // Fallback: use current model value if we don't have a stored last-valid value.
+  if (lv == null || lv === '') {
+    try {
+      lv = isPercentMode ? String(scope.actualPct ?? 0) : String(scope.unitsToDate ?? 0);
+    } catch (e) {
+      lv = '0';
+    }
+  }
+
+  let num = parseFloat(lv);
+  if (!isFinite(num)) num = 0;
+
+  // Safety guard: lastValid should already be valid, but ensure it can't re-introduce invalids.
+  if (num < 0) num = 0;
+  if (isPercentMode && num > 100) num = 100;
+
+  // Restore DOM
+  try { input.value = num; } catch (e) {}
+
+  // Restore model
+  try {
+    if (isPercentMode) {
+      scope.actualPct = num;
+      scope.unitsToDate = 0;
+    } else {
+      scope.unitsToDate = num;
+    }
+  } catch (e) {}
+
+  // Update stored last-valid to the restored value
+  try { input.dataset.lastValid = String(num); } catch (e) {}
+  return num;
+}
+
 export function registerWarningsGlobals() {
   if (typeof window === 'undefined') return;
   if (!window.RPWarnings) window.RPWarnings = {};
@@ -463,4 +512,6 @@ export function registerWarningsGlobals() {
   window.RPWarnings.clearScopesDirtySinceLastHistory = clearScopesDirtySinceLastHistory;
   window.RPWarnings.maybeWarnOnSectionWeightChange = maybeWarnOnSectionWeightChange;
   window.RPWarnings.handleProgressVsTotalUnitsWarning = handleProgressVsTotalUnitsWarning;
+  window.RPWarnings.captureLastValidProgress = captureLastValidProgress;
+  window.RPWarnings.revertProgressToLastValid = revertProgressToLastValid;
 }
