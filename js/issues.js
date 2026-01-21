@@ -442,41 +442,31 @@ function closeIssuesModal(){
     }
 
     // List serialization:
-    // - Scope titles: bulleted + bold
-    // - Issues: nested bulleted list to preserve perceived indentation
-    html += '<ul style="margin:0; padding-left:18px;">';
-
+    // - Scope titles: bold, unbulleted
+    // - Issues: bulleted list
     let scopeOpen = false;
-    let scopeHasNested = false;
 
     function closeScope(){
       if (scopeOpen){
-        if (scopeHasNested){
-          html += '</ul></li>';
-        } else {
-          html += '</div>';
-        }
+        html += '</ul>';
       }
       scopeOpen = false;
-      scopeHasNested = false;
     }
 
     function openScope(scopeTitle){
       closeScope();
-      html += '<div style="font-weight:700; margin:0 0 6px 0;">' + esc(scopeTitle);
-      // nested list will be opened lazily on first issue
+      html += '<div style="font-weight:700; margin:0 0 6px 0;">' + esc(scopeTitle) + '</div>';
+      html += '<ul style="margin:0 0 8px 18px;">';
       scopeOpen = true;
-      scopeHasNested = false;
 
       // plain text: bullet + scope title
-      // ASCII-only bullet
       plainLines.push('- ' + scopeTitle);
     }
 
     function addIssueLine(issueText){
       if (!scopeOpen){
         // If an issue line appears without a scope header, keep output readable.
-        html += '<li style="margin:0 0 4px 0;">' + esc(issueText) + '</li>';
+        html += '<li style="margin:0 0 4px 0; font-weight:400;">' + esc(issueText) + '</li>';
         // ASCII-only bullet
         plainLines.push('- ' + issueText);
         return;
@@ -486,7 +476,7 @@ function closeIssuesModal(){
         html += '<ul style="margin:4px 0 8px 0; padding-left:22px;">';
         scopeHasNested = true;
       }
-      html += '<li style="margin:0 0 4px 0;">' + esc(issueText) + '</li>';
+      html += '<li style="margin:0 0 4px 0; font-weight:400;">' + esc(issueText) + '</li>';
 
       // plain text: indent issues under scope (ASCII-only)
       plainLines.push('  - ' + issueText);
@@ -508,7 +498,7 @@ function closeIssuesModal(){
     }
 
     closeScope();
-    html += '</ul></div>';
+    html += '</div>';
 
     const plain = plainLines.join('\\n');
 
