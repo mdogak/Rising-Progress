@@ -1,5 +1,5 @@
 /*
-(c) 2025 Rising Progress LLC. All rights reserved.
+© 2025 Rising Progress LLC. All rights reserved.
 */
 
 // issues.js
@@ -469,16 +469,14 @@ function closeIssuesModal(){
       scopeHasNested = false;
 
       // plain text: bullet + scope title
-      // ASCII-only bullet
-      plainLines.push('- ' + scopeTitle);
+      plainLines.push('• ' + scopeTitle);
     }
 
     function addIssueLine(issueText){
       if (!scopeOpen){
         // If an issue line appears without a scope header, keep output readable.
         html += '<li style="margin:0 0 4px 0;">' + esc(issueText) + '</li>';
-        // ASCII-only bullet
-        plainLines.push('- ' + issueText);
+        plainLines.push('• ' + issueText);
         return;
       }
 
@@ -488,8 +486,8 @@ function closeIssuesModal(){
       }
       html += '<li style="margin:0 0 4px 0;">' + esc(issueText) + '</li>';
 
-      // plain text: indent issues under scope (ASCII-only)
-      plainLines.push('  - ' + issueText);
+      // plain text: indent issues under scope
+      plainLines.push('  • ' + issueText);
     }
 
     if (listEl && listEl.children && listEl.children.length) {
@@ -510,7 +508,8 @@ function closeIssuesModal(){
     closeScope();
     html += '</ul></div>';
 
-    const plain = plainLines.join('\\n');
+    const plain = plainLines.join('
+');
 
     // -------- Clipboard write with robust fallbacks --------
     try {
@@ -539,7 +538,7 @@ function closeIssuesModal(){
     }
   }
 
-  function fallbackCopy(text){
+function fallbackCopy(text){
     const ta = document.createElement('textarea');
     ta.value = text;
     ta.style.position = 'fixed';
@@ -552,6 +551,10 @@ function closeIssuesModal(){
     }catch(e){
       // ignore
     }
+    document.body.removeChild(ta);
+    window.alert('Issues copied. You can paste into email or notes.');
+  }
+
     document.body.removeChild(ta);
     window.alert('Issues copied. You can paste into email or notes.');
   }
