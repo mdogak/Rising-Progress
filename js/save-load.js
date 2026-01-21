@@ -380,20 +380,28 @@ function buildMSPXML() {
 export async function saveXml(){
   const d = requireDeps();
   const model = getModel();
-  try{
+  const isUserSave = !(typeof window !== 'undefined' && window._autoSaving);
+
+  async function performXmlSave(){
     const xml = buildMSPXML();
     const suggested = (model.project.name ? model.project.name.replace(/\s+/g,'_') + '_' : '') + 'progress_all.xml';
     if(!window._autoSaving && window.showSaveFilePicker){
-      const handle = await window.showSaveFilePicker({
-        suggestedName: suggested,
-        types:[{
-          description:'MS Project XML',
-          accept:{ 'application/xml':['.xml'] }
-        }]
-      });
-      const writable = await handle.createWritable();
-      await writable.write(new Blob([xml], {type:'application/xml'}));
-      await writable.close();
+      try {
+        const handle = await window.showSaveFilePicker({
+          suggestedName: suggested,
+          types:[{
+            description:'MS Project XML',
+            accept:{ 'application/xml':['.xml'] }
+          }]
+        });
+        const writable = await handle.createWritable();
+        await writable.write(new Blob([xml], {type:'application/xml'}));
+        await writable.close();
+      } catch (e) {
+        // User canceled the file picker — do not throw or alert.
+        if (e && e.name === 'AbortError') return;
+        throw e;
+      }
     } else {
       const blob = new Blob([xml], {type:'application/xml'});
       const url = URL.createObjectURL(blob);
@@ -405,6 +413,52 @@ export async function saveXml(){
       a.remove();
       URL.revokeObjectURL(url);
     }
+  }
+
+  // Auto-saving and other non-interactive flows should bypass the guard.
+  if (!isUserSave) {
+    try { return await performXmlSave(); } catch(e){ alert('XML save failed: ' + e.message); return; }
+  }
+
+  const guardFn = (window.RPWarnings && window.RPWarnings.guardSaveWithDirtyScopes);
+  if (typeof guardFn === 'function') {
+    const doSaveOnly = () => { performXmlSave().catch(e=> alert('XML save failed: ' + e.message)); };
+    const doAddAndSave = () => {
+      let historyOk = true;
+      try {
+        if (window.RPHistory && typeof window.RPHistory.addToHistory === 'function') {
+          const res = window.RPHistory.addToHistory();
+          if (res === false) historyOk = false;
+        } else if (typeof window.addToHistory === 'function') {
+          const res = window.addToHistory();
+          if (res === false) historyOk = false;
+        }
+      } catch (err) {
+        historyOk = false;
+      }
+
+      if (!historyOk) {
+        try { alert('Warning: History did not update successfully.'); } catch(_) {}
+      }
+
+      if (window.RPWarnings && typeof window.RPWarnings.clearScopesDirtySinceLastHistory === 'function') {
+        window.RPWarnings.clearScopesDirtySinceLastHistory();
+      }
+
+      performXmlSave().catch(e=> alert('XML save failed: ' + e.message));
+    };
+    const doCancel = () => {};
+
+    try {
+      guardFn({ model, onAddAndSave: doAddAndSave, onSaveOnly: doSaveOnly, onCancel: doCancel });
+    } catch(e) {
+      return doSaveOnly();
+    }
+    return;
+  }
+
+  try{
+    await performXmlSave();
   }catch(e){
     alert('XML save failed: ' + e.message);
   }
@@ -711,20 +765,83 @@ function buildAllCSV(isUserSave=false) {
 export async function saveAll(){
   const d = requireDeps();
   const model = getModel();
-  try{
+  const isUserSave = !(typeof window !== 'undefined' && window._autoSaving);
+
+  async function performProjectSave(){
+
     const isUserSave = !(typeof window !== 'undefined' && window._autoSaving);
     const csv = buildAllCSV(isUserSave);
     if(!window._autoSaving && window.showSaveFilePicker){
-      const handle = await window.showSaveFilePicker({ suggestedName: (model.project.name? model.project.name.replace(/\s+/g,'_')+'_': '') + 'progress_all.prgs', types:[{ description:'CSV', accept:{ 'text/plain':['.prgs'] } }] });
-      const writable = await handle.createWritable(); await writable.write(new Blob([csv], {type:'text/plain'})); await writable.close();
-      if (window.sessionStorage) sessionStorage.setItem(d.COOKIE_KEY, JSON.stringify(model));
+      try {
+        const handle = await window.showSaveFilePicker({ suggestedName: (model.project.name? model.project.name.replace(/\s+/g,'_')+'_': '') + 'progress_all.prgs', types:[{ description:'CSV', accept:{ 'text/plain':['.prgs'] } }] });
+        const writable = await handle.createWritable();
+        await writable.write(new Blob([csv], {type:'text/plain'}));
+        await writable.close();
+        if (window.sessionStorage) sessionStorage.setItem(d.COOKIE_KEY, JSON.stringify(model));
+      } catch (e) {
+        // User canceled the file picker — do not throw or create console noise.
+        if (e && e.name === 'AbortError') return;
+        throw e;
+      }
     } else {
       // Fallback download
       const blob = new Blob([csv], {type:'text/plain'}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = (model.project.name? model.project.name.replace(/\s+/g,'_')+'_': '') + 'progress_all.prgs'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
       if (window.sessionStorage) sessionStorage.setItem(d.COOKIE_KEY, JSON.stringify(model));
     }
-  }catch(e){ alert('Save failed: ' + e.message); }
+  
+  }
+
+  // Auto-saving and other non-interactive flows should bypass the guard.
+  if (!isUserSave) {
+    return performProjectSave();
+  }
+
+  const guardFn = (window.RPWarnings && window.RPWarnings.guardSaveWithDirtyScopes);
+  if (typeof guardFn === 'function') {
+    const doSaveOnly = () => { performProjectSave(); };
+    const doAddAndSave = () => {
+      let historyOk = true;
+      try {
+        if (window.RPHistory && typeof window.RPHistory.addToHistory === 'function') {
+          const res = window.RPHistory.addToHistory();
+          if (res === false) historyOk = false;
+        } else if (typeof window.addToHistory === 'function') {
+          const res = window.addToHistory();
+          if (res === false) historyOk = false;
+        }
+      } catch (err) {
+        historyOk = false;
+      }
+
+      if (!historyOk) {
+        try { alert('Warning: History did not update successfully.'); } catch(_) {}
+      }
+
+      if (window.RPWarnings && typeof window.RPWarnings.clearScopesDirtySinceLastHistory === 'function') {
+        window.RPWarnings.clearScopesDirtySinceLastHistory();
+      }
+
+      performProjectSave();
+    };
+    const doCancel = () => {
+      // User dismissed the guard; intentionally do nothing.
+    };
+
+    guardFn({
+      model: (window.model || model),
+      onAddAndSave: doAddAndSave,
+      onSaveOnly: doSaveOnly,
+      onCancel: doCancel
+    });
+
+    // Guard takes over control flow.
+    return;
+  }
+
+  // Fallback: behave exactly as before when no guard is registered.
+  return performProjectSave();
 }
+
 
 function parseCSV(text){
   const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
@@ -1425,7 +1542,15 @@ export function loadFromPrgsText(text){
 
   if(window.Sections && typeof window.Sections.ensureSectionNameField === 'function'){ window.Sections.ensureSectionNameField(fresh); }
   d.syncScopeRowsToModel();
+  // Capture dirty-since-load baseline after PRGS load (once warnings module is available).
+  try { window.__rpBaselinePending = true; } catch(e) {}
   d.computeAndRender();
+  try {
+    if (window.RPWarnings && typeof window.RPWarnings.setScopesBaseline === 'function') {
+      window.RPWarnings.setScopesBaseline(getModel());
+      window.__rpBaselinePending = false;
+    }
+  } catch(e) {}
   if (window.sessionStorage) sessionStorage.setItem(d.COOKIE_KEY, JSON.stringify(fresh));
   return true;
 }
@@ -1468,16 +1593,98 @@ function initSaveDropdown(){
   btnCSV.addEventListener('click', function (e) {
     e.stopPropagation();
     closeDropdown();
-    if (typeof window.requireAuthForSaveAll === 'function') window.requireAuthForSaveAll();
-    else if (typeof saveAll === 'function') saveAll();
-    else if (typeof window.saveCsv === 'function') window.saveCsv();
+
+    const doSaveFlow = () => {
+      if (typeof window.requireAuthForSaveAll === 'function') window.requireAuthForSaveAll();
+      else if (typeof saveAll === 'function') saveAll();
+      else if (typeof window.saveCsv === 'function') window.saveCsv();
+    };
+
+    const guardFn = (window.RPWarnings && window.RPWarnings.guardSaveWithDirtyScopes);
+    const model = (typeof getModel === 'function') ? getModel() : (window.model || null);
+
+    if (typeof guardFn === 'function') {
+      const doSaveOnly = () => { doSaveFlow(); };
+      const doAddAndSave = () => {
+        try {
+          if (window.RPHistory && typeof window.RPHistory.addToHistory === 'function') {
+            window.RPHistory.addToHistory();
+          } else if (typeof window.addToHistory === 'function') {
+            window.addToHistory();
+          }
+        } catch (err) {
+          try { console.error('Failed to add to history before save', err); } catch(_) {}
+        }
+
+        if (window.RPWarnings && typeof window.RPWarnings.clearScopesDirtySinceLastHistory === 'function') {
+          window.RPWarnings.clearScopesDirtySinceLastHistory();
+        }
+
+        doSaveFlow();
+      };
+      const doCancel = () => {
+        // User dismissed the guard; do nothing.
+      };
+
+      guardFn({
+        model: (window.model || model),
+        onAddAndSave: doAddAndSave,
+        onSaveOnly: doSaveOnly,
+        onCancel: doCancel
+      });
+
+      return;
+    }
+
+    doSaveFlow();
   });
 
   btnXML.addEventListener('click', function (e) {
     e.stopPropagation();
     closeDropdown();
-    if (typeof window.requireAuthForSaveXml === 'function') window.requireAuthForSaveXml();
-    else if (typeof saveXml === 'function') saveXml();
+
+    const doSaveFlowXml = () => {
+      if (typeof window.requireAuthForSaveXml === 'function') window.requireAuthForSaveXml();
+      else if (typeof saveXml === 'function') saveXml();
+    };
+
+    const guardFn = (window.RPWarnings && window.RPWarnings.guardSaveWithDirtyScopes);
+    const model = (typeof getModel === 'function') ? getModel() : (window.model || null);
+
+    if (typeof guardFn === 'function') {
+      const doSaveOnly = () => { doSaveFlowXml(); };
+      const doAddAndSave = () => {
+        try {
+          if (window.RPHistory && typeof window.RPHistory.addToHistory === 'function') {
+            window.RPHistory.addToHistory();
+          } else if (typeof window.addToHistory === 'function') {
+            window.addToHistory();
+          }
+        } catch (err) {
+          try { console.error('Failed to add to history before save', err); } catch(_) {}
+        }
+
+        if (window.RPWarnings && typeof window.RPWarnings.clearScopesDirtySinceLastHistory === 'function') {
+          window.RPWarnings.clearScopesDirtySinceLastHistory();
+        }
+
+        doSaveFlowXml();
+      };
+      const doCancel = () => {
+        // User dismissed the guard; do nothing.
+      };
+
+      guardFn({
+        model: (window.model || model),
+        onAddAndSave: doAddAndSave,
+        onSaveOnly: doSaveOnly,
+        onCancel: doCancel
+      });
+
+      return;
+    }
+
+    doSaveFlowXml();
   });
 
   document.addEventListener('click', function (e) {

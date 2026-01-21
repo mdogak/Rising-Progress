@@ -222,6 +222,13 @@ export function renderDailyTable(days, baseline, planned, actual, opts = {}) {
         model.dailyActuals[day] = v;
         window.model = model;
 
+    // Clear dirty flag after successful history snapshot
+    try {
+      if (window.RPWarnings && typeof window.RPWarnings.clearScopesDirtySinceLastHistory === 'function') {
+        window.RPWarnings.clearScopesDirtySinceLastHistory();
+      }
+    } catch(e) {}
+
         if (typeof computeAndRender === "function") {
           computeAndRender();
         }
@@ -275,68 +282,130 @@ export function renderDailyTable(days, baseline, planned, actual, opts = {}) {
     });
   });
 }
-/**
- * Wire up the "Add to History" snapshot button so it captures the current
- * total actual progress into the model history + dailyActuals and triggers a re-render.
- */
-export function initHistory({ calcTotalActualProgress, fmtDate, today, computeAndRender }) {
-  const snapshotBtn = document.getElementById("snapshot");
-  if (!snapshotBtn) return;
 
-  snapshotBtn.addEventListener("click", () => {
-    const model = window.model || {};
-    const dateInput = document.getElementById("historyDate");
+// ------------------------------
+// Unified Add-to-History function (shared by UI button + Save guard)
+// ------------------------------
 
-    const d =
-      (dateInput && dateInput.value)
-        ? dateInput.value
-        : (typeof fmtDate === "function" && today ? fmtDate(today) : "");
+function __rpAddToHistoryImpl(deps = {}) {
+  const model = window.model || {};
+  const dateInput = document.getElementById("historyDate");
 
-    if (!d) return;
+  const fmtDate = deps.fmtDate;
+  const today = deps.today;
 
-    const pct = typeof calcTotalActualProgress === "function"
-      ? calcTotalActualProgress()
-      : 0;
+  const d =
+    (dateInput && dateInput.value)
+      ? dateInput.value
+      : (typeof fmtDate === "function" && today ? fmtDate(today) : "");
 
-    if (!Array.isArray(model.history)) model.history = [];
+  if (!d) return false;
 
-    const idx = model.history.findIndex((h) => h.date === d);
-    if (idx >= 0) {
-      model.history[idx].actualPct = pct;
-    } else {
-      model.history.push({ date: d, actualPct: pct });
-    }
+  const pct = (typeof deps.calcTotalActualProgress === "function")
+    ? deps.calcTotalActualProgress()
+    : 0;
 
-    if (!model.dailyActuals) model.dailyActuals = {};
-    model.dailyActuals[d] = pct;
+  if (!Array.isArray(model.history)) model.history = [];
 
-    // vNext TIMESERIES snapshot (authoritative; overwrite by historyDate)
-    model.timeSeriesProject = model.timeSeriesProject || {};
-    model.timeSeriesScopes = model.timeSeriesScopes || {};
-    model.timeSeriesSections = model.timeSeriesSections || {};
+  const idx = model.history.findIndex((h) => h.date === d);
+  if (idx >= 0) {
+    model.history[idx].actualPct = pct;
+  } else {
+    model.history.push({ date: d, actualPct: pct });
+  }
 
-    // PROJECT snapshot (no toggles)
-    model.timeSeriesProject[d] = [
-      { historyDate: d, key: 'name', value: (model.project && model.project.name) || '' },
-      { historyDate: d, key: 'startup', value: (model.project && model.project.startup) || '' },
-      { historyDate: d, key: 'markerLabel', value: (model.project && model.project.markerLabel) || '' }
-    ];
+  if (!model.dailyActuals) model.dailyActuals = {};
+  model.dailyActuals[d] = pct;
 
-    // Planned-to-date helper (historyDate-driven; avoids UI timing issues)
-    const __clamp = (n, min, max) => Math.max(min, Math.min(max, Number(n) || 0));
-    const __parseDate = (val) => val ? new Date(val + 'T00:00:00') : null;
-    const __daysBetween = (aStr, bStr) => {
-      const da = __parseDate(aStr);
-      const db = __parseDate(bStr);
+  // vNext TIMESERIES snapshot (authoritative; overwrite by historyDate)
+  model.timeSeriesProject = model.timeSeriesProject || {};
+  model.timeSeriesScopes = model.timeSeriesScopes || {};
+  model.timeSeriesSections = model.timeSeriesSections || {};
+
+  // PROJECT snapshot (no toggles)
+  model.timeSeriesProject[d] = [
+    { historyDate: d, key: 'name', value: (model.project && model.project.name) || '' },
+    { historyDate: d, key: 'startup', value: (model.project && model.project.startup) || '' },
+    { historyDate: d, key: 'markerLabel', value: (model.project && model.project.markerLabel) || '' }
+  ];
+
+  // Planned-to-date helper (historyDate-driven; avoids UI timing issues)
+  const __clamp = (n, min, max) => Math.max(min, Math.min(max, Number(n) || 0));
+  const __parseDate = (val) => val ? new Date(val + 'T00:00:00') : null;
+  const __daysBetween = (aStr, bStr) => {
+    const da = __parseDate(aStr);
+    const db = __parseDate(bStr);
+    if(!da || !db || isNaN(da.getTime()) || isNaN(db.getTime())) return 0;
+    return Math.floor((db - da) / 86400000) + 1; // inclusive
+  };
+  // Matches progress.js planned semantics but uses explicit historyDate (no system-date fallback)
+  const __plannedPctToDate = (scope, historyDateStr) => {
+    if(!scope || !scope.start || !scope.end) return 0;
+    const dStart = __parseDate(scope.start);
+    const dEnd   = __parseDate(scope.end);
+    const t      = __parseDate(historyDateStr);
+    if(!dStart || !dEnd || !t || isNaN(dStart.getTime()) || isNaN(dEnd.getTime()) || isNaN(t.getTime())) return 0;
+
+    // Invalid range: end before start => treat as 100%
+    if(dEnd < dStart) return 100;
+
+    if(t < dStart) return 0;
+    if(t > dEnd) return 100;
+
+    const durationDays = __daysBetween(scope.start, scope.end);
+    const elapsedDays  = __daysBetween(scope.start, historyDateStr);
+
+    if(durationDays <= 0) return 100;
+
+    return __clamp((elapsedDays / durationDays) * 100, 0, 100);
+  };
+
+  // SCOPES snapshot
+  model.timeSeriesScopes[d] = (model.scopes || []).map(s => ({
+    historyDate: d,
+    scopeId: s.scopeId,
+    label: s.label,
+    start: s.start,
+    end: s.end,
+    cost: s.cost,
+    perDay: s.perDay,
+    actualPct: s.actualPct,
+    unitsToDate: (s.totalUnits ? s.unitsToDate : ''),
+    totalUnits: s.totalUnits,
+    unitsLabel: s.unitsLabel,
+    plannedtodate: (s && s.totalUnits && Number(s.totalUnits) > 0)
+      ? (__plannedPctToDate(s, d) / 100) * Number(s.totalUnits)
+      : __plannedPctToDate(s, d),
+    sectionName: s.sectionName,
+    sectionID: s.sectionID
+  }));
+
+  // SECTIONS snapshot (contiguous nonblank segments; UI order)
+  // Rules:
+  // - Build from the model (not DOM)
+  // - Ignore unsectioned scopes (blank sectionName)
+  // - Preserve UI order (no sorting)
+  // - sectionID is authoritative; sectionTitle is descriptive only
+  (function captureSectionSnapshots(){
+    const scopes = Array.isArray(model.scopes) ? model.scopes : [];
+    const totalCost = scopes.reduce((sum, s)=> sum + (Number(s && s.cost) || 0), 0);
+    const weights = scopes.map(s => totalCost > 0 ? ((Number(s && s.cost) || 0) / totalCost) : 0);
+
+    const clamp = (n, min, max) => Math.max(min, Math.min(max, Number(n) || 0));
+    const parseDate = (val) => val ? new Date(val + 'T00:00:00') : null;
+    const daysBetween = (aStr, bStr) => {
+      const da = parseDate(aStr);
+      const db = parseDate(bStr);
       if(!da || !db || isNaN(da.getTime()) || isNaN(db.getTime())) return 0;
       return Math.floor((db - da) / 86400000) + 1; // inclusive
     };
-    // Matches progress.js planned semantics but uses explicit historyDate (no system-date fallback)
-    const __plannedPctToDate = (scope, historyDateStr) => {
+
+    // Local planned% helper: matches progress.js behavior (planned uses historyDate only; no system-date fallback)
+    const plannedPctToDate = (scope, historyDateStr) => {
       if(!scope || !scope.start || !scope.end) return 0;
-      const dStart = __parseDate(scope.start);
-      const dEnd   = __parseDate(scope.end);
-      const t      = __parseDate(historyDateStr);
+      const dStart = parseDate(scope.start);
+      const dEnd   = parseDate(scope.end);
+      const t      = parseDate(historyDateStr);
       if(!dStart || !dEnd || !t || isNaN(dStart.getTime()) || isNaN(dEnd.getTime()) || isNaN(t.getTime())) return 0;
 
       // Invalid range: end before start => treat as 100%
@@ -345,153 +414,141 @@ export function initHistory({ calcTotalActualProgress, fmtDate, today, computeAn
       if(t < dStart) return 0;
       if(t > dEnd) return 100;
 
-      const durationDays = __daysBetween(scope.start, scope.end);
-      const elapsedDays  = __daysBetween(scope.start, historyDateStr);
+      const durationDays = daysBetween(scope.start, scope.end);
+      const elapsedDays  = daysBetween(scope.start, historyDateStr);
 
       if(durationDays <= 0) return 100;
 
-      return __clamp((elapsedDays / durationDays) * 100, 0, 100);
+      return clamp((elapsedDays / durationDays) * 100, 0, 100);
     };
 
-    // SCOPES snapshot
-    model.timeSeriesScopes[d] = (model.scopes || []).map(s => ({
-      historyDate: d,
-      scopeId: s.scopeId,
-      label: s.label,
-      start: s.start,
-      end: s.end,
-      cost: s.cost,
-      perDay: s.perDay,
-      actualPct: s.actualPct,
-      unitsToDate: (s.totalUnits ? s.unitsToDate : ''),
-      totalUnits: s.totalUnits,
-      unitsLabel: s.unitsLabel,
-      plannedtodate: (s && s.totalUnits && Number(s.totalUnits) > 0)
-        ? (__plannedPctToDate(s, d) / 100) * Number(s.totalUnits)
-        : __plannedPctToDate(s, d),
-      sectionName: s.sectionName,
-      sectionID: s.sectionID
-    }));
+    const rows = [];
+    let i = 0;
 
-    // SECTIONS snapshot (contiguous nonblank segments; UI order)
-    // Rules:
-    // - Build from the model (not DOM)
-    // - Ignore unsectioned scopes (blank sectionName)
-    // - Preserve UI order (no sorting)
-    // - sectionID is authoritative; sectionTitle is descriptive only
-    (function captureSectionSnapshots(){
-      const scopes = Array.isArray(model.scopes) ? model.scopes : [];
-      const totalCost = scopes.reduce((sum, s)=> sum + (Number(s && s.cost) || 0), 0);
-      const weights = scopes.map(s => totalCost > 0 ? ((Number(s && s.cost) || 0) / totalCost) : 0);
+    while(i < scopes.length){
+      const s0 = scopes[i] || {};
+      const name = String(s0.sectionName || '');
+      const sid  = String(s0.sectionID || '');
 
-      const clamp = (n, min, max) => Math.max(min, Math.min(max, Number(n) || 0));
-      const parseDate = (val) => val ? new Date(val + 'T00:00:00') : null;
-      const daysBetween = (aStr, bStr) => {
-        const da = parseDate(aStr);
-        const db = parseDate(bStr);
-        if(!da || !db || isNaN(da.getTime()) || isNaN(db.getTime())) return 0;
-        return Math.floor((db - da) / 86400000) + 1; // inclusive
-      };
-
-      // Local planned% helper: matches progress.js behavior (planned uses historyDate only; no system-date fallback)
-      const plannedPctToDate = (scope, historyDateStr) => {
-        if(!scope || !scope.start || !scope.end) return 0;
-        const dStart = parseDate(scope.start);
-        const dEnd   = parseDate(scope.end);
-        const t      = parseDate(historyDateStr);
-        if(!dStart || !dEnd || !t || isNaN(dStart.getTime()) || isNaN(dEnd.getTime()) || isNaN(t.getTime())) return 0;
-
-        // Invalid range: end before start => treat as 100%
-        if(dEnd < dStart) return 100;
-
-        if(t < dStart) return 0;
-        if(t > dEnd) return 100;
-
-        const durationDays = daysBetween(scope.start, scope.end);
-        const elapsedDays  = daysBetween(scope.start, historyDateStr);
-
-        if(durationDays <= 0) return 100;
-
-        return clamp((elapsedDays / durationDays) * 100, 0, 100);
-      };
-
-      const rows = [];
-      let i = 0;
-
-      while(i < scopes.length){
-        const s0 = scopes[i] || {};
-        const name = String(s0.sectionName || '');
-        const sid  = String(s0.sectionID || '');
-
-        // Ignore unsectioned scopes
-        if(!name){
-          i++;
-          continue;
-        }
-
-        // Determine contiguous segment bounds (same sectionName + sectionID)
-        const start = i;
-        let end = i;
-        while(end + 1 < scopes.length){
-          const sN = scopes[end + 1] || {};
-          const name2 = String(sN.sectionName || '');
-          const sid2  = String(sN.sectionID || '');
-          if(!name2) break;
-          if(name2 !== name) break;
-          if(sid2 !== sid) break;
-          end++;
-        }
-
-        // Compute rollups using the same weighting logic as section headers:
-        // - Scope weights are derived from cost/totalCost (fractions)
-        // - Section weight is sum of those weights (no re-scaling), displayed as percent points
-        let wSum = 0;
-        let accActual = 0;
-        let accPlanned = 0;
-
-        for(let k = start; k <= end; k++){
-          const wi = Number(weights[k]) || 0;
-          wSum += wi;
-
-          const a = Number((scopes[k] && scopes[k].actualPct) || 0) || 0;
-          accActual += wi * a;
-
-          const p = Number(plannedPctToDate(scopes[k], d) || 0) || 0;
-          accPlanned += wi * p;
-        }
-
-        const sectionWeight = (Number(wSum) || 0) * 100;
-        const sectionPct = wSum > 0 ? clamp(accActual / wSum, 0, 100) : 0;
-        const sectionPlannedPct = wSum > 0 ? clamp(accPlanned / wSum, 0, 100) : 0;
-
-        rows.push({
-          historyDate: d,
-          sectionID: sid,
-          sectionTitle: name,
-          sectionWeight,
-          sectionPct,
-          sectionPlannedPct
-        });
-
-        i = end + 1;
+      // Ignore unsectioned scopes
+      if(!name){
+        i++;
+        continue;
       }
 
-      model.timeSeriesSections[d] = rows;
-    })();
+      // Determine contiguous segment bounds (same sectionName + sectionID)
+      const start = i;
+      let end = i;
+      while(end + 1 < scopes.length){
+        const sN = scopes[end + 1] || {};
+        const name2 = String(sN.sectionName || '');
+        const sid2  = String(sN.sectionID || '');
+        if(!name2) break;
+        if(name2 !== name) break;
+        if(sid2 !== sid) break;
+        end++;
+      }
 
+      // Compute rollups using the same weighting logic as section headers:
+      // - Scope weights are derived from cost/totalCost (fractions)
+      // - Section weight is sum of those weights (no re-scaling), displayed as percent points
+      let wSum = 0;
+      let accActual = 0;
+      let accPlanned = 0;
 
-    window.model = model;
+      for(let k = start; k <= end; k++){
+        const wi = Number(weights[k]) || 0;
+        wSum += wi;
 
-    if (typeof computeAndRender === "function") {
-      computeAndRender();
+        const a = Number((scopes[k] && scopes[k].actualPct) || 0) || 0;
+        accActual += wi * a;
+
+        const p = Number(plannedPctToDate(scopes[k], d) || 0) || 0;
+        accPlanned += wi * p;
+      }
+
+      const sectionWeight = (Number(wSum) || 0) * 100;
+      const sectionPct = wSum > 0 ? clamp(accActual / wSum, 0, 100) : 0;
+      const sectionPlannedPct = wSum > 0 ? clamp(accPlanned / wSum, 0, 100) : 0;
+
+      rows.push({
+        historyDate: d,
+        sectionID: sid,
+        sectionTitle: name,
+        sectionWeight,
+        sectionPct,
+        sectionPlannedPct
+      });
+
+      i = end + 1;
     }
 
-    if (typeof window.setCookie === "function" && window.COOKIE_KEY) {
-      try {
-        window.setCookie(window.COOKIE_KEY, JSON.stringify(model), 3650);
-      } catch (e) {
-        console.error("Failed to persist model after snapshot", e);
+    model.timeSeriesSections[d] = rows;
+  })();
+
+  window.model = model;
+
+  if (typeof deps.computeAndRender === "function") {
+    deps.computeAndRender();
+  }
+
+  if (typeof window.setCookie === "function" && window.COOKIE_KEY) {
+    try {
+      window.setCookie(window.COOKIE_KEY, JSON.stringify(model), 3650);
+    } catch (e) {
+      console.error("Failed to persist model after snapshot", e);
+    }
+  }
+
+  // Clear per-session dirty flags after a successful snapshot.
+  try {
+    if (window.RPWarnings && typeof window.RPWarnings.clearScopesDirtySinceLastHistory === 'function') {
+      window.RPWarnings.clearScopesDirtySinceLastHistory();
+    }
+  } catch(e) {}
+
+  return true;
+}
+
+function __ensureRPHistoryGlobal(){
+  if (typeof window === 'undefined') return;
+  window.RPHistory = window.RPHistory || {};
+  if (typeof window.RPHistory.addToHistory !== 'function') {
+    window.RPHistory._deps = window.RPHistory._deps || {};
+    window.RPHistory.addToHistory = function(){
+      const deps = window.RPHistory && window.RPHistory._deps ? window.RPHistory._deps : {};
+      return __rpAddToHistoryImpl(deps);
+    };
+  }
+}
+/**
+ * Wire up the "Add to History" snapshot button so it captures the current
+ * total actual progress into the model history + dailyActuals and triggers a re-render.
+ */
+export function initHistory({ calcTotalActualProgress, fmtDate, today, computeAndRender }) {
+  const snapshotBtn = document.getElementById("snapshot");
+  if (!snapshotBtn) return;
+
+  // Expose a single Add-to-History function for both classic and module callers.
+  __ensureRPHistoryGlobal();
+  try {
+    if (window.RPHistory) {
+      window.RPHistory._deps = {
+        calcTotalActualProgress,
+        fmtDate,
+        today,
+        computeAndRender
+      };
+    }
+  } catch(e) {}
+
+  snapshotBtn.addEventListener("click", () => {
+    try {
+      if (window.RPHistory && typeof window.RPHistory.addToHistory === 'function') {
+        window.RPHistory.addToHistory();
       }
+    } catch (e) {
+      try { console.error('Failed to add to history', e); } catch(_) {}
     }
   });
 }

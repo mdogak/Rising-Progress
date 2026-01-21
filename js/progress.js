@@ -147,10 +147,65 @@ function syncScopeRowsToModel(){
   ensureScopeIds();
   const cont = $('#scopeRows');
   if(window.Sections && typeof window.Sections.render === 'function'){
+    // Track section membership changes for drag/drop moves (for section membership warning).
+    // IMPORTANT: refresh this map on every render so it always reflects the last rendered state
+    // of the current model (not a previous project/session).
+    try {
+      const map = {};
+      for (let i = 0; i < (model.scopes || []).length; i++) {
+        const s = model.scopes[i];
+        const sid = (s && (s.scopeId || s.id || String(i))) || String(i);
+        const sk = s && (s.sectionID ?? s.sectionId ?? s.sectionUid ?? s.sectionUID ?? s.sectionName ?? s.section ?? '');
+        map[sid] = (sk == null ? '' : String(sk));
+      }
+      window.Sections._rpPrevSectionKeyByScopeId = map;
+    } catch(e) {}
+
     window.Sections.render(cont, model, renderScopeRow, { calcScopeWeightings, calcScopePlannedPctToDate, parseDate });
     if(typeof window.Sections.attachContainerHandlers === 'function'){
       window.Sections.attachContainerHandlers(cont, model, ()=>{
+        // Compare pre/post section membership after drag/drop updates.
+        let prevMap = null;
+        try { prevMap = window.Sections._rpPrevSectionKeyByScopeId || null; } catch(e) { prevMap = null; }
+
         syncScopeRowsToModel();
+
+        try {
+          const nextMap = {};
+          for (let i = 0; i < (model.scopes || []).length; i++) {
+            const s = model.scopes[i];
+            const sid = (s && (s.scopeId || s.id || String(i))) || String(i);
+            const sk = s && (s.sectionID ?? s.sectionId ?? s.sectionUid ?? s.sectionUID ?? s.sectionName ?? s.section ?? '');
+            nextMap[sid] = (sk == null ? '' : String(sk));
+          }
+
+          let changedOld = null;
+          let changedNew = null;
+          if (prevMap) {
+            for (const sid in nextMap) {
+              const oldVal = (prevMap[sid] == null ? '' : String(prevMap[sid]));
+              const newVal = (nextMap[sid] == null ? '' : String(nextMap[sid]));
+              if (oldVal !== newVal) {
+                changedOld = oldVal;
+                changedNew = newVal;
+                break;
+              }
+            }
+          }
+
+          if (changedOld !== null && changedNew !== null) {
+            if (window.RPWarnings && typeof window.RPWarnings.maybeWarnOnSectionWeightChange === 'function') {
+              window.RPWarnings.maybeWarnOnSectionWeightChange({
+                model,
+                oldId: changedOld,
+                newId: changedNew
+              });
+            }
+          }
+
+          window.Sections._rpPrevSectionKeyByScopeId = nextMap;
+        } catch(e) {}
+
         computeAndRender();
         sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
       });
@@ -184,6 +239,23 @@ function renderScopeRow(i){
     </div>
   `;
   row.addEventListener('change', onScopeChange);
+
+  // Track last valid progress value on focus so invalid edits can revert.
+  // This is session-only and stored on the element (does not touch the model).
+  const progEl = row.querySelector('[data-k="progress"]');
+  if (progEl) {
+    progEl.addEventListener('focus', () => {
+      try {
+        const v = (progEl.value == null ? '' : String(progEl.value));
+        if (window.RPWarnings && typeof window.RPWarnings.captureLastValidProgress === 'function') {
+          window.RPWarnings.captureLastValidProgress(progEl, v);
+        } else {
+          progEl.dataset.lastValid = v;
+        }
+      } catch (e) {}
+    });
+  }
+
   const unitsEl=row.querySelector('[data-k="unitsLabel"]');
   if(unitsEl){
     // Clear default % on focus so the datalist opens immediately on click.
@@ -235,7 +307,8 @@ function onScopeChange(e){
     start: realRow.querySelector('[data-k="start"]').value,
     end: realRow.querySelector('[data-k="end"]').value,
     cost: parseFloat(realRow.querySelector('[data-k="cost"]').value||'0'),
-    progressVal: parseFloat(realRow.querySelector('[data-k="progress"]').value||'0'),
+    progressRaw: (realRow.querySelector('[data-k="progress"]').value || ''),
+    progressVal: parseFloat((realRow.querySelector('[data-k="progress"]').value || '').trim()),
     totalUnitsRaw: realRow.querySelector('[data-k="totalUnits"]').value,
     unitsLabel: realRow.querySelector('[data-k="unitsLabel"]').value.trim()
   };
@@ -273,14 +346,53 @@ function onScopeChange(e){
   }
 
   // Daily progress entry rules
-  let rawProgress = isFinite(inputs.progressVal) ? inputs.progressVal : 0;
+  const _progressEdited = !!(e && e.target && e.target.matches && e.target.matches('[data-k="progress"]'));
+  const progressInputEl = realRow.querySelector('[data-k="progress"]');
+  const rawStr = (inputs.progressRaw == null ? '' : String(inputs.progressRaw));
+  let rawProgress = (rawStr.trim() === '' || !isFinite(inputs.progressVal)) ? NaN : inputs.progressVal;
+
+  // Revert invalid progress edits to the last valid value (no clamping).
+  if (_progressEdited) {
+    const isInvalid = (rawStr.trim() === '') || (!isFinite(rawProgress)) || (rawProgress < 0) || (isPercentMode && rawProgress > 100);
+    if (isInvalid) {
+      let restored = null;
+      try {
+        if (window.RPWarnings && typeof window.RPWarnings.revertProgressToLastValid === 'function') {
+          restored = window.RPWarnings.revertProgressToLastValid(progressInputEl, s, isPercentMode);
+        }
+      } catch (e) { restored = null; }
+
+      if (!isFinite(restored)) {
+        // Defensive fallback: use current model value as the "last valid".
+        restored = isPercentMode ? (Number(s.actualPct) || 0) : (Number(s.unitsToDate) || 0);
+        try { if (progressInputEl) progressInputEl.value = restored; } catch (e) {}
+        try {
+          if (isPercentMode) {
+            s.actualPct = restored;
+            s.unitsToDate = 0;
+          } else {
+            s.unitsToDate = restored;
+          }
+        } catch (e) {}
+        try { if (progressInputEl) progressInputEl.dataset.lastValid = String(restored); } catch (e) {}
+      }
+
+      try {
+        const suffix = isPercentMode ? '%' : '';
+        window.alert(`Warning: Invalid progress value. Reverted to the previous value (${restored}${suffix}).`);
+      } catch (e) {}
+
+      rawProgress = restored;
+    }
+  }
+
   if (isPercentMode) {
     // Percent scopes: model stores percentage in actualPct, unitsToDate forced to 0
-    s.actualPct = rawProgress;
+    s.actualPct = isFinite(rawProgress) ? rawProgress : (Number(s.actualPct) || 0);
     s.unitsToDate = 0;
   } else {
     // Unit scopes: model stores daily entry in unitsToDate
-    s.unitsToDate = rawProgress;
+    s.unitsToDate = isFinite(rawProgress) ? rawProgress : (Number(s.unitsToDate) || 0);
     // actualPct will be derived from units/totalUnits in the normalizer
   }
 
@@ -302,7 +414,6 @@ function onScopeChange(e){
     }
   }
 
-  const progressInputEl = realRow.querySelector('[data-k="progress"]');
   if (progressInputEl) {
     if (isPercentMode) {
       progressInputEl.value = s.actualPct;
@@ -311,7 +422,53 @@ function onScopeChange(e){
     }
   }
 
+  // If progress was edited and is now valid, update the stored last-valid value.
+  if (_progressEdited && progressInputEl) {
+    try {
+      const v = (progressInputEl.value == null ? '' : String(progressInputEl.value));
+      if (window.RPWarnings && typeof window.RPWarnings.captureLastValidProgress === 'function') {
+        window.RPWarnings.captureLastValidProgress(progressInputEl, v);
+      } else {
+        progressInputEl.dataset.lastValid = v;
+      }
+    } catch (e) {}
+  }
+
+  const rowEl = realRow;
+  if (window.RPWarnings && typeof window.RPWarnings.handleProgressVsTotalUnitsWarning === 'function') {
+    const adjusted = !!window.RPWarnings.handleProgressVsTotalUnitsWarning({
+      scope: s,
+      rowElement: rowEl
+    });
+    if (adjusted) {
+      // Re-apply shared numeric normalization and snap values back to inputs.
+      normalizeScopeNumericFields(s);
+
+      const totalUnitsInputEl = realRow.querySelector('[data-k="totalUnits"]');
+      if (totalUnitsInputEl) {
+        if (s.totalUnits === '' || s.totalUnits == null) {
+          totalUnitsInputEl.value = '';
+        } else {
+          totalUnitsInputEl.value = s.totalUnits;
+        }
+      }
+
+      if (progressInputEl) {
+        if (isPercentMode) {
+          progressInputEl.value = s.actualPct;
+        } else {
+          progressInputEl.value = s.unitsToDate;
+        }
+      }
+    }
+  }
+
   updatePlannedCell(realRow, s);
+
+  if (window.RPWarnings && typeof window.RPWarnings.markScopesDirtySinceLastHistory === 'function') {
+    window.RPWarnings.markScopesDirtySinceLastHistory();
+  }
+
   armHistoryDatePrompt();
   computeAndRender();
   sessionStorage.setItem(COOKIE_KEY, JSON.stringify(model));
@@ -820,10 +977,9 @@ function syncActualFromDOM(){
     const totalUnitsEl = row.querySelector('[data-k="totalUnits"]');
     const unitsLabelEl = row.querySelector('[data-k="unitsLabel"]');
 
-    const rawProgress = parseFloat(progressEl?.value || '0');
-    let progressVal = isFinite(rawProgress) ? rawProgress : 0;
-    // Daily progress entry: clamp to minimum 0, unconstrained upper bound except safety cap
-    progressVal = clamp(progressVal, 0, 1e12);
+    const rawStr = progressEl ? (progressEl.value || '') : '';
+    const parsed = parseFloat((rawStr || '').trim());
+    let progressVal = (rawStr.trim() === '' || !isFinite(parsed)) ? NaN : parsed;
 
     const totalUnitsRaw = totalUnitsEl ? totalUnitsEl.value : '';
     const unitsLabelRaw = (unitsLabelEl?.value || '').trim();
@@ -847,13 +1003,36 @@ function syncActualFromDOM(){
       scope.unitsLabel = (unitsLabelRaw || '%');
     }
 
+    // If progress is invalid, revert to last valid value (do NOT clamp).
+    if (progressEl) {
+      const invalid = (rawStr.trim() === '') || (!isFinite(progressVal)) || (progressVal < 0) || (isPercentMode && progressVal > 100);
+      if (invalid) {
+        let restored = null;
+        try {
+          if (window.RPWarnings && typeof window.RPWarnings.revertProgressToLastValid === 'function') {
+            restored = window.RPWarnings.revertProgressToLastValid(progressEl, scope, isPercentMode);
+          }
+        } catch (e) { restored = null; }
+        if (!isFinite(restored)) {
+          restored = isPercentMode ? (Number(scope.actualPct) || 0) : (Number(scope.unitsToDate) || 0);
+          try { progressEl.value = restored; } catch (e) {}
+        }
+        progressVal = restored;
+      }
+    }
+
+    // For valid values, preserve existing safety cap behavior for unit scopes.
+    if (!isPercentMode && isFinite(progressVal)) {
+      progressVal = clamp(progressVal, 0, 1e12);
+    }
+
     if (isPercentMode) {
       // Percent scopes: progress is stored in actualPct, unitsToDate forced to 0
-      scope.actualPct = progressVal;
+      scope.actualPct = isFinite(progressVal) ? progressVal : (Number(scope.actualPct) || 0);
       scope.unitsToDate = 0;
     } else {
       // Unit scopes: progress is stored in unitsToDate
-      scope.unitsToDate = progressVal;
+      scope.unitsToDate = isFinite(progressVal) ? progressVal : (Number(scope.unitsToDate) || 0);
       // actualPct will be derived from units/totalUnits in the normalizer
     }
 
@@ -867,6 +1046,16 @@ function syncActualFromDOM(){
       } else {
         progressEl.value = scope.unitsToDate;
       }
+
+      // Keep last-valid in sync for subsequent invalid edits (covers hydration + programmatic sync).
+      try {
+        const v = (progressEl.value == null ? '' : String(progressEl.value));
+        if (window.RPWarnings && typeof window.RPWarnings.captureLastValidProgress === 'function') {
+          window.RPWarnings.captureLastValidProgress(progressEl, v);
+        } else {
+          progressEl.dataset.lastValid = v;
+        }
+      } catch (e) {}
     }
     if (totalUnitsEl) {
       if (scope.totalUnits === '' || scope.totalUnits == null) {
@@ -959,9 +1148,27 @@ try {
     window.__warningsLoaded = true;
     import('./warnings.js').then(m => {
       window.applyScopeWarnings = m.applyScopeWarnings;
+      if (typeof m.registerWarningsGlobals === 'function') {
+        try {
+          m.registerWarningsGlobals();
+        } catch (e) {}
+      }
       // Apply immediately after module loads (covers initial project load)
       try {
         window.applyScopeWarnings({ model, container: document.getElementById('scopeRows') });
+      } catch(e) {}
+
+      // Capture dirty-since-load baseline after warnings globals are registered.
+      // This is triggered after PRGS load and after session hydration.
+      try {
+        if (window.__rpBaselinePending && window.RPWarnings && typeof window.RPWarnings.setScopesBaseline === 'function') {
+          window.RPWarnings.setScopesBaseline(model);
+          window.__rpBaselinePending = false;
+        }
+        // If no baseline exists yet (fresh load), capture one once.
+        if (!window.__rpScopesBaseline && window.RPWarnings && typeof window.RPWarnings.setScopesBaseline === 'function') {
+          window.RPWarnings.setScopesBaseline(model);
+        }
       } catch(e) {}
     }).catch(()=>{});
   }
@@ -1470,6 +1677,9 @@ function hydrateFromSession(){
 
     model = stored;
     window.model = model;
+    // Baseline (dirty-since-load) should be captured after hydration once warnings module is available.
+    // Flag for computeAndRender's lazy warning loader to capture the baseline.
+    try { window.__rpBaselinePending = true; } catch(e) {}
     normalizeAllScopeNumericFields();
 
     const nameEl = document.getElementById('projectName');
