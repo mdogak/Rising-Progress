@@ -1,5 +1,5 @@
 /*
-© 2025 Rising Progress LLC. All rights reserved.
+(c) 2025 Rising Progress LLC. All rights reserved.
 */
 
 // issues.js
@@ -469,14 +469,16 @@ function closeIssuesModal(){
       scopeHasNested = false;
 
       // plain text: bullet + scope title
-      plainLines.push('• ' + scopeTitle);
+      // ASCII-only bullet
+      plainLines.push('- ' + scopeTitle);
     }
 
     function addIssueLine(issueText){
       if (!scopeOpen){
         // If an issue line appears without a scope header, keep output readable.
-        html += '<li style="margin:0 0 4px 0;">' + esc(issueText) + '</li>';
-        plainLines.push('• ' + issueText);
+        html += '<li style="margin:0 0 4px 0; font-weight:400;">' + esc(issueText) + '</li>';
+        // ASCII-only bullet
+        plainLines.push('- ' + issueText);
         return;
       }
 
@@ -484,10 +486,10 @@ function closeIssuesModal(){
         html += '<ul style="margin:4px 0 8px 0; padding-left:22px;">';
         scopeHasNested = true;
       }
-      html += '<li style="margin:0 0 4px 0;">' + esc(issueText) + '</li>';
+      html += '<li style="margin:0 0 4px 0; font-weight:400;">' + esc(issueText) + '</li>';
 
-      // plain text: indent issues under scope
-      plainLines.push('  • ' + issueText);
+      // plain text: indent issues under scope (ASCII-only)
+      plainLines.push('  - ' + issueText);
     }
 
     if (listEl && listEl.children && listEl.children.length) {
@@ -508,8 +510,7 @@ function closeIssuesModal(){
     closeScope();
     html += '</ul></div>';
 
-    const plain = plainLines.join('
-');
+    const plain = plainLines.join('\\n');
 
     // -------- Clipboard write with robust fallbacks --------
     try {
@@ -538,7 +539,7 @@ function closeIssuesModal(){
     }
   }
 
-function fallbackCopy(text){
+  function fallbackCopy(text){
     const ta = document.createElement('textarea');
     ta.value = text;
     ta.style.position = 'fixed';
@@ -551,10 +552,6 @@ function fallbackCopy(text){
     }catch(e){
       // ignore
     }
-    document.body.removeChild(ta);
-    window.alert('Issues copied. You can paste into email or notes.');
-  }
-
     document.body.removeChild(ta);
     window.alert('Issues copied. You can paste into email or notes.');
   }
