@@ -191,7 +191,7 @@ export function guardSaveWithDirtyScopes({ model, onAddAndSave, onSaveOnly, onCa
           type="date"
           value="${historyDateText || ''}"
           style="
-            border:2px solid #ea580c;
+            border:1px solid #ea580c;
             border-radius:6px;
             padding:6px 8px;
           "
