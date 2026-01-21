@@ -454,7 +454,7 @@ function closeIssuesModal(){
         if (scopeHasNested){
           html += '</ul></li>';
         } else {
-          html += '</li>';
+          html += '</div>';
         }
       }
       scopeOpen = false;
@@ -463,7 +463,7 @@ function closeIssuesModal(){
 
     function openScope(scopeTitle){
       closeScope();
-      html += '<li style="font-weight:700; margin:0 0 6px 0;">' + esc(scopeTitle);
+      html += '<div style="font-weight:700; margin:0 0 6px 0;">' + esc(scopeTitle);
       // nested list will be opened lazily on first issue
       scopeOpen = true;
       scopeHasNested = false;
@@ -476,7 +476,7 @@ function closeIssuesModal(){
     function addIssueLine(issueText){
       if (!scopeOpen){
         // If an issue line appears without a scope header, keep output readable.
-        html += '<li style="margin:0 0 4px 0; font-weight:400;">' + esc(issueText) + '</li>';
+        html += '<li style="margin:0 0 4px 0;">' + esc(issueText) + '</li>';
         // ASCII-only bullet
         plainLines.push('- ' + issueText);
         return;
@@ -486,7 +486,7 @@ function closeIssuesModal(){
         html += '<ul style="margin:4px 0 8px 0; padding-left:22px;">';
         scopeHasNested = true;
       }
-      html += '<li style="margin:0 0 4px 0; font-weight:400;">' + esc(issueText) + '</li>';
+      html += '<li style="margin:0 0 4px 0;">' + esc(issueText) + '</li>';
 
       // plain text: indent issues under scope (ASCII-only)
       plainLines.push('  - ' + issueText);
