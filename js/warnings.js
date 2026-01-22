@@ -432,6 +432,36 @@ export function maybeWarnOnSectionWeightChange({ model, oldId, newId } = {}) {
   window._sectionWeightWarningAcknowledged = true;
 }
 
+
+export function maybeWarnMissingTotalUnitsOnProgressEdit({ scope, rowElement, inputEl } = {}) {
+  if (!scope || !rowElement || !inputEl) return false;
+
+  const unitsLabel = (scope.unitsLabel || '').trim();
+  if (unitsLabel === '%') return false;
+
+  const tu = scope.totalUnits;
+  const missing = (tu === '' || tu == null || !isFinite(Number(tu)) || Number(tu) <= 0);
+  if (!missing) return false;
+
+  // Revert progress to last valid value (unit mode)
+  try {
+    if (typeof revertProgressToLastValid === 'function') {
+      revertProgressToLastValid(inputEl, scope, false);
+    }
+  } catch (e) {}
+
+  try {
+    window.alert('Warning: Total units need to be added if units are not %');
+  } catch (e) {}
+
+  try {
+    const tuEl = rowElement.querySelector('[data-k="totalUnits"]');
+    if (tuEl) tuEl.focus();
+  } catch (e) {}
+
+  return true;
+}
+
 export function handleProgressVsTotalUnitsWarning({ scope, rowElement } = {}) {
   if (!scope || !rowElement) return false;
 
@@ -523,6 +553,7 @@ export function registerWarningsGlobals() {
   window.RPWarnings.clearScopesDirtySinceLastHistory = clearScopesDirtySinceLastHistory;
   window.RPWarnings.maybeWarnOnSectionWeightChange = maybeWarnOnSectionWeightChange;
   window.RPWarnings.handleProgressVsTotalUnitsWarning = handleProgressVsTotalUnitsWarning;
+  window.RPWarnings.maybeWarnMissingTotalUnitsOnProgressEdit = maybeWarnMissingTotalUnitsOnProgressEdit;
   window.RPWarnings.captureLastValidProgress = captureLastValidProgress;
   window.RPWarnings.revertProgressToLastValid = revertProgressToLastValid;
 }
