@@ -218,12 +218,17 @@ function syncScopeRowsToModel(){
 
 function renderScopeRow(i){
   const row = document.createElement('div'); row.className = 'row'; row.dataset.index = i; const s = model.scopes[i] || defaultScope(i); if(!model.scopes[i]) model.scopes[i] = s;
-  row.innerHTML = `
+    const unitsLabelTrimmed = (s.unitsLabel || '').trim();
+  const totalUnitsPlaceholder =
+    (unitsLabelTrimmed === '%' || unitsLabelTrimmed === '')
+      ? 'Total 100%'
+      : 'Total Units';
+row.innerHTML = `
     <div class="scope-cell"><span class="drag-handle" title="Drag row" draggable="true">⋮⋮</span><input data-k="label" placeholder="Scope #${i+1}" value="${s.label}"></div>
     <input data-k="start" type="date" value="${s.start}">
     <input data-k="end" type="date" value="${s.end}">
     <input data-k="cost" type="number" step="1.00" min="0" value="${s.cost}">
-    <input data-k="totalUnits" type="number" step="1.00" min="0" placeholder="Total Units" value="${s.totalUnits===0? '': s.totalUnits}">
+    <input data-k="totalUnits" type="number" step="1.00" min="0" placeholder="${totalUnitsPlaceholder}" value="${s.totalUnits===0? '': s.totalUnits}">
     <div>
       <input data-k="progress" type="number" step="1.00" min="0" placeholder="% or Units to Date" value="${s.totalUnits? s.unitsToDate : s.actualPct}">
     </div>
@@ -335,6 +340,15 @@ function onScopeChange(e){
   }
 
   const unitsLabelTrimmed = inputs.unitsLabel;
+
+  const totalUnitsInputElForPlaceholder = realRow.querySelector('[data-k="totalUnits"]');
+  if (totalUnitsInputElForPlaceholder) {
+    totalUnitsInputElForPlaceholder.placeholder =
+      (unitsLabelTrimmed === '%' || unitsLabelTrimmed === '')
+        ? 'Total 100%'
+        : 'Total Units';
+  }
+
   const hasTotalUnits = (totalUnitsValue !== '' && totalUnitsValue > 0);
   const isPercentMode = (!hasTotalUnits && (unitsLabelTrimmed === '%' || unitsLabelTrimmed === ''));
 
