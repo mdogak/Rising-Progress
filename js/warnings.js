@@ -128,6 +128,29 @@ export function scopesDifferFromBaseline(model){
   }
 }
 
+
+// --- Save guard modal single-instance + re-entry protection ---
+// This is a control-flow (lifecycle) guard, not a styling guard.
+let __rpIsSaveGuardActive = false;
+
+function __setSaveGuardActive(v){
+  __rpIsSaveGuardActive = !!v;
+  try { window.__rpIsSaveGuardActive = __rpIsSaveGuardActive; } catch(e) {}
+}
+
+export function isSaveGuardActive(){
+  return __rpIsSaveGuardActive === true;
+}
+
+function __saveGuardElementsExist(){
+  try {
+    return !!document.getElementById('rp-ts-guard-overlay') || !!document.getElementById('rp-ts-guard-modal');
+  } catch(e) {
+    return false;
+  }
+}
+
+
 export function guardSaveWithDirtyScopes({ model, onAddAndSave, onSaveOnly, onCancel } = {}) {
   const saveOnly = (typeof onSaveOnly === 'function') ? onSaveOnly : function(){};
   const addAndSave = (typeof onAddAndSave === 'function') ? onAddAndSave : saveOnly;
@@ -149,12 +172,12 @@ export function guardSaveWithDirtyScopes({ model, onAddAndSave, onSaveOnly, onCa
     const historyInput = document.getElementById('historyDate');
     if (historyInput && historyInput.value) historyDateText = historyInput.value;
   } catch (e) {}
+  // Enforce single-instance guard modal + block save re-entry while guard is active.
+  // If the guard is already active or elements already exist, do nothing and return.
+  if (isSaveGuardActive() || __saveGuardElementsExist()) {
+    return;
+  }
 
-  // Ensure only one instance of this modal exists.
-  const existingOverlay = document.getElementById('rp-ts-guard-overlay');
-  if (existingOverlay && existingOverlay.parentNode) existingOverlay.parentNode.removeChild(existingOverlay);
-  const existingModal = document.getElementById('rp-ts-guard-modal');
-  if (existingModal && existingModal.parentNode) existingModal.parentNode.removeChild(existingModal);
 
   const overlay = document.createElement('div');
   overlay.id = 'rp-ts-guard-overlay';
@@ -209,6 +232,7 @@ export function guardSaveWithDirtyScopes({ model, onAddAndSave, onSaveOnly, onCa
     document.removeEventListener('keydown', onKeydown, true);
     if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
     if (modal.parentNode) modal.parentNode.removeChild(modal);
+    __setSaveGuardActive(false);
   }
 
   function handleCancel() {
@@ -266,6 +290,7 @@ export function guardSaveWithDirtyScopes({ model, onAddAndSave, onSaveOnly, onCa
     dateEl.addEventListener('input', sync);
     dateEl.addEventListener('change', sync);
   }
+  __setSaveGuardActive(true);
 
   document.body.appendChild(overlay);
   document.body.appendChild(modal);
@@ -295,16 +320,12 @@ export function guardSaveWithTimeseries({ model, onAddAndSave, onSaveOnly, onCan
       historyDateText = historyInput.value;
     }
   } catch (e) {}
+  // Enforce single-instance guard modal + block save re-entry while guard is active.
+  // If the guard is already active or elements already exist, do nothing and return.
+  if (isSaveGuardActive() || __saveGuardElementsExist()) {
+    return;
+  }
 
-  // Ensure only one instance of this modal exists.
-  const existingOverlay = document.getElementById('rp-ts-guard-overlay');
-  if (existingOverlay && existingOverlay.parentNode) {
-    existingOverlay.parentNode.removeChild(existingOverlay);
-  }
-  const existingModal = document.getElementById('rp-ts-guard-modal');
-  if (existingModal && existingModal.parentNode) {
-    existingModal.parentNode.removeChild(existingModal);
-  }
 
   const overlay = document.createElement('div');
   overlay.id = 'rp-ts-guard-overlay';
@@ -339,6 +360,7 @@ export function guardSaveWithTimeseries({ model, onAddAndSave, onSaveOnly, onCan
     document.removeEventListener('keydown', onKeydown, true);
     if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
     if (modal.parentNode) modal.parentNode.removeChild(modal);
+    __setSaveGuardActive(false);
   }
 
   function handleCancel() {
@@ -387,6 +409,7 @@ export function guardSaveWithTimeseries({ model, onAddAndSave, onSaveOnly, onCan
       handleSaveOnly();
     });
   }
+  __setSaveGuardActive(true);
 
   document.body.appendChild(overlay);
   document.body.appendChild(modal);
@@ -430,6 +453,36 @@ export function maybeWarnOnSectionWeightChange({ model, oldId, newId } = {}) {
     "Warning: A scope has moved between sections, changing the weight of the section. Section history will still be based on the previous configuration when scopes are moved."
   );
   window._sectionWeightWarningAcknowledged = true;
+}
+
+
+export function maybeWarnMissingTotalUnitsOnProgressEdit({ scope, rowElement, inputEl } = {}) {
+  if (!scope || !rowElement || !inputEl) return false;
+
+  const unitsLabel = (scope.unitsLabel || '').trim();
+  if (unitsLabel === '%') return false;
+
+  const tu = scope.totalUnits;
+  const missing = (tu === '' || tu == null || !isFinite(Number(tu)) || Number(tu) <= 0);
+  if (!missing) return false;
+
+  // Revert progress to last valid value (unit mode)
+  try {
+    if (typeof revertProgressToLastValid === 'function') {
+      revertProgressToLastValid(inputEl, scope, false);
+    }
+  } catch (e) {}
+
+  try {
+    window.alert('Warning: Total units need to be added if units are not %');
+  } catch (e) {}
+
+  try {
+    const tuEl = rowElement.querySelector('[data-k="totalUnits"]');
+    if (tuEl) tuEl.focus();
+  } catch (e) {}
+
+  return true;
 }
 
 export function handleProgressVsTotalUnitsWarning({ scope, rowElement } = {}) {
@@ -523,6 +576,8 @@ export function registerWarningsGlobals() {
   window.RPWarnings.clearScopesDirtySinceLastHistory = clearScopesDirtySinceLastHistory;
   window.RPWarnings.maybeWarnOnSectionWeightChange = maybeWarnOnSectionWeightChange;
   window.RPWarnings.handleProgressVsTotalUnitsWarning = handleProgressVsTotalUnitsWarning;
+  window.RPWarnings.maybeWarnMissingTotalUnitsOnProgressEdit = maybeWarnMissingTotalUnitsOnProgressEdit;
   window.RPWarnings.captureLastValidProgress = captureLastValidProgress;
   window.RPWarnings.revertProgressToLastValid = revertProgressToLastValid;
+  window.RPWarnings.isSaveGuardActive = isSaveGuardActive;
 }
