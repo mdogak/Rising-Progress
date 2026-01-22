@@ -347,6 +347,17 @@ function onScopeChange(e){
 
   // Daily progress entry rules
   const _progressEdited = !!(e && e.target && e.target.matches && e.target.matches('[data-k="progress"]'));
+
+  if (_progressEdited) {
+    const handled = window.RPWarnings &&
+      typeof window.RPWarnings.maybeWarnMissingTotalUnitsOnProgressEdit === 'function' &&
+      window.RPWarnings.maybeWarnMissingTotalUnitsOnProgressEdit({
+        scope: s,
+        rowElement: realRow,
+        inputEl: realRow.querySelector('[data-k="progress"]')
+      });
+    if (handled) return;
+  }
   const progressInputEl = realRow.querySelector('[data-k="progress"]');
   const rawStr = (inputs.progressRaw == null ? '' : String(inputs.progressRaw));
   let rawProgress = (rawStr.trim() === '' || !isFinite(inputs.progressVal)) ? NaN : inputs.progressVal;
