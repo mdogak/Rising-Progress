@@ -34,6 +34,7 @@
   "properties": {
     "meta": {
       "type": "object",
+      "$comment": "Metadata describing the export format and source.",
       "required": [
         "formatVersion",
         "source"
@@ -51,34 +52,84 @@
     },
     "project": {
       "type": "object",
-      "$comment": "High-level project metadata.",
+      "$comment": "High-level project attributes.",
       "properties": {
         "name": {
-          "type": "string"
+          "type": "string",
+          "$comment": "Human-readable project name."
         },
         "datesaved": {
-          "type": "string"
+          "type": "string",
+          "$comment": "Date file was saved (YYYY-MM-DD)."
         },
         "timesaved": {
-          "type": "string"
+          "type": "string",
+          "$comment": "Time file was saved (HH:MM)."
         },
         "startup": {
-          "type": "string"
+          "type": "string",
+          "$comment": "Startup date or marker; may be blank."
         },
         "markerLabel": {
-          "type": "string"
+          "type": "string",
+          "$comment": "Baseline/start marker label."
         }
       }
     },
     "scopes": {
       "type": "object",
-      "$comment": "Columnar scope data. Arrays are index-aligned.",
-      "additionalProperties": {
-        "type": "array"
-      }
+      "$comment": "Current scope state in columnar form. All arrays are index-aligned.",
+      "properties": {
+        "scopeId": {
+          "type": "array",
+          "$comment": "Unique identifier for each scope (stable within project)."
+        },
+        "label": {
+          "type": "array",
+          "$comment": "Human-readable scope name."
+        },
+        "start": {
+          "type": "array",
+          "$comment": "Scope start date."
+        },
+        "end": {
+          "type": "array",
+          "$comment": "Scope end date."
+        },
+        "cost": {
+          "type": "array",
+          "$comment": "Relative cost or weighting of the scope."
+        },
+        "progressValue": {
+          "type": "array",
+          "$comment": "Reported scope progress percent."
+        },
+        "unitsToDate": {
+          "type": "array",
+          "$comment": "Units installed to date; blank for percent-based scopes."
+        },
+        "totalUnits": {
+          "type": "array",
+          "$comment": "Total units for the scope; blank for percent-based scopes."
+        },
+        "unitsLabel": {
+          "type": "array",
+          "$comment": "Units of measure (%, Feet, etc.)."
+        },
+        "sectionName": {
+          "type": "array",
+          "$comment": "Human-readable section name."
+        },
+        "sectionID": {
+          "type": "array",
+          "$comment": "Section identifier for grouping scopes."
+        }
+      },
+      "additionalProperties": false
     },
     "timeseries": {
       "type": "object",
+      "$comment": "Immutable ledger of historical snapshots.",
       "required": [
         "project",
         "scopes",
@@ -87,24 +138,124 @@
       "properties": {
         "project": {
           "type": "object",
-          "$comment": "Project-level time series.",
-          "additionalProperties": {
-            "type": "array"
-          }
+          "$comment": "Project-level progress curves over time.",
+          "properties": {
+            "date": {
+              "type": "array",
+              "$comment": "Snapshot date."
+            },
+            "baselinePct": {
+              "type": "array",
+              "$comment": "Baseline cumulative percent complete."
+            },
+            "plannedPct": {
+              "type": "array",
+              "$comment": "Planned cumulative percent complete."
+            },
+            "dailyActual": {
+              "type": "array",
+              "$comment": "Daily incremental actual progress."
+            },
+            "actualPct": {
+              "type": "array",
+              "$comment": "Actual cumulative percent complete."
+            }
+          },
+          "additionalProperties": false
         },
         "scopes": {
           "type": "object",
-          "$comment": "Scope-level time series snapshots.",
-          "additionalProperties": {
-            "type": "array"
-          }
+          "$comment": "Scope-level historical snapshots.",
+          "properties": {
+            "historyDate": {
+              "type": "array",
+              "$comment": "Snapshot date."
+            },
+            "scopeId": {
+              "type": "array",
+              "$comment": "Scope identifier."
+            },
+            "label": {
+              "type": "array",
+              "$comment": "Scope label at snapshot time."
+            },
+            "start": {
+              "type": "array",
+              "$comment": "Scope start date at snapshot."
+            },
+            "end": {
+              "type": "array",
+              "$comment": "Scope end date at snapshot."
+            },
+            "cost": {
+              "type": "array",
+              "$comment": "Scope cost or weighting at snapshot."
+            },
+            "perDay": {
+              "type": "array",
+              "$comment": "Planned percent per day for the scope."
+            },
+            "actualPct": {
+              "type": "array",
+              "$comment": "Actual percent complete at snapshot."
+            },
+            "unitsToDate": {
+              "type": "array",
+              "$comment": "Units installed at snapshot."
+            },
+            "totalUnits": {
+              "type": "array",
+              "$comment": "Total units at snapshot."
+            },
+            "unitsLabel": {
+              "type": "array",
+              "$comment": "Units of measure."
+            },
+            "plannedtodate": {
+              "type": "array",
+              "$comment": "Planned cumulative percent complete at snapshot."
+            },
+            "sectionName": {
+              "type": "array",
+              "$comment": "Section name at snapshot."
+            },
+            "sectionID": {
+              "type": "array",
+              "$comment": "Section identifier at snapshot."
+            }
+          },
+          "additionalProperties": false
         },
         "sections": {
           "type": "object",
-          "$comment": "Section-level time series snapshots.",
-          "additionalProperties": {
-            "type": "array"
-          }
+          "$comment": "Section-level rollups by snapshot date.",
+          "properties": {
+            "historyDate": {
+              "type": "array",
+              "$comment": "Snapshot date."
+            },
+            "sectionID": {
+              "type": "array",
+              "$comment": "Section identifier."
+            },
+            "sectionTitle": {
+              "type": "array",
+              "$comment": "Section name."
+            },
+            "sectionWeight": {
+              "type": "array",
+              "$comment": "Relative weight of the section."
+            },
+            "sectionPct": {
+              "type": "array",
+              "$comment": "Actual cumulative percent complete for the section."
+            },
+            "sectionPlannedPct": {
+              "type": "array",
+              "$comment": "Planned cumulative percent complete for the section."
+            }
+          },
+          "additionalProperties": false
         }
       }
     }
