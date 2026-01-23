@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://risingprogress.com/schemas/prgs-columnar.json",
+  "title": "PRGS Columnar Project Progress Schema",
+  "type": "object",
+  "$comment": [
+    "AI_ANALYSIS_PROMPT:",
+    "",
+    "You are analyzing project progress data provided in a columnar JSON schema derived from a PRGS ledger.",
+    "",
+    "All numeric values are authoritative and must not be altered or recomputed.",
+    "",
+    "Time-series data is an immutable ledger; past entries must be treated as final.",
+    "Missing values are represented as empty strings and should be interpreted as null.",
+    "",
+    "Gaps in time series are expected. Linear interpolation between percentage-based series may be assumed.",
+    "",
+    "actualPct values may exceed 100%. plannedPct and sectionPct are typically 0\u2013100 but are not enforced.",
+    "",
+    "Cost values represent relative weighting. Higher-cost scopes are more important to analysis.",
+    "",
+    "Arrays are index-aligned by contract.",
+    "Identifiers are stable and unique within the project.",
+    "Labels provide contextual meaning but do not define identity.",
+    "",
+    "Analyze trends, risks, anomalies, and weighting-aware impacts strictly from the provided data."
+  ],
+  "required": [
+    "meta",
+    "project",
+    "scopes",
+    "timeseries"
+  ],
+  "properties": {
+    "meta": {
+      "type": "object",
+      "required": [
+        "formatVersion",
+        "source"
+      ],
+      "properties": {
+        "formatVersion": {
+          "type": "integer",
+          "$comment": "PRGS format version."
+        },
+        "source": {
+          "type": "string",
+          "$comment": "Exporter identifier."
+        }
+      }
+    },
+    "project": {
+      "type": "object",
+      "$comment": "High-level project metadata.",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "datesaved": {
+          "type": "string"
+        },
+        "timesaved": {
+          "type": "string"
+        },
+        "startup": {
+          "type": "string"
+        },
+        "markerLabel": {
+          "type": "string"
+        }
+      }
+    },
+    "scopes": {
+      "type": "object",
+      "$comment": "Columnar scope data. Arrays are index-aligned.",
+      "additionalProperties": {
+        "type": "array"
+      }
+    },
+    "timeseries": {
+      "type": "object",
+      "required": [
+        "project",
+        "scopes",
+        "sections"
+      ],
+      "properties": {
+        "project": {
+          "type": "object",
+          "$comment": "Project-level time series.",
+          "additionalProperties": {
+            "type": "array"
+          }
+        },
+        "scopes": {
+          "type": "object",
+          "$comment": "Scope-level time series snapshots.",
+          "additionalProperties": {
+            "type": "array"
+          }
+        },
+        "sections": {
+          "type": "object",
+          "$comment": "Section-level time series snapshots.",
+          "additionalProperties": {
+            "type": "array"
+          }
+        }
+      }
+    }
+  }
+}
