@@ -26,6 +26,17 @@
     }
   }
 
+  function setHydrating(m, flag){
+    try{
+      if (window && typeof window.setHydratingFromPrgs === 'function') {
+        window.setHydratingFromPrgs(!!flag);
+      }
+    }catch(e){}
+    try{
+      if (m) m.__hydratingFromPrgs = !!flag;
+    }catch(e){}
+  }
+
   function ensureArray(v){
     return Array.isArray(v) ? v : [];
   }
@@ -206,10 +217,6 @@
   function finalizeToUI(model){
     setModel(model);
 
-    // Clear hydration guard before any UI sync/render (mirror save-load.js)
-    try{ model.__hydratingFromPrgs = false; }catch(e){}
-    try{ var m2 = getModel(); if(m2) m2.__hydratingFromPrgs = false; }catch(e){}
-
     var nameInput = document.getElementById('projectName');
     var startupInput = document.getElementById('projectStartup');
     var markerInput = document.getElementById('startupLabelInput');
@@ -239,11 +246,16 @@
       }catch(e){}
     })();
 
+    // Ensure Sections sees PRGS hydration semantics at materialization time
+    setHydrating(model, true);
     try{
       if (window.Sections && typeof window.Sections.ensureSectionNameField === 'function'){
         window.Sections.ensureSectionNameField(model);
       }
     }catch(e){}
+
+    // Clear hydration before syncing UI/rendering (mirror PRGS load timing)
+    setHydrating(model, false);
 
     try{
       if (window && typeof window.syncScopeRowsToModel === 'function') window.syncScopeRowsToModel();
