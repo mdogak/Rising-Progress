@@ -15,6 +15,7 @@
   }
 
   function getModel(){
+    if (window && typeof window.getModel === 'function') return window.getModel();
     return (window && window.model) ? window.model : null;
   }
 
@@ -260,7 +261,6 @@
   function buildFreshModel(){
     return {
       project: { name:'', startup:'', markerLabel:'Baseline Complete' },
-      sections: [],
       scopes: [],
       history: [],
       dailyActuals: {},

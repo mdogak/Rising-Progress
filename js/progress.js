@@ -137,6 +137,20 @@ let model = {
   daysRelativeToPlan: null
 };
 window.model = model;
+// Expose safe global model wiring for alternate loaders (e.g., JSON loader).
+// Must update the module-scoped `model` that core functions close over.
+if (typeof window !== 'undefined') {
+  if (typeof window.setModel !== 'function') {
+    window.setModel = function(m){
+      model = m;
+      window.model = model;
+      try{ normalizeAllScopeNumericFields(); }catch(e){}
+    };
+  }
+  if (typeof window.getModel !== 'function') {
+    window.getModel = function(){ return model; };
+  }
+}
 
 function defaultScope(i){
   if(i===0){ const startDate = new Date(today); startDate.setDate(startDate.getDate()-1); const endDate = new Date(startDate); endDate.setDate(endDate.getDate()+7); const start = fmtDate(startDate); const end = fmtDate(endDate); return { scopeId: generateScopeId(), label:`Scope #${i+1}`, start, end, cost:100, actualPct:0, unitsToDate:0, totalUnits:'', unitsLabel:'%', sectionName:'' }; }
