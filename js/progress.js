@@ -137,19 +137,13 @@ let model = {
   daysRelativeToPlan: null
 };
 window.model = model;
-// Expose safe global model wiring for alternate loaders (e.g., JSON loader).
-// Must update the module-scoped `model` that core functions close over.
-if (typeof window !== 'undefined') {
-  if (typeof window.setModel !== 'function') {
-    window.setModel = function(m){
-      model = m;
-      window.model = model;
-      try{ normalizeAllScopeNumericFields(); }catch(e){}
-    };
-  }
-  if (typeof window.getModel !== 'function') {
-    window.getModel = function(){ return model; };
-  }
+
+// Expose core render pipeline for external loaders (JSON, etc.)
+if (typeof window.syncScopeRowsToModel !== 'function') {
+  window.syncScopeRowsToModel = syncScopeRowsToModel;
+}
+if (typeof window.computeAndRender !== 'function') {
+  window.computeAndRender = computeAndRender;
 }
 
 function defaultScope(i){
@@ -1737,6 +1731,14 @@ function hydrateFromSession(){
 
     model = stored;
     window.model = model;
+
+// Expose core render pipeline for external loaders (JSON, etc.)
+if (typeof window.syncScopeRowsToModel !== 'function') {
+  window.syncScopeRowsToModel = syncScopeRowsToModel;
+}
+if (typeof window.computeAndRender !== 'function') {
+  window.computeAndRender = computeAndRender;
+}
     // Baseline (dirty-since-load) should be captured after hydration once warnings module is available.
     // Flag for computeAndRender's lazy warning loader to capture the baseline.
     try { window.__rpBaselinePending = true; } catch(e) {}
@@ -1782,6 +1784,14 @@ function defaultAll(){
     daysRelativeToPlan:null
   };
   window.model = model;
+
+// Expose core render pipeline for external loaders (JSON, etc.)
+if (typeof window.syncScopeRowsToModel !== 'function') {
+  window.syncScopeRowsToModel = syncScopeRowsToModel;
+}
+if (typeof window.computeAndRender !== 'function') {
+  window.computeAndRender = computeAndRender;
+}
   $('#projectName').value = '';
   $('#projectStartup').value = '';
   $('#startupLabelInput').value = 'Baseline Complete';

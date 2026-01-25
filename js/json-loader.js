@@ -15,7 +15,6 @@
   }
 
   function getModel(){
-    if (window && typeof window.getModel === 'function') return window.getModel();
     return (window && window.model) ? window.model : null;
   }
 
@@ -207,6 +206,10 @@
   function finalizeToUI(model){
     setModel(model);
 
+    // Clear hydration guard before any UI sync/render (mirror save-load.js)
+    try{ model.__hydratingFromPrgs = false; }catch(e){}
+    try{ var m2 = getModel(); if(m2) m2.__hydratingFromPrgs = false; }catch(e){}
+
     var nameInput = document.getElementById('projectName');
     var startupInput = document.getElementById('projectStartup');
     var markerInput = document.getElementById('startupLabelInput');
@@ -325,6 +328,10 @@
 
       var model = (mode === 'overwrite') ? buildFreshModel() : (getModel() || buildFreshModel());
 
+      // Temporary guard to prevent ID generation / partial renders during JSON hydration
+      try{ model.__hydratingFromPrgs = true; }catch(e){}
+      try{ var m0 = getModel(); if(m0) m0.__hydratingFromPrgs = true; }catch(e){}
+
       if (obj.project && isObj(obj.project)){
         model.project = model.project || {};
         var p = obj.project;
@@ -352,8 +359,6 @@
         if (ts.scopes) applyTimeseriesScopes(model, ts.scopes, mode);
         if (ts.sections) applyTimeseriesSections(model, ts.sections, mode);
       }
-
-      try{ model.__hydratingFromPrgs = false; }catch(e){}
 
       finalizeToUI(model);
       return model;
