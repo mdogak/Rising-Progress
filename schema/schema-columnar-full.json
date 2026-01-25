@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://risingprogress.com/schema/prgs-columnar.json",
+  "$id": "https://risingprogress.com/schema/schema-columnar-full.json",
   "title": "PRGS Columnar Project Progress Schema",
   "type": "object",
   "$comment": [
