@@ -260,6 +260,7 @@
   function buildFreshModel(){
     return {
       project: { name:'', startup:'', markerLabel:'Baseline Complete' },
+      sections: [],
       scopes: [],
       history: [],
       dailyActuals: {},

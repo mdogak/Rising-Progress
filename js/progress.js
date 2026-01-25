@@ -129,6 +129,7 @@ function ensureScopeIds(){
  *****************/
 let model = {
   project:{ name:'', startup:'', markerLabel:'Baseline Complete' },
+  sections: [],
   scopes:[], // {label,start,end,cost,actualPct,unitsToDate,totalUnits,unitsLabel}
   history:[], // [{date, actualPct}]
   dailyActuals:{}, // { 'YYYY-MM-DD': number }
