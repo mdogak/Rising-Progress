@@ -82,6 +82,8 @@ html, body {
     .row input, .row select { width: 100%; box-sizing: border-box; } /* inputs fit inside their cell */
     .row input[type="number"] { text-align: right; } /* keep numbers tidy */
 .row.head{font-weight:700;opacity:.95}
+.row.head > * { width: 100%; box-sizing: border-box; white-space: nowrap; }
+.row.head .actions { justify-content: flex-start; }
     .row + .row{margin-top:8px}
     .muted{opacity:.7}
     .danger{color:var(--danger)}
@@ -99,13 +101,13 @@ html, body {
     canvas{width:100%!important;height:520px!important;background:#ffffff;border:1px solid var(--border);border-radius:12px}
     .narrow{max-width:720px}
     .stack-when-narrow{display:grid;grid-template-columns:
-    220px   /* Scope */
+    250px   /* Scope */
     132px   /* Start */
     132px   /* End */
-    120px   /* Cost / % Weight */
+    100px   /* Cost / % Weight */
     100px   /* Total Units */
     100px   /* % or Units to Date */
-    80px    /* Units */
+    100px    /* Units */
     100px   /* Planned */
     80px    /* Actions */;gap:16px}
     .row .iconbtn{padding:4px 8px;border-radius:8px}
@@ -123,10 +125,10 @@ html, body {
     180px   /* Scope */
     132px   /* Start */
     132px   /* End */
-    120px   /* Cost / % Weight */
+    100px   /* Cost / % Weight */
     100px   /* Total Units */
     100px   /* % or Units to Date */
-    80px    /* Units */
+    100px    /* Units */
     100px   /* Planned */
     80px    /* Actions */;grid-auto-rows:auto} }
     #projectStartup{width:150px}
@@ -611,13 +613,13 @@ html, body {
   display:grid;
   gap:16px;
   grid-template-columns:
-    220px   /* Scope */
+    250px   /* Scope */
     132px   /* Start */
     132px   /* End */
-    120px   /* Cost / % Weight */
+    100px   /* Cost / % Weight */
     100px   /* Total Units */
     100px   /* % or Units to Date */
-    80px    /* Units */
+    100px    /* Units */
     100px   /* Planned */
     80px;   /* Actions */
   gap:16px;
