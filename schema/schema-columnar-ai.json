@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://risingprogress.com/schema/prgs-columnar-ai.json",
+  "$id": "https://risingprogress.com/schema/schema-columnar-ai.json",
   "title": "PRGS Columnar AI-Safe Time Series Schema",
   "type": "object",
   "properties": {
@@ -84,7 +84,7 @@
             },
             "cost": {
               "type": "array",
-              "$comment": "Scope cost or weighting at snapshot."
+              "$comment": "Scope percent weighting at snapshot. this may be normalized from earned value or calculated as percent based on level of effort"
             },
             "perDay": {
               "type": "array",
