@@ -1,5 +1,5 @@
 /*
-© 2025 Rising Progress LLC. All rights reserved.
+(c) 2025 Rising Progress LLC. All rights reserved.
 */
 
 import { initToolbarClear } from './clear.js';
@@ -154,6 +154,15 @@ if (typeof window.setHydratingFromPrgs !== 'function') {
   };
 }
 
+
+// Allow external loaders (JSON) to read/replace the module-scoped model
+if (typeof window.getModel !== 'function') {
+  window.getModel = function(){ try { return model; } catch(e) {} try { return window.model; } catch(e) {} return null; };
+}
+if (typeof window.setModel !== 'function') {
+  window.setModel = function(m){ try { model = m; } catch(e) {} try { window.model = model; } catch(e) {} };
+}
+
 function defaultScope(i){
   if(i===0){ const startDate = new Date(today); startDate.setDate(startDate.getDate()-1); const endDate = new Date(startDate); endDate.setDate(endDate.getDate()+7); const start = fmtDate(startDate); const end = fmtDate(endDate); return { scopeId: generateScopeId(), label:`Scope #${i+1}`, start, end, cost:100, actualPct:0, unitsToDate:0, totalUnits:'', unitsLabel:'%', sectionName:'' }; }
   return { label:`Scope #${i+1}`, start:'', end:'', cost:0, actualPct:0, unitsToDate:0, totalUnits:'', unitsLabel:'%', sectionName:'' };
@@ -241,7 +250,7 @@ function renderScopeRow(i){
       ? 'Total 100%'
       : 'Total Units';
 row.innerHTML = `
-    <div class="scope-cell"><span class="drag-handle" title="Drag row" draggable="true">⋮⋮</span><input data-k="label" placeholder="Scope #${i+1}" value="${s.label}"></div>
+    <div class="scope-cell"><span class="drag-handle" title="Drag row" draggable="true">||</span><input data-k="label" placeholder="Scope #${i+1}" value="${s.label}"></div>
     <input data-k="start" type="date" value="${s.start}">
     <input data-k="end" type="date" value="${s.end}">
     <input data-k="cost" type="number" step="1.00" min="0" value="${s.cost}">
@@ -252,7 +261,7 @@ row.innerHTML = `
     <input data-k="unitsLabel" list="unitsList" value="${s.unitsLabel || '%'}" placeholder="%">
     <div class="small" data-k="planned"></div>
     <div class="actions">
-      <button class="iconbtn menu" title="Row actions" aria-haspopup="true" aria-expanded="false">☰</button>
+      <button class="iconbtn menu" title="Row actions" aria-haspopup="true" aria-expanded="false">MENU</button>
       <div class="row-menu" hidden>
         <button type="button" class="row-menu-item" data-action="del">Remove this row</button>
         <button type="button" class="row-menu-item" data-action="add">Add row below</button>
@@ -1098,7 +1107,7 @@ function syncActualFromDOM(){
       // actualPct will be derived from units/totalUnits in the normalizer
     }
 
-    // Apply shared numeric rules including final actualPct clamp to 0–100
+    // Apply shared numeric rules including final actualPct clamp to 0-100
     normalizeScopeNumericFields(scope);
 
     // Snap clamped values back into DOM inputs
@@ -1938,7 +1947,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Load Project button: remove dropdown affordance and always open the Project Loader modal
-  if (loadBtn) loadBtn.innerHTML = "📂 Load Project";
+  if (loadBtn) loadBtn.innerHTML = "[LOAD] Load Project";
 
   const ddItem = document.querySelector('#loadDropdown [data-act="open"]');
   if (ddItem) ddItem.textContent = "Open Project";

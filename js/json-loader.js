@@ -14,16 +14,23 @@
     return isNaN(n) ? '' : n;
   }
 
+  function getAuthoritativeModel(){
+    try { if (window && typeof window.getModel === 'function') return window.getModel(); } catch(e){}
+    try { return window.model || null; } catch(e){}
+    return null;
+  }
+
+  function setAuthoritativeModel(m){
+    try { if (window && typeof window.setModel === 'function') { window.setModel(m); return; } } catch(e){}
+    try { window.model = m; } catch(e){}
+  }
+
   function getModel(){
-    return (window && window.model) ? window.model : null;
+    return getAuthoritativeModel();
   }
 
   function setModel(m){
-    if (window && typeof window.setModel === 'function'){
-      window.setModel(m);
-    } else if (window){
-      window.model = m;
-    }
+    setAuthoritativeModel(m);
   }
 
   function setHydrating(m, flag){
@@ -215,7 +222,7 @@
   }
 
   function finalizeToUI(model){
-    setModel(model);
+    setAuthoritativeModel(model);
 
     var nameInput = document.getElementById('projectName');
     var startupInput = document.getElementById('projectStartup');
@@ -250,7 +257,8 @@
     setHydrating(model, true);
     try{
       if (window.Sections && typeof window.Sections.ensureSectionNameField === 'function'){
-        window.Sections.ensureSectionNameField(model);
+        var m3 = getAuthoritativeModel() || model;
+        window.Sections.ensureSectionNameField(m3);
       }
     }catch(e){}
 
@@ -260,6 +268,8 @@
     try{
       if (window && typeof window.syncScopeRowsToModel === 'function') window.syncScopeRowsToModel();
     }catch(e){}
+
+    try{ window.__rpBaselinePending = true; }catch(e){}
 
     try{
       if (window && typeof window.computeAndRender === 'function') window.computeAndRender();
@@ -276,6 +286,7 @@
   function buildFreshModel(){
     return {
       project: { name:'', startup:'', markerLabel:'Baseline Complete' },
+      sections: [],
       scopes: [],
       history: [],
       dailyActuals: {},
@@ -339,6 +350,10 @@
       if (ts && !isObj(ts)) throw new Error('PRGSJSON_LOADER.load(): timeseries must be an object.');
 
       var model = (mode === 'overwrite') ? buildFreshModel() : (getModel() || buildFreshModel());
+
+      if (mode === 'overwrite') {
+        setAuthoritativeModel(model);
+      }
 
       // Temporary guard to prevent ID generation / partial renders during JSON hydration
       try{ model.__hydratingFromPrgs = true; }catch(e){}
