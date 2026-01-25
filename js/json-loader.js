@@ -235,25 +235,19 @@
       }catch(e){}
     })();
 
-    model.__hydratingFromPrgs = true;
+    try{
+      if (window.Sections && typeof window.Sections.ensureSectionNameField === 'function'){
+        window.Sections.ensureSectionNameField(model);
+      }
+    }catch(e){}
 
     try{
-      try{
-        if (window.Sections && typeof window.Sections.ensureSectionNameField === 'function'){
-          window.Sections.ensureSectionNameField(model);
-        }
-      }catch(e){}
+      if (window && typeof window.syncScopeRowsToModel === 'function') window.syncScopeRowsToModel();
+    }catch(e){}
 
-      try{
-        if (window && typeof window.syncScopeRowsToModel === 'function') window.syncScopeRowsToModel();
-      }catch(e){}
-
-      try{
-        if (window && typeof window.computeAndRender === 'function') window.computeAndRender();
-      }catch(e){}
-    } finally {
-      try{ model.__hydratingFromPrgs = false; }catch(e){}
-    }
+    try{
+      if (window && typeof window.computeAndRender === 'function') window.computeAndRender();
+    }catch(e){}
 
     try{
       if (window.sessionStorage){
@@ -357,6 +351,8 @@
         if (ts.scopes) applyTimeseriesScopes(model, ts.scopes, mode);
         if (ts.sections) applyTimeseriesSections(model, ts.sections, mode);
       }
+
+      try{ model.__hydratingFromPrgs = false; }catch(e){}
 
       finalizeToUI(model);
       return model;
