@@ -244,6 +244,26 @@ row.innerHTML = `
     </div>
   `;
   row.addEventListener('change', onScopeChange);
+  // Date inputs: prevent premature row-level 'change' commits while typing the year.
+  // Commit dates on blur instead to avoid re-render lock-in (e.g., '2' -> year 0002).
+  const _startEl = row.querySelector('[data-k="start"]');
+  const _endEl   = row.querySelector('[data-k="end"]');
+  [_startEl, _endEl].forEach(el=>{
+    if(!el) return;
+
+    // Stop date 'change' from bubbling to the row handler (which triggers computeAndRender()).
+    el.addEventListener('change', (ev)=>{
+      try{ ev.stopPropagation(); }catch(_){}
+    });
+
+    // Commit date values only after the user finishes editing (focus leaves the field).
+    el.addEventListener('blur', ()=>{
+      try{
+        onScopeChange({ currentTarget: row, target: el });
+      }catch(e){}
+    });
+  });
+
 
   // Track last valid progress value on focus so invalid edits can revert.
   // This is session-only and stored on the element (does not touch the model).
