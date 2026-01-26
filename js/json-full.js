@@ -214,6 +214,32 @@
     return out;
   }
 
+  // Project-level historical metadata ledger (mirrors PRGS #SECTION:TIMESERIES_PROJECT).
+  // Output is columnar arrays: historyDate[], key[], value[]
+  function buildTimeseriesProjectMeta(model){
+    var ts = model && model.timeSeriesProject ? model.timeSeriesProject : null;
+    var out = { historyDate: [], key: [], value: [] };
+    if (!ts) return out;
+
+    var dates = Object.keys(ts).sort();
+    for (var i=0;i<dates.length;i++){
+      var d = dates[i];
+      var rows = ts[d] || [];
+      for (var r=0;r<rows.length;r++){
+        var row = rows[r] || {};
+        var hd = (row.historyDate !== undefined && row.historyDate !== null && row.historyDate !== '') ? String(row.historyDate) : String(d || '');
+        if (!hd) continue;
+
+        out.historyDate.push(hd);
+        out.key.push((row.key === undefined || row.key === null) ? '' : String(row.key));
+        out.value.push((row.value === undefined || row.value === null) ? '' : String(row.value));
+      }
+    }
+    return out;
+  }
+
+
+
   function buildTimeseriesScopes(model){
     var ts = model.timeSeriesScopes || null;
     var out = {
@@ -306,6 +332,8 @@
   function buildTimeseries(model){
     return {
       project: buildTimeseriesProject(model),
+      
+      projectMeta: buildTimeseriesProjectMeta(model),
       scopes: buildTimeseriesScopes(model),
       sections: buildTimeseriesSections(model)
     };

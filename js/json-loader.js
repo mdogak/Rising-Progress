@@ -48,6 +48,20 @@
     return Array.isArray(v) ? v : [];
   }
 
+  // Treat empty / placeholder columnar objects as absent.
+  // This prevents accidental empty sections (e.g., {}) from aborting the load,
+  // while still validating and throwing for non-empty malformed data.
+  function isEffectivelyEmptyColumnar(obj){
+    if (!isObj(obj)) return true;
+    var keys = Object.keys(obj);
+    if (!keys.length) return true;
+    for (var i=0;i<keys.length;i++){
+      var v = obj[keys[i]];
+      if (Array.isArray(v) && v.length > 0) return false;
+    }
+    return true;
+  }
+
   function validateColumnar(sectionName, obj){
     if (!isObj(obj)) throw new Error('PRGSJSON_LOADER.load(): ' + sectionName + ' must be an object.');
     var keys = Object.keys(obj);
@@ -382,9 +396,10 @@
       }
 
       if (ts){
-        if (ts.project) applyTimeseriesProject(model, ts.project, mode);
-        if (ts.scopes) applyTimeseriesScopes(model, ts.scopes, mode);
-        if (ts.sections) applyTimeseriesSections(model, ts.sections, mode);
+        if (ts.project && !isEffectivelyEmptyColumnar(ts.project)) applyTimeseriesProject(model, ts.project, mode);
+        if (ts.projectMeta && !isEffectivelyEmptyColumnar(ts.projectMeta)) applyTimeseriesProjectMeta(model, ts.projectMeta, mode);
+        if (ts.scopes && !isEffectivelyEmptyColumnar(ts.scopes)) applyTimeseriesScopes(model, ts.scopes, mode);
+        if (ts.sections && !isEffectivelyEmptyColumnar(ts.sections)) applyTimeseriesSections(model, ts.sections, mode);
       }
 
       finalizeToUI(model);
