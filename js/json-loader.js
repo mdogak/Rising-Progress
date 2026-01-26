@@ -267,6 +267,86 @@ function applyTimeseriesScopes(model, tsScopes, mode){
     model.timeSeriesSections = m;
   }
 
+
+  function synthesizeScopesFromTimeseries(model){
+    var ts = model ? model.timeSeriesScopes : null;
+    if (!isObj(ts)) return null;
+
+    var dates = Object.keys(ts);
+    if (!dates.length) return null;
+
+    // Process dates in ascending order so "latest wins" is deterministic.
+    dates.sort();
+
+    var seen = {};
+    var order = [];
+    var latestByScope = {};
+    var rowByScope = {};
+
+    for (var di=0; di<dates.length; di++){
+      var hd = dates[di];
+      var arr = ts[hd];
+      if (!Array.isArray(arr) || arr.length === 0) continue;
+
+      for (var i=0; i<arr.length; i++){
+        var r = arr[i];
+        if (!r || !r.scopeId) continue;
+
+        var sid = String(r.scopeId);
+
+        if (!seen[sid]){
+          seen[sid] = true;
+          order.push(sid);
+        }
+
+        var prev = latestByScope[sid];
+        if (prev === undefined || hd > prev){
+          latestByScope[sid] = hd;
+          rowByScope[sid] = r;
+        } else if (hd === prev){
+          // If multiple rows for same scopeId on same date, last encountered wins.
+          rowByScope[sid] = r;
+        }
+      }
+    }
+
+    if (!order.length) return null;
+
+    var out = [];
+    for (var oi=0; oi<order.length; oi++){
+      var sid2 = order[oi];
+      var src = rowByScope[sid2];
+      if (!src) continue;
+
+      var unitsLabel = (src.unitsLabel != null) ? String(src.unitsLabel) : '';
+      var actualPct = (src.actualPct !== undefined && src.actualPct !== null && src.actualPct !== '') ? src.actualPct : '';
+      var totalUnits = (src.totalUnits !== undefined && src.totalUnits !== null) ? src.totalUnits : '';
+
+      var progressValue;
+      if (unitsLabel === '%') {
+        progressValue = actualPct;
+      } else {
+        progressValue = (actualPct === '') ? '' : (actualPct * (totalUnits || 0));
+      }
+
+      out.push({
+        scopeId: sid2,
+        label: (src.label != null) ? String(src.label) : '',
+        start: (src.start != null) ? String(src.start) : '',
+        end: (src.end != null) ? String(src.end) : '',
+        cost: (src.cost !== undefined && src.cost !== null && src.cost !== '') ? src.cost : '',
+        progressValue: progressValue,
+        unitsToDate: (src.unitsToDate !== undefined && src.unitsToDate !== null && src.unitsToDate !== '') ? src.unitsToDate : '',
+        totalUnits: totalUnits,
+        unitsLabel: unitsLabel,
+        sectionName: (src.sectionName != null) ? String(src.sectionName) : '',
+        sectionID: (src.sectionID != null) ? String(src.sectionID) : ''
+      });
+    }
+
+    return out.length ? out : null;
+  }
+
   function finalizeToUI(model){
     setAuthoritativeModel(model);
 
@@ -432,6 +512,24 @@ function applyTimeseriesScopes(model, tsScopes, mode){
         if (ts.projectMeta && !isEffectivelyEmptyColumnar(ts.projectMeta)) applyTimeseriesProjectMeta(model, ts.projectMeta, mode);
         if (ts.scopes && !isEffectivelyEmptyColumnar(ts.scopes)) applyTimeseriesScopes(model, ts.scopes, mode);
         if (ts.sections && !isEffectivelyEmptyColumnar(ts.sections)) applyTimeseriesSections(model, ts.sections, mode);
+      }
+
+
+      // If full-schema scopes were not provided, synthesize scopes from latest timeseries scopes snapshot (overwrite mode only).
+      if (mode === 'overwrite' && !Object.prototype.hasOwnProperty.call(obj, 'scopes')){
+        var tss = model.timeSeriesScopes;
+        var hasAnyTsScopes = false;
+        if (isObj(tss)){
+          var hdKeys = Object.keys(tss);
+          for (var hki=0; hki<hdKeys.length; hki++){
+            var arr = tss[hdKeys[hki]];
+            if (Array.isArray(arr) && arr.length > 0){ hasAnyTsScopes = true; break; }
+          }
+        }
+        if (hasAnyTsScopes){
+          var synth = synthesizeScopesFromTimeseries(model);
+          if (synth) model.scopes = synth;
+        }
       }
 
       finalizeToUI(model);
