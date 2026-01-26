@@ -329,7 +329,7 @@ function applyTimeseriesScopes(model, tsScopes, mode){
         // Percent scopes: progress is stored in actualPct (0-100).
       } else {
         // Unit scopes: synthesize unitsToDate from actualPct * totalUnits.
-        unitsToDateOut = (actualPct === '') ? '' : (actualPct * (totalUnits || 0));
+        unitsToDateOut = (actualPct === '') ? '' : ((actualPct / 100) * (totalUnits || 0));
       }
 
       out.push({
