@@ -295,6 +295,19 @@ export function guardSaveWithDirtyScopes({ model, onAddAndSave, onSaveOnly, onCa
   document.body.appendChild(overlay);
   document.body.appendChild(modal);
   document.addEventListener('keydown', onKeydown, true);
+  requestAnimationFrame(function(){
+    try {
+      if (!isSaveGuardActive()) return;
+      if (!modal || !overlay) return;
+      if (!modal.parentNode || !overlay.parentNode) return;
+      const mp = window.getComputedStyle(modal).position;
+      const op = window.getComputedStyle(overlay).position;
+      if (mp !== 'fixed' || op !== 'fixed') {
+        cleanup();
+        try { saveOnly(); } catch (e) {}
+      }
+    } catch (e) {}
+  });
 }
 
 export function guardSaveWithTimeseries({ model, onAddAndSave, onSaveOnly, onCancel } = {}) {
@@ -414,6 +427,19 @@ export function guardSaveWithTimeseries({ model, onAddAndSave, onSaveOnly, onCan
   document.body.appendChild(overlay);
   document.body.appendChild(modal);
   document.addEventListener('keydown', onKeydown, true);
+  requestAnimationFrame(function(){
+    try {
+      if (!isSaveGuardActive()) return;
+      if (!modal || !overlay) return;
+      if (!modal.parentNode || !overlay.parentNode) return;
+      const mp = window.getComputedStyle(modal).position;
+      const op = window.getComputedStyle(overlay).position;
+      if (mp !== 'fixed' || op !== 'fixed') {
+        cleanup();
+        try { saveOnly(); } catch (e) {}
+      }
+    } catch (e) {}
+  });
 }
 
 export function markScopesDirtySinceLastHistory() {

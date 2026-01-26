@@ -1,5 +1,5 @@
 /*
-© 2025 Rising Progress LLC. All rights reserved.
+(c) 2025 Rising Progress LLC. All rights reserved.
 */
 
 import { initToolbarClear } from './clear.js';
@@ -129,6 +129,7 @@ function ensureScopeIds(){
  *****************/
 let model = {
   project:{ name:'', startup:'', markerLabel:'Baseline Complete' },
+  sections: [],
   scopes:[], // {label,start,end,cost,actualPct,unitsToDate,totalUnits,unitsLabel}
   history:[], // [{date, actualPct}]
   dailyActuals:{}, // { 'YYYY-MM-DD': number }
@@ -136,6 +137,31 @@ let model = {
   daysRelativeToPlan: null
 };
 window.model = model;
+
+// Expose core render pipeline for external loaders (JSON, etc.)
+if (typeof window.syncScopeRowsToModel !== 'function') {
+  window.syncScopeRowsToModel = syncScopeRowsToModel;
+}
+if (typeof window.computeAndRender !== 'function') {
+  window.computeAndRender = computeAndRender;
+}
+
+// Allow external loaders (JSON) to temporarily mirror PRGS hydration semantics
+if (typeof window.setHydratingFromPrgs !== 'function') {
+  window.setHydratingFromPrgs = function(flag){
+    try { model.__hydratingFromPrgs = !!flag; } catch(e){}
+    try { window.model = model; } catch(e){}
+  };
+}
+
+
+// Allow external loaders (JSON) to read/replace the module-scoped model
+if (typeof window.getModel !== 'function') {
+  window.getModel = function(){ try { return model; } catch(e) {} try { return window.model; } catch(e) {} return null; };
+}
+if (typeof window.setModel !== 'function') {
+  window.setModel = function(m){ try { model = m; } catch(e) {} try { window.model = model; } catch(e) {} };
+}
 
 function defaultScope(i){
   if(i===0){ const startDate = new Date(today); startDate.setDate(startDate.getDate()-1); const endDate = new Date(startDate); endDate.setDate(endDate.getDate()+7); const start = fmtDate(startDate); const end = fmtDate(endDate); return { scopeId: generateScopeId(), label:`Scope #${i+1}`, start, end, cost:100, actualPct:0, unitsToDate:0, totalUnits:'', unitsLabel:'%', sectionName:'' }; }
@@ -224,7 +250,7 @@ function renderScopeRow(i){
       ? 'Total 100%'
       : 'Total Units';
 row.innerHTML = `
-    <div class="scope-cell"><span class="drag-handle" title="Drag row" draggable="true">⋮⋮</span><input data-k="label" placeholder="Scope #${i+1}" value="${s.label}"></div>
+    <div class="scope-cell"><span class="drag-handle" title="Drag row" draggable="true">||</span><input data-k="label" placeholder="Scope #${i+1}" value="${s.label}"></div>
     <input data-k="start" type="date" value="${s.start}">
     <input data-k="end" type="date" value="${s.end}">
     <input data-k="cost" type="number" step="1.00" min="0" value="${s.cost}">
@@ -235,7 +261,7 @@ row.innerHTML = `
     <input data-k="unitsLabel" list="unitsList" value="${s.unitsLabel || '%'}" placeholder="%">
     <div class="small" data-k="planned"></div>
     <div class="actions">
-      <button class="iconbtn menu" title="Row actions" aria-haspopup="true" aria-expanded="false">☰</button>
+      <button class="iconbtn menu" title="Row actions" aria-haspopup="true" aria-expanded="false" aria-label="Row actions menu">&#9776;</button>
       <div class="row-menu" hidden>
         <button type="button" class="row-menu-item" data-action="del">Remove this row</button>
         <button type="button" class="row-menu-item" data-action="add">Add row below</button>
@@ -244,6 +270,26 @@ row.innerHTML = `
     </div>
   `;
   row.addEventListener('change', onScopeChange);
+  // Date inputs: prevent premature row-level 'change' commits while typing the year.
+  // Commit dates on blur instead to avoid re-render lock-in (e.g., '2' -> year 0002).
+  const _startEl = row.querySelector('[data-k="start"]');
+  const _endEl   = row.querySelector('[data-k="end"]');
+  [_startEl, _endEl].forEach(el=>{
+    if(!el) return;
+
+    // Stop date 'change' from bubbling to the row handler (which triggers computeAndRender()).
+    el.addEventListener('change', (ev)=>{
+      try{ ev.stopPropagation(); }catch(_){}
+    });
+
+    // Commit date values only after the user finishes editing (focus leaves the field).
+    el.addEventListener('blur', ()=>{
+      try{
+        onScopeChange({ currentTarget: row, target: el });
+      }catch(e){}
+    });
+  });
+
 
   // Track last valid progress value on focus so invalid edits can revert.
   // This is session-only and stored on the element (does not touch the model).
@@ -1061,7 +1107,7 @@ function syncActualFromDOM(){
       // actualPct will be derived from units/totalUnits in the normalizer
     }
 
-    // Apply shared numeric rules including final actualPct clamp to 0–100
+    // Apply shared numeric rules including final actualPct clamp to 0-100
     normalizeScopeNumericFields(scope);
 
     // Snap clamped values back into DOM inputs
@@ -1702,6 +1748,14 @@ function hydrateFromSession(){
 
     model = stored;
     window.model = model;
+
+// Expose core render pipeline for external loaders (JSON, etc.)
+if (typeof window.syncScopeRowsToModel !== 'function') {
+  window.syncScopeRowsToModel = syncScopeRowsToModel;
+}
+if (typeof window.computeAndRender !== 'function') {
+  window.computeAndRender = computeAndRender;
+}
     // Baseline (dirty-since-load) should be captured after hydration once warnings module is available.
     // Flag for computeAndRender's lazy warning loader to capture the baseline.
     try { window.__rpBaselinePending = true; } catch(e) {}
@@ -1747,6 +1801,14 @@ function defaultAll(){
     daysRelativeToPlan:null
   };
   window.model = model;
+
+// Expose core render pipeline for external loaders (JSON, etc.)
+if (typeof window.syncScopeRowsToModel !== 'function') {
+  window.syncScopeRowsToModel = syncScopeRowsToModel;
+}
+if (typeof window.computeAndRender !== 'function') {
+  window.computeAndRender = computeAndRender;
+}
   $('#projectName').value = '';
   $('#projectStartup').value = '';
   $('#startupLabelInput').value = 'Baseline Complete';
@@ -1868,7 +1930,7 @@ function hasHistoryActualsAboveThreshold() {
 
 document.addEventListener('DOMContentLoaded', () => {
   const loadBtn = document.getElementById('toolbarLoad');
-  if (loadBtn) loadBtn.textContent = "Load Project";
+  if (loadBtn) { const _rpOrigLoadHtml = loadBtn.innerHTML; loadBtn.innerHTML = _rpOrigLoadHtml; }
   const saveBtn = document.getElementById('saveCSV');
   if (saveBtn) saveBtn.textContent = "Save Project";
   const saveXmlBtn = document.getElementById('saveXML');
@@ -1885,7 +1947,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Load Project button: remove dropdown affordance and always open the Project Loader modal
-  if (loadBtn) loadBtn.innerHTML = "📂 Load Project";
+  if (loadBtn) { const _rpOrigLoadHtml = loadBtn.innerHTML; loadBtn.innerHTML = _rpOrigLoadHtml; }
 
   const ddItem = document.querySelector('#loadDropdown [data-act="open"]');
   if (ddItem) ddItem.textContent = "Open Project";
