@@ -322,11 +322,14 @@ function applyTimeseriesScopes(model, tsScopes, mode){
       var actualPct = (src.actualPct !== undefined && src.actualPct !== null && src.actualPct !== '') ? src.actualPct : '';
       var totalUnits = (src.totalUnits !== undefined && src.totalUnits !== null) ? src.totalUnits : '';
 
-      var progressValue;
+      var actualPctOut = actualPct;
+      var unitsToDateOut = (src.unitsToDate !== undefined && src.unitsToDate !== null && src.unitsToDate !== '') ? src.unitsToDate : '';
+
       if (unitsLabel === '%') {
-        progressValue = actualPct;
+        // Percent scopes: progress is stored in actualPct (0-100).
       } else {
-        progressValue = (actualPct === '') ? '' : (actualPct * (totalUnits || 0));
+        // Unit scopes: synthesize unitsToDate from actualPct * totalUnits.
+        unitsToDateOut = (actualPct === '') ? '' : (actualPct * (totalUnits || 0));
       }
 
       out.push({
@@ -335,8 +338,8 @@ function applyTimeseriesScopes(model, tsScopes, mode){
         start: (src.start != null) ? String(src.start) : '',
         end: (src.end != null) ? String(src.end) : '',
         cost: (src.cost !== undefined && src.cost !== null && src.cost !== '') ? src.cost : '',
-        progressValue: progressValue,
-        unitsToDate: (src.unitsToDate !== undefined && src.unitsToDate !== null && src.unitsToDate !== '') ? src.unitsToDate : '',
+        actualPct: actualPctOut,
+        unitsToDate: unitsToDateOut,
         totalUnits: totalUnits,
         unitsLabel: unitsLabel,
         sectionName: (src.sectionName != null) ? String(src.sectionName) : '',
