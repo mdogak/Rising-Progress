@@ -261,7 +261,7 @@ row.innerHTML = `
     <input data-k="unitsLabel" list="unitsList" value="${s.unitsLabel || '%'}" placeholder="%">
     <div class="small" data-k="planned"></div>
     <div class="actions">
-      <button class="iconbtn menu" title="Row actions" aria-haspopup="true" aria-expanded="false"></button>
+      <button class="iconbtn menu" title="Row actions" aria-haspopup="true" aria-expanded="false">MENU</button>
       <div class="row-menu" hidden>
         <button type="button" class="row-menu-item" data-action="del">Remove this row</button>
         <button type="button" class="row-menu-item" data-action="add">Add row below</button>
