@@ -1930,7 +1930,7 @@ function hasHistoryActualsAboveThreshold() {
 
 document.addEventListener('DOMContentLoaded', () => {
   const loadBtn = document.getElementById('toolbarLoad');
-  if (loadBtn) loadBtn.textContent = "Load Project";
+  if (loadBtn) { const _rpOrigLoadHtml = loadBtn.innerHTML; loadBtn.innerHTML = _rpOrigLoadHtml; }
   const saveBtn = document.getElementById('saveCSV');
   if (saveBtn) saveBtn.textContent = "Save Project";
   const saveXmlBtn = document.getElementById('saveXML');
@@ -1947,7 +1947,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Load Project button: remove dropdown affordance and always open the Project Loader modal
-  if (loadBtn) loadBtn.innerHTML = "[LOAD] Load Project";
+  if (loadBtn) { const _rpOrigLoadHtml = loadBtn.innerHTML; loadBtn.innerHTML = _rpOrigLoadHtml; }
 
   const ddItem = document.querySelector('#loadDropdown [data-act="open"]');
   if (ddItem) ddItem.textContent = "Open Project";
