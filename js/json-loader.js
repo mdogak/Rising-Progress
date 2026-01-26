@@ -152,7 +152,39 @@
     }
   }
 
-  function applyTimeseriesScopes(model, tsScopes, mode){
+  
+  function applyTimeseriesProjectMeta(model, tsProjectMeta, mode){
+    if (!isObj(tsProjectMeta)) return;
+    var n = validateColumnar('timeseries.projectMeta', tsProjectMeta);
+
+    var m;
+    if (mode === 'overwrite'){
+      m = {};
+      model.timeSeriesProject = m;
+    } else {
+      m = model.timeSeriesProject || {};
+    }
+
+    var hdates = ensureArray(tsProjectMeta.historyDate);
+    var keys = ensureArray(tsProjectMeta.key);
+    var values = ensureArray(tsProjectMeta.value);
+
+    for (var i=0;i<n;i++){
+      var hd = hdates[i] ? String(hdates[i]) : '';
+      if (!hd) continue;
+
+      if (!m[hd]) m[hd] = [];
+      m[hd].push({
+        historyDate: hd,
+        key: (keys[i] != null) ? String(keys[i]) : '',
+        value: (values[i] != null) ? String(values[i]) : ''
+      });
+    }
+
+    model.timeSeriesProject = m;
+  }
+
+function applyTimeseriesScopes(model, tsScopes, mode){
     if (!isObj(tsScopes)) return;
     var n = validateColumnar('timeseries.scopes', tsScopes);
 
