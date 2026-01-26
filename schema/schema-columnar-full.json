@@ -256,6 +256,25 @@
             }
           },
           "additionalProperties": false
+        },
+        "projectMeta": {
+          "type": "object",
+          "$comment": "Project-level historical metadata ledger (non-numeric, versioned by date). Mirrors PRGS #SECTION:TIMESERIES_PROJECT.",
+          "properties": {
+            "historyDate": {
+              "type": "array",
+              "$comment": "Snapshot date for the project metadata entry."
+            },
+            "key": {
+              "type": "array",
+              "$comment": "Project metadata field name (e.g., name, startup, markerLabel)."
+            },
+            "value": {
+              "type": "array",
+              "$comment": "Value of the project metadata field at the snapshot date."
+            }
+          },
+          "additionalProperties": false
         }
       }
     }
