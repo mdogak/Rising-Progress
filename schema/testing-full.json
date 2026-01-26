@@ -5,7 +5,7 @@
   },
   "project": {
     "datesaved": "2026-01-25",
-    "timesaved": "20:10",
+    "timesaved": "20:51",
     "name": "Pipeline",
     "startup": "2026-01-12",
     "markerLabel": "Plan Complete",
@@ -1089,6 +1089,32 @@
         "",
         "",
         ""
+      ]
+    },
+    "projectMeta": {
+      "historyDate": [
+        "2025-11-27",
+        "2025-11-27",
+        "2025-11-27",
+        "2025-11-28",
+        "2025-11-28",
+        "2025-11-28"
+      ],
+      "key": [
+        "name",
+        "startup",
+        "markerLabel",
+        "name",
+        "startup",
+        "markerLabel"
+      ],
+      "value": [
+        "Pipeline",
+        "2026-01-12",
+        "Plan Complete",
+        "Pipeline",
+        "2026-01-12",
+        "Plan Complete"
       ]
     },
     "scopes": {
