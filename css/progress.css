@@ -752,3 +752,11 @@ html, body {
   outline: 1px solid rgba(234,88,12,0.5);
   outline-offset: -1px;
 }
+
+
+/* Issues modal: section headers only */
+#issuesOverlay .issues-section-title{
+  color: var(--accent-2);
+  font-weight: 700;
+  font-size: 1.06em;
+}
