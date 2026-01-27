@@ -6,6 +6,14 @@
 // Builds a friendly recommendations modal based on scope flags from progress.html
 
 (function(){
+
+  function fmtCommaInt(n){
+    try{
+      const s = String(Math.round(Number(n)||0));
+      return s.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }catch(e){ return String(n); }
+  }
+
   let lastIssuesText = '';
 
   // --- Beta badge control (scoped to Issues modal) ---
@@ -283,8 +291,8 @@
           unitsText = scope && scope.unitsLabel ? String(scope.unitsLabel) : '';
           const actualUnitsVal = Math.round(isNaN(actualRaw) ? 0 : actualRaw);
           const plannedUnitsVal = Math.round(isNaN(plannedRaw) ? 0 : plannedRaw);
-          actualText = String(actualUnitsVal);
-          plannedValueText = String(plannedUnitsVal);
+          actualText = fmtCommaInt(actualUnitsVal);
+          plannedValueText = fmtCommaInt(plannedUnitsVal);
         } else {
           // Percent: 1 decimal place for both values
           unitsText = (scope && scope.unitsLabel) ? String(scope.unitsLabel) : '%';
@@ -328,17 +336,14 @@
         let totalNum = parseFloat(totalRaw);
         if (!isFinite(totalNum)) totalNum = 0;
 
-        const progText = String(Math.round(progNum));
-        const totalText = String(Math.round(totalNum));
+        const progText = fmtCommaInt(Math.round(progNum));
+        const totalText = fmtCommaInt(Math.round(totalNum));
 
         const line =
           progText + unitsSuffix + ' exceeds the total of ' + totalText + unitsSuffix;
 
         // Scope-level bullet
         scopeIssues.push(line);
-
-        // Section-level summary (one line per scope occurrence)
-        sectionBucket.overunitsSummaries.push(line);
       }
     });
 
@@ -578,15 +583,39 @@ function closeIssuesModal(){
             "text/plain": new Blob([plain], { type: "text/plain" })
           })
         ]).catch(function(){
+
+  function fmtCommaInt(n){
+    try{
+      const s = String(Math.round(Number(n)||0));
+      return s.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }catch(e){ return String(n); }
+  }
+
           // If rich write fails, try plain text before legacy fallback.
           if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(plain).catch(function(){ fallbackCopy(plain); });
+            navigator.clipboard.writeText(plain).catch(function(){
+
+  function fmtCommaInt(n){
+    try{
+      const s = String(Math.round(Number(n)||0));
+      return s.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }catch(e){ return String(n); }
+  }
+ fallbackCopy(plain); });
           } else {
             fallbackCopy(plain);
           }
         });
       } else if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(plain).catch(function(){ fallbackCopy(plain); });
+        navigator.clipboard.writeText(plain).catch(function(){
+
+  function fmtCommaInt(n){
+    try{
+      const s = String(Math.round(Number(n)||0));
+      return s.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }catch(e){ return String(n); }
+  }
+ fallbackCopy(plain); });
       } else {
         fallbackCopy(plain);
       }
