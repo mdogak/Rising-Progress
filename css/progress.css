@@ -290,6 +290,10 @@ html, body {
   border-color: var(--danger) !important;
   background-color: #fef2f2; /* red-50 */
 }
+.flag-overunits{
+  border-color: var(--danger) !important;
+  background-color: #fef2f2; /* red-50 */
+}
 .flag-planned{
   color: var(--danger);
   font-weight: 600;
