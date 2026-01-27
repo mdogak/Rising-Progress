@@ -359,7 +359,7 @@
         const emitSectionHeader = hasNamedSection && sectionHasIssues;
 
         if (emitSectionHeader) {
-          finalBullets.push({ type: 'section', text: String(sectionName).trim() + ':' });
+          finalBullets.push({ type: 'section', text: '--' + String(sectionName).trim() + '--' });
         }
 
         sectionObj.byScope.forEach(function(issues, scopeName){
