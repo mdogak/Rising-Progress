@@ -709,11 +709,14 @@ function updatePlannedCell(row, s){
 
   const startEl = row.querySelector('[data-k="start"]');
   const endEl   = row.querySelector('[data-k="end"]');
+  const progressEl = row.querySelector('[data-k="progress"]');
+  const totalUnitsEl = row.querySelector('[data-k="totalUnits"]');
 
   // Clear previous flags
   if (startEl) startEl.classList.remove('flag-start');
   if (endEl)   endEl.classList.remove('flag-end');
   if (cell)    cell.classList.remove('flag-planned');
+  if (progressEl) progressEl.classList.remove('flag-overunits');
 
   const actualPctForCompare = s.actualPct || 0;
 
@@ -734,6 +737,34 @@ function updatePlannedCell(row, s){
     if (parseDate(s.end) < getEffectiveToday() && (Math.round(actualPctForCompare) < 100)) {
       endEl.classList.add('flag-end');
     }
+  }
+
+
+  // Flag units-to-date over total units (non-% only)
+  if (progressEl) {
+    try{
+      const unitsLabel = (s && s.unitsLabel != null) ? String(s.unitsLabel).trim() : '';
+      if (unitsLabel !== '%') {
+        let totalRaw = '';
+        if (s && s.totalUnits != null && s.totalUnits !== '' && isFinite(Number(s.totalUnits))) {
+          totalRaw = String(s.totalUnits);
+        } else if (totalUnitsEl) {
+          totalRaw = (totalUnitsEl.value || totalUnitsEl.textContent || '').trim();
+        }
+        let totalNum = parseFloat(totalRaw);
+        if (!isFinite(totalNum)) {
+          // Per requirements, allow blank totalUnits to behave like 0 for this flag (units mode only).
+          totalNum = 0;
+        }
+
+        const progRaw = (progressEl.value || progressEl.textContent || '').trim();
+        const progNum = parseFloat(progRaw);
+
+        if (isFinite(totalNum) && isFinite(progNum) && (progNum > totalNum)) {
+          progressEl.classList.add('flag-overunits');
+        }
+      }
+    }catch(e){}
   }
 
   if (typeof updateIssuesButtonState === 'function') {
@@ -767,9 +798,11 @@ function hasAnyScopeIssues(){
     const startEl = row.querySelector('[data-k="start"]');
     const endEl   = row.querySelector('[data-k="end"]');
     const planned = row.querySelector('[data-k="planned"]');
+    const progressEl = row.querySelector('[data-k="progress"]');
     return (startEl && startEl.classList.contains('flag-start')) ||
            (endEl && endEl.classList.contains('flag-end')) ||
-           (planned && planned.classList.contains('flag-planned'));
+           (planned && planned.classList.contains('flag-planned')) ||
+           (progressEl && progressEl.classList.contains('flag-overunits'));
   });
 }
 

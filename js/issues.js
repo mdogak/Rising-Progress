@@ -135,7 +135,6 @@
     return null;
   }
 
-  
 
   function buildIssues(){
     const model = getModel();
@@ -176,7 +175,19 @@
     }
 
     let anyFlagged = false;
-    const byScope = new Map();
+
+    // Group issues by section and then by scope (preserves DOM order).
+    const bySection = new Map();
+    let sawNamedSection = false;
+
+    function ensureSection(sectionName){
+      const key = (sectionName && String(sectionName).trim()) ? String(sectionName).trim() : '';
+      if (key) sawNamedSection = true;
+      if (!bySection.has(key)) {
+        bySection.set(key, { overunitsSummaries: [], byScope: new Map() });
+      }
+      return bySection.get(key);
+    }
 
     rows.forEach(function(row){
       const idx = Number(row.dataset.index);
@@ -195,18 +206,25 @@
         scopeName = Number.isFinite(idx) ? ('Scope ' + (idx+1)) : 'Scope';
       }
 
-      if (!byScope.has(scopeName)) {
-        byScope.set(scopeName, []);
+      // Determine section name from model if present
+      const sectionName = (scope && scope.sectionName != null) ? String(scope.sectionName).trim() : '';
+      const sectionBucket = ensureSection(sectionName);
+
+      if (!sectionBucket.byScope.has(scopeName)) {
+        sectionBucket.byScope.set(scopeName, []);
       }
-      const scopeIssues = byScope.get(scopeName);
+      const scopeIssues = sectionBucket.byScope.get(scopeName);
 
       const startInput = row.querySelector('[data-k="start"]');
       const endInput   = row.querySelector('[data-k="end"]');
       const plannedCell = row.querySelector('[data-k="planned"]');
+      const progressInput = row.querySelector('[data-k="progress"]');
+      const totalUnitsInput = row.querySelector('[data-k="totalUnits"]');
 
       const startFlag = !!(startInput && startInput.classList.contains('flag-start'));
       const endFlag   = !!(endInput && endInput.classList.contains('flag-end'));
       const plannedFlag = !!(plannedCell && plannedCell.classList.contains('flag-planned'));
+      const overUnitsFlag = !!(progressInput && progressInput.classList.contains('flag-overunits'));
 
       if(startFlag){
         anyFlagged = true;
@@ -227,7 +245,6 @@
 
         // Actual progress from DOM: <input data-k="progress">
         let actualRaw = 0;
-        const progressInput = row.querySelector('[data-k="progress"]');
         if (progressInput) {
           const v = (progressInput.value || progressInput.textContent || '').trim();
           const num = parseFloat(v);
@@ -285,18 +302,70 @@
           ' and planned to date to be at ' + plannedValueText + unitsSuffix
         );
       }
+
+      if(overUnitsFlag){
+        anyFlagged = true;
+
+        // Units label: prefer model
+        const unitsText = (scope && scope.unitsLabel != null) ? String(scope.unitsLabel).trim() : '';
+        const unitsSuffix = unitsText ? (' ' + unitsText) : '';
+
+        // Progress: from DOM input (0 decimals)
+        let progNum = 0;
+        if (progressInput) {
+          const v = (progressInput.value || progressInput.textContent || '').trim();
+          const n = parseFloat(v);
+          progNum = isNaN(n) ? 0 : n;
+        }
+
+        // Total units: prefer model, then DOM (blank treated as 0)
+        let totalRaw = '';
+        if (scope && scope.totalUnits != null && scope.totalUnits !== '' && isFinite(Number(scope.totalUnits))) {
+          totalRaw = String(scope.totalUnits);
+        } else if (totalUnitsInput) {
+          totalRaw = (totalUnitsInput.value || totalUnitsInput.textContent || '').trim();
+        }
+        let totalNum = parseFloat(totalRaw);
+        if (!isFinite(totalNum)) totalNum = 0;
+
+        const progText = String(Math.round(progNum));
+        const totalText = String(Math.round(totalNum));
+
+        const line =
+          progText + unitsSuffix + ' exceeds the total of ' + totalText + unitsSuffix;
+
+        // Scope-level bullet
+        scopeIssues.push(line);
+
+        // Section-level summary (one line per scope occurrence)
+        sectionBucket.overunitsSummaries.push(line);
+      }
     });
 
     let finalBullets = [];
     if(anyFlagged){
-      byScope.forEach(function(issues, scopeName){
-        if (issues && issues.length) {
-          finalBullets.push(scopeName + ':');
-          issues.forEach(function(i){
-            // Indent issue lines, but omit hyphen so the UI and copied text are cleaner.
-            finalBullets.push('     ' + i);
+      bySection.forEach(function(sectionObj, sectionName){
+        const sectionTitle = (sectionName && String(sectionName).trim()) ? String(sectionName).trim() : 'Unsectioned';
+        if (sawNamedSection) {
+          finalBullets.push(sectionTitle + ':');
+        }
+
+        if (sectionObj.overunitsSummaries && sectionObj.overunitsSummaries.length) {
+          sectionObj.overunitsSummaries.forEach(function(t){
+            // Indent summary lines under their section.
+            finalBullets.push('     ' + t);
           });
         }
+
+        sectionObj.byScope.forEach(function(issues, scopeName){
+          if (issues && issues.length) {
+            finalBullets.push(scopeName + ':');
+            issues.forEach(function(i){
+              // Indent issue lines, but omit hyphen so the UI and copied text are cleaner.
+              finalBullets.push('     ' + i);
+            });
+          }
+        });
       });
     } else {
       finalBullets.push('No issues identified based on current plan.');
@@ -311,6 +380,7 @@
     lastIssuesText = finalBullets.join('\n');
     return finalBullets;
   }
+
 
   function getLastHistoryDateFromModel(){
     const model = getModel();
