@@ -6,6 +6,14 @@
 // Builds a friendly recommendations modal based on scope flags from progress.html
 
 (function(){
+
+  function fmtCommaInt(n){
+    try{
+      const s = String(Math.round(Number(n)||0));
+      return s.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }catch(e){ return String(n); }
+  }
+
   let lastIssuesText = '';
 
   // --- Beta badge control (scoped to Issues modal) ---
@@ -135,7 +143,6 @@
     return null;
   }
 
-  
 
   function buildIssues(){
     const model = getModel();
@@ -176,7 +183,19 @@
     }
 
     let anyFlagged = false;
-    const byScope = new Map();
+
+    // Group issues by section and then by scope (preserves DOM order).
+    const bySection = new Map();
+    let sawNamedSection = false;
+
+    function ensureSection(sectionName){
+      const key = (sectionName && String(sectionName).trim()) ? String(sectionName).trim() : '';
+      if (key) sawNamedSection = true;
+      if (!bySection.has(key)) {
+        bySection.set(key, { overunitsSummaries: [], byScope: new Map() });
+      }
+      return bySection.get(key);
+    }
 
     rows.forEach(function(row){
       const idx = Number(row.dataset.index);
@@ -195,18 +214,25 @@
         scopeName = Number.isFinite(idx) ? ('Scope ' + (idx+1)) : 'Scope';
       }
 
-      if (!byScope.has(scopeName)) {
-        byScope.set(scopeName, []);
+      // Determine section name from model if present
+      const sectionName = (scope && scope.sectionName != null) ? String(scope.sectionName).trim() : '';
+      const sectionBucket = ensureSection(sectionName);
+
+      if (!sectionBucket.byScope.has(scopeName)) {
+        sectionBucket.byScope.set(scopeName, []);
       }
-      const scopeIssues = byScope.get(scopeName);
+      const scopeIssues = sectionBucket.byScope.get(scopeName);
 
       const startInput = row.querySelector('[data-k="start"]');
       const endInput   = row.querySelector('[data-k="end"]');
       const plannedCell = row.querySelector('[data-k="planned"]');
+      const progressInput = row.querySelector('[data-k="progress"]');
+      const totalUnitsInput = row.querySelector('[data-k="totalUnits"]');
 
       const startFlag = !!(startInput && startInput.classList.contains('flag-start'));
       const endFlag   = !!(endInput && endInput.classList.contains('flag-end'));
       const plannedFlag = !!(plannedCell && plannedCell.classList.contains('flag-planned'));
+      const overUnitsFlag = !!(progressInput && progressInput.classList.contains('flag-overunits'));
 
       if(startFlag){
         anyFlagged = true;
@@ -227,7 +253,6 @@
 
         // Actual progress from DOM: <input data-k="progress">
         let actualRaw = 0;
-        const progressInput = row.querySelector('[data-k="progress"]');
         if (progressInput) {
           const v = (progressInput.value || progressInput.textContent || '').trim();
           const num = parseFloat(v);
@@ -266,8 +291,8 @@
           unitsText = scope && scope.unitsLabel ? String(scope.unitsLabel) : '';
           const actualUnitsVal = Math.round(isNaN(actualRaw) ? 0 : actualRaw);
           const plannedUnitsVal = Math.round(isNaN(plannedRaw) ? 0 : plannedRaw);
-          actualText = String(actualUnitsVal);
-          plannedValueText = String(plannedUnitsVal);
+          actualText = fmtCommaInt(actualUnitsVal);
+          plannedValueText = fmtCommaInt(plannedUnitsVal);
         } else {
           // Percent: 1 decimal place for both values
           unitsText = (scope && scope.unitsLabel) ? String(scope.unitsLabel) : '%';
@@ -285,21 +310,69 @@
           ' and planned to date to be at ' + plannedValueText + unitsSuffix
         );
       }
+
+      if(overUnitsFlag){
+        anyFlagged = true;
+
+        // Units label: prefer model
+        const unitsText = (scope && scope.unitsLabel != null) ? String(scope.unitsLabel).trim() : '';
+        const unitsSuffix = unitsText ? (' ' + unitsText) : '';
+
+        // Progress: from DOM input (0 decimals)
+        let progNum = 0;
+        if (progressInput) {
+          const v = (progressInput.value || progressInput.textContent || '').trim();
+          const n = parseFloat(v);
+          progNum = isNaN(n) ? 0 : n;
+        }
+
+        // Total units: prefer model, then DOM (blank treated as 0)
+        let totalRaw = '';
+        if (scope && scope.totalUnits != null && scope.totalUnits !== '' && isFinite(Number(scope.totalUnits))) {
+          totalRaw = String(scope.totalUnits);
+        } else if (totalUnitsInput) {
+          totalRaw = (totalUnitsInput.value || totalUnitsInput.textContent || '').trim();
+        }
+        let totalNum = parseFloat(totalRaw);
+        if (!isFinite(totalNum)) totalNum = 0;
+
+        const progText = fmtCommaInt(Math.round(progNum));
+        const totalText = fmtCommaInt(Math.round(totalNum));
+
+        const line =
+          progText + unitsSuffix + ' exceeds the total of ' + totalText + unitsSuffix;
+
+        // Scope-level bullet
+        scopeIssues.push(line);
+      }
     });
 
     let finalBullets = [];
     if(anyFlagged){
-      byScope.forEach(function(issues, scopeName){
-        if (issues && issues.length) {
-          finalBullets.push(scopeName + ':');
-          issues.forEach(function(i){
-            // Indent issue lines, but omit hyphen so the UI and copied text are cleaner.
-            finalBullets.push('     ' + i);
-          });
+      bySection.forEach(function(sectionObj, sectionName){
+        let sectionHasIssues = false;
+        sectionObj.byScope.forEach(function(issues){
+          if (issues && issues.length) sectionHasIssues = true;
+        });
+
+        const hasNamedSection = sectionName && String(sectionName).trim();
+        const emitSectionHeader = hasNamedSection && sectionHasIssues;
+
+        if (emitSectionHeader) {
+          finalBullets.push({ type: 'section', text: '--' + String(sectionName).trim() + '--' });
         }
+
+        sectionObj.byScope.forEach(function(issues, scopeName){
+          if (issues && issues.length) {
+            finalBullets.push({ type: 'scope', text: scopeName + ':' });
+            issues.forEach(function(i){
+              finalBullets.push({ type: 'item', text: '     ' + i });
+            });
+          }
+        });
       });
     } else {
-      finalBullets.push('No issues identified based on current plan.');
+      finalBullets.push({ type: 'item', text: 'No issues identified based on current plan.' });
     }
 
     try {
@@ -311,6 +384,7 @@
     lastIssuesText = finalBullets.join('\n');
     return finalBullets;
   }
+
 
   function getLastHistoryDateFromModel(){
     const model = getModel();
@@ -368,9 +442,12 @@
     if (listEl) {
       listEl.innerHTML = '';
       const bullets = buildIssues();
-      bullets.forEach(function (text) {
+      bullets.forEach(function (entry) {
         const li = document.createElement('li');
-        if (text.endsWith(':')) {
+        const text = entry.text || '';
+        if (entry.type === 'section') {
+          li.classList.add('issues-section-title');
+        } else if (entry.type === 'scope') {
           li.classList.add('issues-scope-title');
         } else {
           li.classList.add('issues-scope-item');
@@ -508,15 +585,39 @@ function closeIssuesModal(){
             "text/plain": new Blob([plain], { type: "text/plain" })
           })
         ]).catch(function(){
+
+  function fmtCommaInt(n){
+    try{
+      const s = String(Math.round(Number(n)||0));
+      return s.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }catch(e){ return String(n); }
+  }
+
           // If rich write fails, try plain text before legacy fallback.
           if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(plain).catch(function(){ fallbackCopy(plain); });
+            navigator.clipboard.writeText(plain).catch(function(){
+
+  function fmtCommaInt(n){
+    try{
+      const s = String(Math.round(Number(n)||0));
+      return s.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }catch(e){ return String(n); }
+  }
+ fallbackCopy(plain); });
           } else {
             fallbackCopy(plain);
           }
         });
       } else if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(plain).catch(function(){ fallbackCopy(plain); });
+        navigator.clipboard.writeText(plain).catch(function(){
+
+  function fmtCommaInt(n){
+    try{
+      const s = String(Math.round(Number(n)||0));
+      return s.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }catch(e){ return String(n); }
+  }
+ fallbackCopy(plain); });
       } else {
         fallbackCopy(plain);
       }
