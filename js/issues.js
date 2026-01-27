@@ -350,30 +350,29 @@
     let finalBullets = [];
     if(anyFlagged){
       bySection.forEach(function(sectionObj, sectionName){
-        const sectionTitle = (sectionName && String(sectionName).trim()) ? String(sectionName).trim() : 'Unsectioned';
-        if (sawNamedSection) {
-          finalBullets.push(sectionTitle + ':');
-        }
+        let sectionHasIssues = false;
+        sectionObj.byScope.forEach(function(issues){
+          if (issues && issues.length) sectionHasIssues = true;
+        });
 
-        if (sectionObj.overunitsSummaries && sectionObj.overunitsSummaries.length) {
-          sectionObj.overunitsSummaries.forEach(function(t){
-            // Indent summary lines under their section.
-            finalBullets.push('     ' + t);
-          });
+        const hasNamedSection = sectionName && String(sectionName).trim();
+        const emitSectionHeader = hasNamedSection && sectionHasIssues;
+
+        if (emitSectionHeader) {
+          finalBullets.push({ type: 'section', text: String(sectionName).trim() + ':' });
         }
 
         sectionObj.byScope.forEach(function(issues, scopeName){
           if (issues && issues.length) {
-            finalBullets.push(scopeName + ':');
+            finalBullets.push({ type: 'scope', text: scopeName + ':' });
             issues.forEach(function(i){
-              // Indent issue lines, but omit hyphen so the UI and copied text are cleaner.
-              finalBullets.push('     ' + i);
+              finalBullets.push({ type: 'item', text: '     ' + i });
             });
           }
         });
       });
     } else {
-      finalBullets.push('No issues identified based on current plan.');
+      finalBullets.push({ type: 'item', text: 'No issues identified based on current plan.' });
     }
 
     try {
@@ -443,9 +442,12 @@
     if (listEl) {
       listEl.innerHTML = '';
       const bullets = buildIssues();
-      bullets.forEach(function (text) {
+      bullets.forEach(function (entry) {
         const li = document.createElement('li');
-        if (text.endsWith(':')) {
+        const text = entry.text || '';
+        if (entry.type === 'section') {
+          li.classList.add('issues-section-title');
+        } else if (entry.type === 'scope') {
           li.classList.add('issues-scope-title');
         } else {
           li.classList.add('issues-scope-item');
