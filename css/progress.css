@@ -755,8 +755,8 @@ html, body {
 
 
 /* Issues modal: section headers only */
-#issuesOverlay .issues-section-title{
+.issues-overlay .issues-section-title{
   color: var(--accent);
   font-weight: 700;
-  font-size: 1.06em;
+  font-size: 1.16em;
 }
