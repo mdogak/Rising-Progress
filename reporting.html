@@ -15,19 +15,17 @@
       <div class="issues-modal-header">
         <div class="issues-modal-heading">
           <div id="reportingTitle" class="issues-modal-title">Reporting</div>
-          <div class="issues-modal-subtitle">Summary of reporting based on differences between the current plan and actual progress. Be sure to click the 'Add to History' button to log any entered changes.</div>
+          <div class="issues-modal-subtitle" style="display:none"></div>
 
-<p style="margin-top: 8px; font-size: 15px; color: #444;">
-  Be sure to click the 'Add to History' button to log any entered changes.
-          
-          <div id="reportingLastHistory" class="issues-last-history"></div>
+          <div id="reportingLastHistory" style="display:none" class="issues-last-history" class="issues-last-history"></div>
           <input type="hidden" id="projectName" value=""/>
         </div>
         <button type="button" class="issues-close" aria-label="Close recommendations">&times;</button>
       </div>
-      <div id="reportingHealthWrap" class="reporting-health-wrap"></div>
-      <ul id="reportingList" class="issues-list"></ul>
-      <button type="button" id="reportingCopyBtn" class="issues-copy-btn">Copy Reporting</button>
+      <div id="reportingContent" class="reporting-content">
+        <div id="reportingHealthWrap" class="reporting-health-wrap"></div>
+        <ul id="reportingList" class="issues-list"></ul>
+      </div>
     </div>
   </div>
 
@@ -35,7 +33,7 @@
   <script>
     // When opened directly, build issues from any stored model in sessionStorage.
     document.addEventListener('DOMContentLoaded', function(){
-      if (typeof window.openIssuesModal === 'function') {
+      if (typeof window.openReportingModal === 'function') {
         window.openReportingModal();
       }
     });
