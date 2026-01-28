@@ -45,45 +45,17 @@
           <div class="issues-modal-header">
             <div class="issues-modal-heading">
               <div id="reportingTitle" class="issues-modal-title">Reporting</div>
-              <div class="issues-modal-subtitle">Summary of issues based on differences between the current plan and actual progress.</div>
-              <div id="reportingLastHistory" class="issues-last-history"></div>
+              <div class="issues-modal-subtitle" style="display:none"></div>
+              <div id="reportingLastHistory" class="issues-last-history" style="display:none"></div>
             </div>
             <button type="button" class="issues-close" aria-label="Close recommendations">&times;</button>
           </div>
-          <div id="reportingHealthWrap" class="reporting-health-wrap"></div>
-           <ul id="reportingList" class="issues-list"></ul>
-          <button type="button" id="reportingCopyBtn" class="issues-copy-btn">Copy Reporting</button>
+          <div id="reportingContent" class="reporting-content">
+            <div id="reportingHealthWrap" class="reporting-health-wrap"></div>
+            <ul id="reportingList" class="issues-list"></ul>
+          </div>
         </div>`;
       document.body.appendChild(overlay);
-
-      // Inject scoped styles for modal height + internal scrolling (once)
-      if (!overlay.querySelector('#reportingModalScrollStyles')) {
-        const style = document.createElement('style');
-        style.id = 'reportingModalScrollStyles';
-        style.textContent = `
-          .issues-modal {
-            max-height: 90vh;
-            display: flex;
-            flex-direction: column;
-          }
-
-          .issues-modal-header {
-            flex-shrink: 0;
-          }
-
-          .issues-list {
-            flex: 1 1 auto;
-            overflow-y: auto;
-            margin: 0;
-            padding-right: 6px;
-          }
-
-          .issues-copy-btn {
-            flex-shrink: 0;
-          }
-        `;
-        overlay.appendChild(style);
-      }
     }
 
     // Wire up listeners once
@@ -95,10 +67,14 @@
       overlay.addEventListener('click', function(e){
         if (e.target === overlay) closeReportingModal();
       });
-      const copyBtn = overlay.querySelector('#reportingCopyBtn');
-      if (copyBtn) {
-        copyBtn.addEventListener('click', copyReportingToClipboard);
-      }
+      overlay.addEventListener('click', function(e){
+        try{
+          const btn = e && e.target && e.target.closest ? e.target.closest('#reportingCopyBtn') : null;
+          if (btn) {
+            copyReportingToClipboard();
+          }
+        }catch(_){ }
+      });
       overlay.dataset.bound = '1';
     }
 
@@ -477,14 +453,8 @@
       const pctEl = sr.querySelector('.section-pct');
       actual = coercePctText(readPctTextFromEl(pctEl));
 
-      // Planned is not guaranteed to have a specific class in all builds; try common candidates.
-      const planEl =
-        sr.querySelector('.section-planned') ||
-        sr.querySelector('.section-plan') ||
-        sr.querySelector('.section-plannedPct') ||
-        sr.querySelector('.section-plannedpct') ||
-        sr.querySelector('[data-k="section-planned"]') ||
-        sr.querySelector('[data-k="planned"]');
+            // Planned % must come from the Planned column rendered in the main grid (no recompute)
+      const planEl = sr.querySelector('[data-k="planned"]');
       plan = coercePctText(readPctTextFromEl(planEl));
 
       // If section has no scopes or no weight, force 0% for both
@@ -511,9 +481,36 @@
     // Clear existing
     wrap.innerHTML = '';
 
+    const headRow = document.createElement('div');
+    headRow.className = 'reporting-head-row';
+
     const healthTitle = document.createElement('div');
     healthTitle.className = 'reporting-health-title';
     healthTitle.textContent = 'Project Health: ' + proj;
+
+    const copyBtn = document.createElement('button');
+    copyBtn.type = 'button';
+    copyBtn.id = 'reportingCopyBtn';
+    copyBtn.className = 'issues-copy-btn';
+    copyBtn.innerHTML = '<span class="rp-share-icon" aria-hidden="true"></span><span>Copy</span>';
+
+    headRow.appendChild(healthTitle);
+    headRow.appendChild(copyBtn);
+
+    const summaryBlock = document.createElement('div');
+    summaryBlock.className = 'reporting-summary';
+
+    const summaryLine = document.createElement('div');
+    summaryLine.className = 'reporting-summary-line';
+    summaryLine.textContent = 'Summary of project health comparing planned progress to actual progress.';
+
+    const asOfLine = document.createElement('div');
+    asOfLine.className = 'reporting-asof';
+    const pretty = overlay && overlay.dataset ? (overlay.dataset.reportingAsOfPretty || '') : '';
+    asOfLine.textContent = pretty ? ('Data as of: ' + pretty) : '';
+
+    summaryBlock.appendChild(summaryLine);
+    if (asOfLine.textContent) summaryBlock.appendChild(asOfLine);
 
     const tbl = document.createElement('table');
     tbl.className = 'reporting-health-table';
@@ -567,12 +564,12 @@
     issuesTitle.className = 'reporting-issues-title';
     issuesTitle.textContent = 'Issues: ' + proj;
 
-    wrap.appendChild(healthTitle);
+    wrap.appendChild(headRow);
+    wrap.appendChild(summaryBlock);
     wrap.appendChild(tbl);
     wrap.appendChild(chartWrap);
     wrap.appendChild(issuesTitle);
   }
-
 function openReportingModal(){
     const overlay = ensureOverlay();
 
@@ -584,24 +581,22 @@ function openReportingModal(){
     const titleEl = overlay.querySelector('#reportingTitle');
     if (titleEl) {
       const proj=getProjectName();
-      titleEl.textContent = 'Reporting for ' + proj;
+      titleEl.textContent = 'Reporting';
     }
 
     // Update last history date line if available
-    const lastHistoryEl = overlay.querySelector('#reportingLastHistory');
-    if (lastHistoryEl) {
+    try{
       const historyDateField = document.getElementById('historyDate');
       const fieldDate = historyDateField && historyDateField.value ? historyDateField.value : '';
       const lastDateRaw = fieldDate || getLastHistoryDateFromModel();
-      if (lastDateRaw) {
-        const pretty = friendlyDate(lastDateRaw);
-        lastHistoryEl.textContent = 'Data as of: ' + pretty;
-        lastHistoryEl.style.display = '';
-      } else {
+      overlay.dataset.reportingAsOfPretty = lastDateRaw ? friendlyDate(lastDateRaw) : '';
+      const lastHistoryEl = overlay.querySelector('#reportingLastHistory');
+      if (lastHistoryEl){
         lastHistoryEl.textContent = '';
         lastHistoryEl.style.display = 'none';
       }
-    }
+    }catch(e){}
+
 
     renderProjectHealth(overlay);
 
