@@ -787,7 +787,7 @@ html, body {
 }
 
 #reportingOverlay .reporting-health-table th{
-  background: var(--accent);
+  background: rgba(37,99,235,0.5);
   color: #ffffff;
   font-weight: 700;
 }
@@ -816,4 +816,88 @@ html, body {
   border: 1px solid var(--border);
   border-radius: 12px;
   background: #ffffff;
+}
+
+
+/* Reporting modal only: section headers (issues grouping) */
+#reportingOverlay .issues-section-title{
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 1.16em;
+}
+
+
+/* Reporting modal only: single scroll container for all content */
+#reportingOverlay .issues-modal{
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+#reportingOverlay .issues-modal-header{
+  flex-shrink: 0;
+}
+#reportingOverlay .reporting-content{
+  flex: 1 1 auto;
+  overflow-y: auto;
+  margin: 0;
+  padding-right: 6px;
+}
+
+#reportingOverlay .reporting-head-row{
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+/* Reporting modal only: summary block */
+#reportingOverlay .reporting-summary{
+  margin: 0 0 10px 0;
+}
+#reportingOverlay .reporting-summary-line{
+  color: #ea580c;
+  font-weight: 600;
+}
+#reportingOverlay .reporting-asof{
+  margin-top: 2px;
+  color: #374151;
+}
+
+/* Reporting modal only: Copy button tweaks */
+#reportingOverlay .issues-copy-btn{
+  width: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+}
+
+/* Reporting modal only: CSS-drawn share icon (no unicode) */
+#reportingOverlay .rp-share-icon{
+  width: 12px;
+  height: 12px;
+  display: inline-block;
+  position: relative;
+}
+#reportingOverlay .rp-share-icon::before{
+  content: "";
+  position: absolute;
+  left: 1px;
+  top: 6px;
+  width: 6px;
+  height: 6px;
+  border: 2px solid currentColor;
+  border-right: 0;
+  border-top: 0;
+}
+#reportingOverlay .rp-share-icon::after{
+  content: "";
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid currentColor;
+  border-top: 2px solid currentColor;
+  transform: rotate(45deg);
 }
