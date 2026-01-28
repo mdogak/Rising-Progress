@@ -760,3 +760,60 @@ html, body {
   font-weight: 700;
   font-size: 1.06em;
 }
+
+
+
+/* ===== Reporting modal: Project Health section (scoped) ===== */
+#reportingOverlay .issues-modal{
+  max-width: 960px;
+}
+
+#reportingOverlay .reporting-health-wrap{
+  margin-bottom: 10px;
+}
+
+#reportingOverlay .reporting-health-title,
+#reportingOverlay .reporting-issues-title{
+  font-weight: 700;
+  color: var(--accent);
+  font-size: 20px;
+  margin: 8px 0 10px 0;
+}
+
+#reportingOverlay .reporting-health-table{
+  width: auto;
+  border-collapse: collapse;
+  margin: 0 0 10px 0;
+}
+
+#reportingOverlay .reporting-health-table th{
+  background: var(--accent);
+  color: #ffffff;
+  font-weight: 700;
+}
+
+#reportingOverlay .reporting-health-table th,
+#reportingOverlay .reporting-health-table td{
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  text-align: left;
+}
+
+#reportingOverlay .reporting-health-total td{
+  font-weight: 700;
+}
+
+#reportingOverlay .reporting-chart-wrap{
+  display: flex;
+  justify-content: center;
+  margin: 6px 0 14px 0;
+}
+
+#reportingOverlay .reporting-chart-img{
+  width: 800px;
+  height: auto;
+  max-width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #ffffff;
+}
