@@ -18,14 +18,14 @@
 
   // --- Beta badge control (scoped to Issues modal) ---
   let _issuesBetaPrevDisplay = null;
-  function hideIssuesBetaBadge(){
+  function hideBetaBadge(){
     const betaBadge = document.getElementById('betaBadge');
     if (betaBadge){
       _issuesBetaPrevDisplay = betaBadge.style.display;
       betaBadge.style.display = 'none';
     }
   }
-  function restoreIssuesBetaBadge(){
+  function restoreBetaBadge(){
     const betaBadge = document.getElementById('betaBadge');
     if (betaBadge && _issuesBetaPrevDisplay !== null){
       betaBadge.style.display = _issuesBetaPrevDisplay;
@@ -48,22 +48,10 @@
               <div class="issues-modal-subtitle">Summary of issues based on differences between the current plan and actual progress.</div>
               <div id="issuesLastHistory" class="issues-last-history"></div>
             </div>
-            <div class="issues-modal-actions">
-              <button type="button" id="issuesCopyBtn" class="issues-copy-btn"><span class="issues-copy-icon" aria-hidden="true"></span><span class="issues-copy-text">Copy</span></button>
-              <button type="button" class="issues-close" aria-label="Close recommendations">&times;</button>
-            </div>
+            <button type="button" class="issues-close" aria-label="Close recommendations">&times;</button>
           </div>
-
-          <div id="issuesHealth" class="issues-health">
-            <div id="issuesHealthTitle" class="issues-health-title"></div>
-            <table id="issuesHealthTable" class="issues-health-table"></table>
-            <div id="issuesHealthDays" class="issues-health-days"></div>
-            <div class="issues-health-chartwrap">
-              <img id="issuesHealthChart" class="issues-health-chart" alt="Progress chart"/>
-            </div>
-          </div>
-
           <ul id="issuesList" class="issues-list"></ul>
+          <button type="button" id="issuesCopyBtn" class="issues-copy-btn">Copy Issues</button>
         </div>`;
       document.body.appendChild(overlay);
 
@@ -420,154 +408,7 @@
     return friendlyDate(dateVal);
   }
 
-    function pctTextFromValue(v){
-    if (v == null || v === '') return '0%';
-    const s = String(v).trim();
-    if (!s) return '0%';
-    if (s.endsWith('%')) return s;
-    return s + '%';
-  }
-
-  function pickFirstDefined(obj, keys){
-    if (!obj) return null;
-    for (let i=0;i<keys.length;i++){
-      const k = keys[i];
-      if (obj[k] != null && obj[k] !== '') return obj[k];
-    }
-    return null;
-  }
-
-  function getTotalLegendActualPlan(){
-    const out = { actual: '0%', plan: '0%' };
-    try{
-      if (typeof window !== 'undefined' && window.legendStats){
-        const a = window.legendStats.actualPct;
-        const p = window.legendStats.plannedPct;
-        if (a != null && a !== '') out.actual = pctTextFromValue(a);
-        if (p != null && p !== '') out.plan = pctTextFromValue(p);
-      }
-    }catch(e){ /* ignore */ }
-    return out;
-  }
-
-  function getSectionsInGridOrder(model){
-    if (!model) return [];
-    if (Array.isArray(model.sections)) return model.sections;
-    if (Array.isArray(model.section)) return model.section;
-    return [];
-  }
-
-  function getSectionName(sec, idx){
-    if (!sec) return 'Section ' + String(idx+1);
-    const v = sec.name || sec.label || sec.sectionName || sec.title;
-    return (v != null && String(v).trim()) ? String(v).trim() : ('Section ' + String(idx+1));
-  }
-
-  function getSectionActualPlanText(sec){
-    // Do NOT recompute. Read existing computed values from the section object only.
-    const actualKeys = ['pct','actualPct','progressPct','weightedPct','percent','progressPercent','actualPercent'];
-    const planKeys = ['plannedPct','planPct','plannedPercent','planPercent','plannedToDatePct','plannedtodatePct','plannedToDate','plannedtodate'];
-    const a = pickFirstDefined(sec, actualKeys);
-    const p = pickFirstDefined(sec, planKeys);
-    return {
-      actual: pctTextFromValue(a),
-      plan: pctTextFromValue(p)
-    };
-  }
-
-  function getDaysRelativeTextFromLegend(){
-    try{
-      const el = document.querySelector('div.legend-sub.forecast.legend-daysrel');
-      if (el) return (el.textContent || '').trim();
-    }catch(e){ /* ignore */ }
-    return '';
-  }
-
-  function setHealthChartImage(overlay){
-    const img = overlay ? overlay.querySelector('#issuesHealthChart') : null;
-    const wrap = overlay ? overlay.querySelector('.issues-health-chartwrap') : null;
-    if (!img) return;
-    let dataUrl = '';
-    try{
-      const canvas = document.getElementById('progressChart');
-      if (canvas && typeof canvas.toDataURL === 'function') {
-        dataUrl = canvas.toDataURL('image/png');
-      }
-    }catch(e){ dataUrl = ''; }
-    if (dataUrl) {
-      img.src = dataUrl;
-      img.style.width = '800px';
-      img.style.height = 'auto';
-      img.style.display = '';
-      if (wrap) wrap.style.display = '';
-    } else {
-      img.removeAttribute('src');
-      img.style.display = 'none';
-      if (wrap) wrap.style.display = 'none';
-    }
-  }
-
-  function buildProjectHealth(overlay){
-    if (!overlay) return;
-    const model = getModel();
-    const proj = document.getElementById('projectName')?.value || (model && model.project && model.project.name) || 'Current Project';
-
-    const titleEl = overlay.querySelector('#issuesHealthTitle');
-    if (titleEl) {
-      titleEl.textContent = 'Project Health: ' + proj;
-    }
-
-    const tableEl = overlay.querySelector('#issuesHealthTable');
-    if (tableEl) {
-      const totals = getTotalLegendActualPlan();
-      let html = '';
-      html += '<thead><tr>' +
-        '<th>Progress</th>' +
-        '<th class="right">Actual</th>' +
-        '<th class="right">Plan</th>' +
-        '</tr></thead>';
-      html += '<tbody>';
-
-      html += '<tr class="issues-health-total">' +
-        '<td>Total</td>' +
-        '<td class="right">' + totals.actual + '</td>' +
-        '<td class="right">' + totals.plan + '</td>' +
-        '</tr>';
-
-      const sections = getSectionsInGridOrder(model);
-      for (let i=0;i<sections.length;i++){
-        const sec = sections[i];
-        // If section has zero scopes or zero weight, display 0% (as required)
-        const scopeCount = Number(pickFirstDefined(sec, ['scopeCount','scopesCount','numScopes','scopeLen','scope_length']) || 0);
-        const weight = Number(pickFirstDefined(sec, ['weight','cost','sectionWeight','pctWeight','percentWeight']) || 0);
-        let actualPlan = getSectionActualPlanText(sec);
-
-        if (!scopeCount || !weight) {
-          actualPlan = { actual: '0%', plan: '0%' };
-        }
-
-        html += '<tr>' +
-          '<td>' + String(getSectionName(sec, i)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</td>' +
-          '<td class="right">' + actualPlan.actual + '</td>' +
-          '<td class="right">' + actualPlan.plan + '</td>' +
-          '</tr>';
-      }
-
-      html += '</tbody>';
-      tableEl.innerHTML = html;
-    }
-
-    const daysEl = overlay.querySelector('#issuesHealthDays');
-    if (daysEl) {
-      const t = getDaysRelativeTextFromLegend();
-      daysEl.textContent = t;
-      daysEl.style.display = t ? '' : 'none';
-    }
-
-    setHealthChartImage(overlay);
-  }
-
-function openIssuesModal(){
+  function openIssuesModal(){
     const overlay = ensureOverlay();
 
     if (typeof window !== 'undefined' && typeof window.syncActualFromDOM === 'function') {
@@ -578,10 +419,8 @@ function openIssuesModal(){
     const titleEl = overlay.querySelector('#issuesTitle');
     if (titleEl) {
       const proj=document.getElementById('projectName')?.value||'Current Project';
-      titleEl.textContent = 'Issues: ' + proj;
+      titleEl.textContent = 'Issues for ' + proj;
     }
-
-    buildProjectHealth(overlay);
 
     // Update last history date line if available
     const lastHistoryEl = overlay.querySelector('#issuesLastHistory');
@@ -618,7 +457,7 @@ function openIssuesModal(){
       });
     }
 
-    hideIssuesBetaBadge();
+    hideBetaBadge();
     overlay.classList.remove('hidden');
     document.body.dataset.issuesScrollLock = document.body.style.overflow || '';
     document.body.style.overflow = 'hidden';
@@ -630,7 +469,7 @@ function closeIssuesModal(){
     if(overlay){
       overlay.classList.add('hidden');
     }
-    restoreIssuesBetaBadge();
+    restoreBetaBadge();
     if (document.body.dataset.issuesScrollLock !== undefined) {
       document.body.style.overflow = document.body.dataset.issuesScrollLock;
       delete document.body.dataset.issuesScrollLock;
