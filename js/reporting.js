@@ -50,7 +50,8 @@
             </div>
             <button type="button" class="issues-close" aria-label="Close recommendations">&times;</button>
           </div>
-          <ul id="reportingList" class="issues-list"></ul>
+          <div id="reportingHealthWrap" class="reporting-health-wrap"></div>
+           <ul id="reportingList" class="issues-list"></ul>
           <button type="button" id="reportingCopyBtn" class="issues-copy-btn">Copy Reporting</button>
         </div>`;
       document.body.appendChild(overlay);
@@ -408,7 +409,171 @@
     return friendlyDate(dateVal);
   }
 
-  function openReportingModal(){
+  
+  function getProjectName(){
+    const el = document.getElementById('projectName');
+    let name = '';
+    if (el) {
+      name = (el.value || el.textContent || '').trim();
+    }
+    if (!name) {
+      const model = getModel();
+      if (model && model.project && model.project.name) {
+        name = String(model.project.name).trim();
+      }
+    }
+    if (!name) name = 'Current Project';
+    // If projectName element exists but is empty (standalone), seed it so later reads are stable.
+    if (el && !(el.value || '').trim()) {
+      try { el.value = name; } catch(e){}
+    }
+    return name;
+  }
+
+  function readPctTextFromEl(el){
+    if (!el) return '';
+    const t = (el.textContent || el.value || '').trim();
+    return t;
+  }
+
+  function coercePctText(t){
+    // Keep existing formatting if it already includes '%'
+    if (!t) return '0%';
+    const s = String(t).trim();
+    if (!s) return '0%';
+    if (s.indexOf('%') !== -1) return s;
+    // If raw number, append %
+    const n = Number(s);
+    if (!isFinite(n)) return '0%';
+    return String(s) + '%';
+  }
+
+  function buildProgressTableRows(){
+    // Total comes from legend values (authoritative, no recompute)
+    const totalActual = coercePctText(readPctTextFromEl(document.querySelector('.legend-sub.actual')));
+    const totalPlanned = coercePctText(readPctTextFromEl(document.querySelector('.legend-sub.planned')));
+
+    const rows = [];
+    rows.push({ label: 'Total', actual: totalActual, plan: totalPlanned, isTotal: true });
+
+    // Section rows come from existing section summary elements (DOM order)
+    const sectionRows = Array.from(document.querySelectorAll('.section-row'));
+    sectionRows.forEach(function(sr){
+      let name = '';
+      const titleEl = sr.querySelector('.section-title');
+      if (titleEl) {
+        name = (titleEl.value || titleEl.textContent || '').trim();
+      }
+      if (!name) {
+        // Fallback: try any first cell text
+        const scopeCell = sr.querySelector('.section-scope');
+        if (scopeCell) name = (scopeCell.textContent || '').trim();
+      }
+      if (!name) name = 'Section';
+
+      let actual = '';
+      let plan = '';
+
+      const pctEl = sr.querySelector('.section-pct');
+      actual = coercePctText(readPctTextFromEl(pctEl));
+
+      // Planned is not guaranteed to have a specific class in all builds; try common candidates.
+      const planEl =
+        sr.querySelector('.section-planned') ||
+        sr.querySelector('.section-plan') ||
+        sr.querySelector('.section-plannedPct') ||
+        sr.querySelector('.section-plannedpct') ||
+        sr.querySelector('[data-k="section-planned"]') ||
+        sr.querySelector('[data-k="planned"]');
+      plan = coercePctText(readPctTextFromEl(planEl));
+
+      // If section has no scopes or no weight, force 0% for both
+      // We infer "no weight" if actual and plan are missing or non-numeric.
+      const aNum = Number(String(actual).replace('%','').trim());
+      const pNum = Number(String(plan).replace('%','').trim());
+      if (!isFinite(aNum) && !isFinite(pNum)) {
+        actual = '0%';
+        plan = '0%';
+      }
+
+      rows.push({ label: name, actual: actual || '0%', plan: plan || '0%', isTotal: false });
+    });
+
+    return rows;
+  }
+
+  function renderProjectHealth(overlay){
+    const wrap = overlay.querySelector('#reportingHealthWrap');
+    if (!wrap) return;
+
+    const proj = getProjectName();
+
+    // Clear existing
+    wrap.innerHTML = '';
+
+    const healthTitle = document.createElement('div');
+    healthTitle.className = 'reporting-health-title';
+    healthTitle.textContent = 'Project Health: ' + proj;
+
+    const tbl = document.createElement('table');
+    tbl.className = 'reporting-health-table';
+
+    const thead = document.createElement('thead');
+    const trh = document.createElement('tr');
+    ['Progress','Actual','Plan'].forEach(function(h){
+      const th = document.createElement('th');
+      th.textContent = h;
+      trh.appendChild(th);
+    });
+    thead.appendChild(trh);
+    tbl.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    const rows = buildProgressTableRows();
+    rows.forEach(function(r){
+      const tr = document.createElement('tr');
+      if (r.isTotal) tr.className = 'reporting-health-total';
+      const td0 = document.createElement('td'); td0.textContent = r.label;
+      const td1 = document.createElement('td'); td1.textContent = r.actual;
+      const td2 = document.createElement('td'); td2.textContent = r.plan;
+      tr.appendChild(td0); tr.appendChild(td1); tr.appendChild(td2);
+      tbody.appendChild(tr);
+    });
+    tbl.appendChild(tbody);
+
+    // Chart image (from existing chart canvas)
+    const chartWrap = document.createElement('div');
+    chartWrap.className = 'reporting-chart-wrap';
+
+    const img = document.createElement('img');
+    img.className = 'reporting-chart-img';
+    img.alt = 'Progress chart';
+
+    // Default: keep hidden until we can render
+    img.style.display = 'none';
+
+    try{
+      const canvas = document.getElementById('progressChart');
+      if (canvas && typeof canvas.toDataURL === 'function') {
+        const dataUrl = canvas.toDataURL('image/png');
+        img.src = dataUrl;
+        img.style.display = '';
+      }
+    }catch(e){}
+
+    chartWrap.appendChild(img);
+
+    const issuesTitle = document.createElement('div');
+    issuesTitle.className = 'reporting-issues-title';
+    issuesTitle.textContent = 'Issues: ' + proj;
+
+    wrap.appendChild(healthTitle);
+    wrap.appendChild(tbl);
+    wrap.appendChild(chartWrap);
+    wrap.appendChild(issuesTitle);
+  }
+
+function openReportingModal(){
     const overlay = ensureOverlay();
 
     if (typeof window !== 'undefined' && typeof window.syncActualFromDOM === 'function') {
@@ -418,7 +583,7 @@
     // Always use a simple, consistent title.
     const titleEl = overlay.querySelector('#reportingTitle');
     if (titleEl) {
-      const proj=document.getElementById('projectName')?.value||'Current Project';
+      const proj=getProjectName();
       titleEl.textContent = 'Reporting for ' + proj;
     }
 
@@ -437,6 +602,8 @@
         lastHistoryEl.style.display = 'none';
       }
     }
+
+    renderProjectHealth(overlay);
 
     const listEl = overlay.querySelector('#reportingList');
     if (listEl) {
