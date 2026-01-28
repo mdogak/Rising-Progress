@@ -755,8 +755,100 @@ html, body {
 
 
 /* Issues modal: section headers only */
-.issues-overlay .issues-section-title{
+#issuesOverlay .issues-section-title{
   color: var(--accent);
   font-weight: 700;
-  font-size: 1.16em;
+  font-size: 1.06em;
+}
+
+
+/* === Issues modal: Project Health additions (scoped to Issues only) === */
+#issuesOverlay .issues-modal{
+  max-width: 940px;
+}
+
+#issuesOverlay .issues-modal-header{
+  align-items: flex-start;
+}
+
+#issuesOverlay .issues-modal-actions{
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+#issuesOverlay .issues-copy-btn{
+  width: auto;
+  padding: 6px 12px;
+  border-radius: 9999px;
+  gap: 8px;
+}
+
+#issuesOverlay .issues-copy-icon{
+  width: 16px;
+  height: 16px;
+  display: inline-block;
+  background-repeat: no-repeat;
+  background-size: 16px 16px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232563eb' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7'/><path d='M16 6l-4-4-4 4'/><path d='M12 2v14'/></svg>");
+}
+
+#issuesOverlay .issues-health{
+  margin: 10px 0 14px 0;
+}
+
+#issuesOverlay .issues-health-title{
+  font-size: 20px;
+  font-weight: 700;
+  color: #2563eb;
+  margin: 10px 0 8px 0;
+}
+
+#issuesOverlay .issues-health-table{
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 8px 0;
+  font-size: 14px;
+}
+
+#issuesOverlay .issues-health-table th,
+#issuesOverlay .issues-health-table td{
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+#issuesOverlay .issues-health-table thead th{
+  background: #2563eb;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+#issuesOverlay .issues-health-table .issues-health-total td{
+  font-weight: 700;
+}
+
+#issuesOverlay .issues-health-days{
+  color: var(--ok);
+  font-weight: 600;
+  margin: 6px 0 10px 0;
+}
+
+#issuesOverlay .issues-health-chartwrap{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0 0 12px 0;
+}
+
+#issuesOverlay .issues-health-chart{
+  width: 800px;
+  height: auto;
+  display: block;
+  pointer-events: none;
+  user-select: none;
+}
+
+
+#issuesOverlay .issues-copy-btn:hover .issues-copy-icon{
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7'/><path d='M16 6l-4-4-4 4'/><path d='M12 2v14'/></svg>");
 }
