@@ -457,6 +457,33 @@
       const planEl = sr.querySelector('.section-planned');
       plan = coercePctText(readPctTextFromEl(planEl));
 
+      // Fallback: if section planned isn't available yet, derive from scope planned cells in this section
+      if ((!plan || plan === '0%') && sr.dataset && sr.dataset.startIndex != null && sr.dataset.endIndex != null) {
+        const startIdx = Number(sr.dataset.startIndex);
+        const endIdx = Number(sr.dataset.endIndex);
+
+        const scopeRows = Array.from(document.querySelectorAll('#scopeRows .scope-row'));
+        let acc = 0;
+        let count = 0;
+
+        for (let i = startIdx; i <= endIdx; i++) {
+          const rowEl = scopeRows[i];
+          if (!rowEl) continue;
+          const plannedCell = rowEl.querySelector('[data-k="planned"]');
+          const t = (plannedCell && plannedCell.textContent || '').trim();
+          if (!t) continue;
+
+          if (t.includes('%')) {
+            const n = parseFloat(t.replace('%',''));
+            if (isFinite(n)) { acc += n; count++; }
+          }
+        }
+
+        if (count > 0) {
+          plan = (acc / count).toFixed(1) + '%';
+        }
+      }
+
       // If section has no scopes or no weight, force 0% for both
       // We infer "no weight" if actual and plan are missing or non-numeric.
       const aNum = Number(String(actual).replace('%','').trim());
