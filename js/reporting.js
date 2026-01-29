@@ -517,28 +517,9 @@
         return;
       }
 
-      // Scope row
-      if (el.classList.contains('row')) {
-        const idx = Number(el.dataset.index);
-        const scope = (model && Array.isArray(model.scopes) && Number.isFinite(idx)) ? model.scopes[idx] : null;
-
-        // Label: prefer model label, then DOM label input
-        let label = (scope && scope.label && String(scope.label).trim()) || '';
-        if (!label) {
-          const labelInput = el.querySelector('[data-k="label"]');
-          if (labelInput) label = (labelInput.value || labelInput.textContent || '').trim();
-        }
-        if (!label) label = Number.isFinite(idx) ? ('Scope ' + (idx + 1)) : 'Scope';
-
-        const actualPct = (scope && scope.actualPct != null) ? Number(scope.actualPct) : null;
-        const plannedPct = calcScopePlannedPctReporting(scope);
-
-        rows.push({
-          label: label,
-          actual: fmtPct1(actualPct),
-          plan: fmtPct1(plannedPct),
-          isTotal: false
-        });
+      
+      // Scopes intentionally omitted from reporting table
+);
       }
     });
 
