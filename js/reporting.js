@@ -51,8 +51,11 @@
             <button type="button" class="issues-close" aria-label="Close recommendations">&times;</button>
           </div>
           <div id="reportingContent" class="reporting-content">
-            <div id="reportingHealthWrap" class="reporting-health-wrap"></div>
-            <ul id="reportingList" class="issues-list"></ul>
+            <div id="reportingContentWrap" class="reporting-content-wrap">
+              <div id="reportingProjectHeader" class="reporting-project-header"></div>
+              <div id="reportingHealthWrap" class="reporting-health-wrap"></div>
+              <ul id="reportingList" class="issues-list"></ul>
+            </div>
           </div>
         </div>`;
       document.body.appendChild(overlay);
@@ -513,7 +516,7 @@
 
     const healthTitle = document.createElement('div');
     healthTitle.className = 'reporting-health-title';
-    healthTitle.textContent = 'Project Health: ' + proj;
+    healthTitle.textContent = 'Project Health:';
 
     const copyBtn = document.createElement('button');
     copyBtn.type = 'button';
@@ -553,6 +556,16 @@
     tbl.appendChild(thead);
 
     const tbody = document.createElement('tbody');
+
+    function parseDisplayedPct(txt){
+      try{
+        const s = String(txt == null ? '' : txt).trim();
+        if (!s) return null;
+        const n = parseFloat(s.replace(/[^0-9.\-]/g,''));
+        return isFinite(n) ? n : null;
+      }catch(e){ return null; }
+    }
+
     const rows = buildProgressTableRows();
     rows.forEach(function(r){
       const tr = document.createElement('tr');
@@ -560,6 +573,14 @@
       const td0 = document.createElement('td'); td0.textContent = r.label;
       const td1 = document.createElement('td'); td1.textContent = r.actual;
       const td2 = document.createElement('td'); td2.textContent = r.plan;
+
+      try{
+        const aNum = parseDisplayedPct(r.actual);
+        const pNum = parseDisplayedPct(r.plan);
+        if (aNum != null && pNum != null && aNum < pNum) {
+          td1.classList.add('rp-actual-behind');
+        }
+      }catch(e){ /* ignore */ }
       tr.appendChild(td0); tr.appendChild(td1); tr.appendChild(td2);
       tbody.appendChild(tr);
     });
@@ -629,11 +650,22 @@
 
     const issuesTitle = document.createElement('div');
     issuesTitle.className = 'reporting-issues-title';
-    issuesTitle.textContent = 'Issues: ' + proj;
+    issuesTitle.textContent = 'Issues:';
 
     wrap.appendChild(headRow);
     wrap.appendChild(summaryBlock);
     wrap.appendChild(tbl);
+
+    try{
+      const daysRelSrc = document.querySelector('.legend-sub.forecast.legend-daysrel') || document.querySelector('.legend-daysrel');
+      if (daysRelSrc) {
+        const daysRel = daysRelSrc.cloneNode(true);
+        daysRel.classList.add('legend-sub','forecast','legend-daysrel');
+        daysRel.classList.add('reporting-daysrel');
+        wrap.appendChild(daysRel);
+      }
+    }catch(e){ /* ignore */ }
+
     wrap.appendChild(chartWrap);
     wrap.appendChild(issuesTitle);
   }
@@ -647,8 +679,12 @@ function openReportingModal(){
     // Always use a simple, consistent title.
     const titleEl = overlay.querySelector('#reportingTitle');
     if (titleEl) {
-      const proj=getProjectName();
+      const proj = getProjectName();
       titleEl.textContent = 'Reporting';
+      try{
+        const hdr = overlay.querySelector('#reportingProjectHeader');
+        if (hdr) hdr.textContent = proj + ' Reporting';
+      }catch(e){ /* ignore */ }
     }
 
     // Update last history date line if available
@@ -706,158 +742,55 @@ function closeReportingModal(){
   }
 
   
+  
   function copyReportingToClipboard(){
     const overlay = document.getElementById('reportingOverlay') || ensureOverlay();
-    const listEl = overlay.querySelector('#reportingList');
-    const titleEl = overlay.querySelector('#reportingTitle');
-    const subtitleEl = overlay.querySelector('.issues-modal-subtitle');
-    const dateEl = overlay.querySelector('#reportingLastHistory');
+    const src = overlay.querySelector('#reportingContentWrap') || overlay.querySelector('#reportingContent') || overlay.querySelector('.reporting-content');
+    if (!src) return;
 
-    // Helper to safely embed textContent into HTML
-    function esc(s){
-      return String(s == null ? '' : s)
-        .replace(/&/g,'&amp;')
-        .replace(/</g,'&lt;')
-        .replace(/>/g,'&gt;')
-        .replace(/"/g,'&quot;')
-        .replace(/'/g,'&#39;');
-    }
+    // Copy the full Reporting modal content as HTML (includes chart image data URL).
+    const holder = document.createElement('div');
+    holder.style.position = 'fixed';
+    holder.style.left = '-9999px';
+    holder.style.top = '0';
+    holder.style.width = '1200px';
+    holder.style.background = '#ffffff';
 
-    // -------- Build plain-text (fallback-friendly) --------
-    let plainLines = [];
-    const titleTxt = titleEl ? (titleEl.textContent || '').trim() : '';
-    const subtitleTxt = subtitleEl ? (subtitleEl.textContent || '').trim() : '';
-    const dateTxt = (dateEl && dateEl.textContent) ? dateEl.textContent.trim() : '';
+    const clone = src.cloneNode(true);
+    holder.appendChild(clone);
+    document.body.appendChild(holder);
 
-    if (titleTxt) plainLines.push(titleTxt);
-    if (subtitleTxt) plainLines.push(subtitleTxt);
-    if (dateTxt) plainLines.push(dateTxt);
-    if (titleTxt || subtitleTxt || dateTxt) plainLines.push(''); // spacer
-
-    // -------- Build HTML using semantic lists (email-client friendly) --------
-    let html = '<div>';
-
-    if (titleTxt) {
-      html += '<div style="font-size:18px; font-weight:700; margin:0 0 4px 0;">' + esc(titleTxt) + '</div>';
-    }
-    if (subtitleTxt) {
-      html += '<div style="font-weight:400; color:#ea580c; margin:0 0 4px 0;">' + esc(subtitleTxt) + '</div>';
-    }
-    if (dateTxt) {
-      html += '<div style="font-weight:400; font-size:13px; color:#4b5563; margin:0 0 12px 0;">' + esc(dateTxt) + '</div>';
-    }
-
-    // List serialization:
-    // - Scope titles: bold, unbulleted
-    // - Issues: bulleted list
-    let scopeOpen = false;
-
-    function closeScope(){
-      if (scopeOpen){
-        html += '</ul>';
-      }
-      scopeOpen = false;
-    }
-
-    function openScope(scopeTitle){
-      closeScope();
-      html += '<div style="font-weight:700; margin:0 0 6px 0;">' + esc(scopeTitle) + '</div>';
-      html += '<ul style="margin:0 0 8px 18px;">';
-      scopeOpen = true;
-
-      // plain text: bullet + scope title
-      plainLines.push('- ' + scopeTitle);
-    }
-
-    function addIssueLine(issueText){
-      if (!scopeOpen){
-        // If an issue line appears without a scope header, keep output readable.
-        html += '<li style="margin:0 0 4px 0; font-weight:400;">' + esc(issueText) + '</li>';
-        // ASCII-only bullet
-        plainLines.push('- ' + issueText);
-        return;
-      }
-
-      html += '<li style="margin:0 0 4px 0; font-weight:400;">' + esc(issueText) + '</li>';
-
-      // plain text: indent issues under scope (ASCII-only)
-      plainLines.push('  - ' + issueText);
-    }
-
-    if (listEl && listEl.children && listEl.children.length) {
-      Array.from(listEl.children).forEach(function(li){
-        const raw = (li.textContent || '').trim();
-        if (!raw) return;
-
-        if (li.classList.contains('issues-scope-title')) {
-          // Remove trailing ":" for copied output (modal UI stays unchanged)
-          const title = raw.endsWith(':') ? raw.slice(0, -1).trim() : raw;
-          openScope(title || raw);
-        } else {
-          addIssueLine(raw);
-        }
-      });
-    }
-
-    closeScope();
-    html += '</div>';
-
-    const plain = plainLines.join('\\n');
-
-    // -------- Clipboard write with robust fallbacks --------
-    try {
-      const canWriteRich = navigator.clipboard && navigator.clipboard.write && (typeof ClipboardItem !== 'undefined');
-      if (canWriteRich) {
-        navigator.clipboard.write([
-          new ClipboardItem({
-            "text/html": new Blob([html], { type: "text/html" }),
-            "text/plain": new Blob([plain], { type: "text/plain" })
-          })
-        ]).catch(function(){
-
-  function fmtCommaInt(n){
+    let ok = false;
     try{
-      const s = String(Math.round(Number(n)||0));
-      return s.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-    }catch(e){ return String(n); }
-  }
-
-          // If rich write fails, try plain text before legacy fallback.
-          if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(plain).catch(function(){
-
-  function fmtCommaInt(n){
-    try{
-      const s = String(Math.round(Number(n)||0));
-      return s.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-    }catch(e){ return String(n); }
-  }
- fallbackCopy(plain); });
-          } else {
-            fallbackCopy(plain);
-          }
-        });
-      } else if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(plain).catch(function(){
-
-  function fmtCommaInt(n){
-    try{
-      const s = String(Math.round(Number(n)||0));
-      return s.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-    }catch(e){ return String(n); }
-  }
- fallbackCopy(plain); });
-      } else {
-        fallbackCopy(plain);
+      const range = document.createRange();
+      range.selectNodeContents(holder);
+      const sel = window.getSelection();
+      if (sel) {
+        sel.removeAllRanges();
+        sel.addRange(range);
       }
-    } catch(e){
-      fallbackCopy(plain);
+      ok = document.execCommand('copy');
+      if (sel) sel.removeAllRanges();
+    }catch(e){
+      ok = false;
+      try{
+        const sel = window.getSelection();
+        if (sel) sel.removeAllRanges();
+      }catch(_){ }
+    }
+
+    document.body.removeChild(holder);
+
+    if (!ok) {
+      fallbackCopyText((src.innerText || src.textContent || '').trim());
+    } else {
+      window.alert('Reporting copied. Paste into email or notes.');
     }
   }
 
-  function fallbackCopy(text){
+  function fallbackCopyText(text){
     const ta = document.createElement('textarea');
-    ta.value = text;
+    ta.value = String(text || '');
     ta.style.position = 'fixed';
     ta.style.left = '-9999px';
     document.body.appendChild(ta);
@@ -869,8 +802,9 @@ function closeReportingModal(){
       // ignore
     }
     document.body.removeChild(ta);
-    window.alert('Issues copied. You can paste into email or notes.');
+    window.alert('Reporting copied. Paste into email or notes.');
   }
+
 
   // Expose public API
   window.openReportingModal = openReportingModal;
