@@ -429,98 +429,44 @@
     const totalActual = coercePctText(readPctTextFromEl(document.querySelector('.legend-sub.actual')));
     const totalPlanned = coercePctText(readPctTextFromEl(document.querySelector('.legend-sub.planned')));
 
-    // Helpers: compute planned % to date for a scope using historyDate if set, otherwise today's date.
-    function clampNum(n, lo, hi){
-      n = Number(n);
-      if (!isFinite(n)) n = 0;
-      return Math.max(lo, Math.min(hi, n));
-    }
-    function parseISODate(val){
-      if (!val) return null;
-      const d = new Date(String(val) + 'T00:00:00');
-      if (!d || isNaN(d.getTime())) return null;
-      return d;
-    }
-    function localToday(){
-      const now = new Date();
-      return new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    }
-    function getPlanRefDate(){
-      const hdEl = document.getElementById('historyDate');
-      const hdVal = hdEl && hdEl.value ? String(hdEl.value).trim() : '';
-      const d = parseISODate(hdVal);
-      return d || localToday();
-    }
-    function daysBetweenInclusive(a, b){
-      // a,b: Date objects (midnight local). inclusive day count.
-      const msPerDay = 24 * 60 * 60 * 1000;
-      const aa = new Date(a.getFullYear(), a.getMonth(), a.getDate());
-      const bb = new Date(b.getFullYear(), b.getMonth(), b.getDate());
-      const diff = Math.round((bb.getTime() - aa.getTime()) / msPerDay);
-      return diff + 1;
-    }
-    function calcScopePlannedPctReporting(scope){
-      if (!scope || !scope.start || !scope.end) return 0;
-      const dStart = parseISODate(scope.start);
-      const dEnd = parseISODate(scope.end);
-      if (!dStart || !dEnd) return 0;
-
-      // Invalid range: end before start => treat as 100%
-      if (dEnd < dStart) return 100;
-
-      const t = getPlanRefDate();
-      if (!t) return 0;
-
-      if (t < dStart) return 0;
-      if (t > dEnd) return 100;
-
-      const durationDays = daysBetweenInclusive(dStart, dEnd);
-      const elapsedDays = daysBetweenInclusive(dStart, t);
-      if (durationDays <= 0) return 100;
-
-      const pct = (elapsedDays / durationDays) * 100;
-      return clampNum(pct, 0, 100);
-    }
-    function fmtPct1(n){
-      const v = clampNum(n, 0, 100);
-      return v.toFixed(1) + '%';
-    }
-
     const rows = [];
     rows.push({ label: 'Total', actual: totalActual, plan: totalPlanned, isTotal: true });
 
-    // Build rows in the same order as the main grid (sections + scopes).
-    const model = getModel();
-    const grid = document.getElementById('scopeRows');
-    const children = grid ? Array.from(grid.children) : [];
+    // Section rows come from existing section summary elements (DOM order)
+    const sectionRows = Array.from(document.querySelectorAll('.section-row'));
+    sectionRows.forEach(function(sr){
+      let name = '';
+      const titleEl = sr.querySelector('.section-title');
+      if (titleEl) {
+        name = (titleEl.value || titleEl.textContent || '').trim();
+      }
+      if (!name) {
+        // Fallback: try any first cell text
+        const scopeCell = sr.querySelector('.section-scope');
+        if (scopeCell) name = (scopeCell.textContent || '').trim();
+      }
+      if (!name) name = 'Section';
 
-    children.forEach(function(el){
-      if (!el || !el.classList) return;
+      let actual = '';
+      let plan = '';
 
-      // Section header row
-      if (el.classList.contains('section-row')) {
-        let name = '';
-        const titleEl = el.querySelector('.section-title');
-        if (titleEl) name = (titleEl.value || titleEl.textContent || '').trim();
-        if (!name) {
-          const scopeCell = el.querySelector('.section-scope');
-          if (scopeCell) name = (scopeCell.textContent || '').trim();
-        }
-        if (!name) name = 'Section';
+      const pctEl = sr.querySelector('.section-pct');
+      actual = coercePctText(readPctTextFromEl(pctEl));
 
-        const actualEl = el.querySelector('.section-pct');
-        const planEl = el.querySelector('.section-planned');
-        const actual = coercePctText(readPctTextFromEl(actualEl));
-        const plan = coercePctText(readPctTextFromEl(planEl));
+            // Planned % must come from the Planned column rendered in the main grid (no recompute)
+      const planEl = sr.querySelector('.section-planned');
+      plan = coercePctText(readPctTextFromEl(planEl));
 
-        rows.push({ label: name, actual: actual || '0%', plan: plan || '0%', isTotal: false });
-        return;
+      // If section has no scopes or no weight, force 0% for both
+      // We infer "no weight" if actual and plan are missing or non-numeric.
+      const aNum = Number(String(actual).replace('%','').trim());
+      const pNum = Number(String(plan).replace('%','').trim());
+      if (!isFinite(aNum) && !isFinite(pNum)) {
+        actual = '0%';
+        plan = '0%';
       }
 
-      
-      // Scopes intentionally omitted from reporting table
-);
-      }
+      rows.push({ label: name, actual: actual || '0%', plan: plan || '0%', isTotal: false });
     });
 
     return rows;
