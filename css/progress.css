@@ -765,7 +765,8 @@ html, body {
 
 /* ===== Reporting modal: Project Health section (scoped) ===== */
 #reportingOverlay .issues-modal{
-  max-width: 960px;
+  max-width: 1120px;
+  padding: 28px 32px;
 }
 
 #reportingOverlay .reporting-health-wrap{
@@ -805,12 +806,12 @@ html, body {
 
 #reportingOverlay .reporting-chart-wrap{
   display: flex;
-  justify-content: center;
-  margin: 6px 0 14px 0;
+  justify-content: flex-start;
+  margin: 14px 0 14px 0;
 }
 
 #reportingOverlay .reporting-chart-img{
-  width: 800px;
+  width: 1000px;
   height: auto;
   max-width: 100%;
   border: 1px solid var(--border);
@@ -823,9 +824,30 @@ html, body {
 #reportingOverlay .issues-section-title{
   color: var(--accent);
   font-weight: 700;
-  font-size: 1.16em;
+  font-size: 1.10em;
+  list-style: none;
+  margin-left: 0;
 }
 
+
+#reportingOverlay .reporting-content-wrap{
+  font-size: 1.2em;
+}
+
+#reportingOverlay .issues-list{
+  font-size: 1em;
+}
+
+#reportingOverlay .reporting-project-header{
+  color: var(--accent-2);
+  font-weight: 700;
+  font-size: 24px;
+  margin: 0 0 12px 0;
+}
+
+#reportingOverlay .rp-actual-behind{
+  color: var(--danger);
+}
 
 /* Reporting modal only: single scroll container for all content */
 #reportingOverlay .issues-modal{
@@ -874,27 +896,31 @@ html, body {
 
 /* Reporting modal only: CSS-drawn share icon (no unicode) */
 #reportingOverlay .rp-share-icon{
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   display: inline-block;
   position: relative;
+  box-sizing: border-box;
+  border: 2px solid currentColor;
+  border-top: 0;
+  border-radius: 2px;
 }
 #reportingOverlay .rp-share-icon::before{
   content: "";
   position: absolute;
-  left: 1px;
-  top: 6px;
-  width: 6px;
-  height: 6px;
-  border: 2px solid currentColor;
-  border-right: 0;
-  border-top: 0;
+  left: 4px;
+  top: 2px;
+  width: 8px;
+  height: 2px;
+  background: currentColor;
+  transform: rotate(-45deg);
+  transform-origin: left center;
 }
 #reportingOverlay .rp-share-icon::after{
   content: "";
   position: absolute;
-  right: 0;
-  top: 0;
+  right: 0px;
+  top: 0px;
   width: 7px;
   height: 7px;
   border-right: 2px solid currentColor;
