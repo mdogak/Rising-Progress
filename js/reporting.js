@@ -565,27 +565,67 @@
     });
     tbl.appendChild(tbody);
 
-    // Chart image (from existing chart canvas)
+    // Chart image (from #captureRegion; fallback to existing chart canvas)
     const chartWrap = document.createElement('div');
     chartWrap.className = 'reporting-chart-wrap';
+
+    // Loading placeholder while html2canvas renders
+    const loading = document.createElement('div');
+    loading.className = 'reporting-chart-loading';
+    loading.textContent = 'Loading chart image…';
+    // Keep styling minimal so UI remains stable even without CSS updates
+    loading.style.fontSize = '13px';
+    loading.style.color = '#6b7280';
+    loading.style.padding = '8px 0';
 
     const img = document.createElement('img');
     img.className = 'reporting-chart-img';
     img.alt = 'Progress chart';
 
-    // Default: keep hidden until we can render
+    // Start hidden until we can render an image
     img.style.display = 'none';
 
-    try{
-      const canvas = document.getElementById('progressChart');
-      if (canvas && typeof canvas.toDataURL === 'function') {
-        const dataUrl = canvas.toDataURL('image/png');
-        img.src = dataUrl;
-        img.style.display = '';
-      }
-    }catch(e){}
-
+    chartWrap.appendChild(loading);
     chartWrap.appendChild(img);
+
+    function useCanvasFallback(){
+      try{
+        const canvas = document.getElementById('progressChart');
+        if (canvas && typeof canvas.toDataURL === 'function') {
+          img.src = canvas.toDataURL('image/png');
+          img.style.display = '';
+        }
+      }catch(e){ /* ignore */ }
+      // Always hide placeholder once we either succeed or give up
+      loading.style.display = 'none';
+    }
+
+    let started = false;
+    try{
+      const region = document.getElementById('captureRegion');
+      const h2c = (typeof window !== 'undefined') ? window.html2canvas : null;
+
+      if (region && typeof h2c === 'function') {
+        started = true;
+        h2c(region, { backgroundColor: '#ffffff', scale: 2, useCORS: true })
+          .then(function(c){
+            try{
+              img.src = c.toDataURL('image/png');
+              img.style.display = '';
+              loading.style.display = 'none';
+            }catch(e){
+              useCanvasFallback();
+            }
+          })
+          .catch(function(){
+            useCanvasFallback();
+          });
+      }
+    }catch(e){ /* ignore */ }
+
+    if (!started) {
+      useCanvasFallback();
+    }
 
     const issuesTitle = document.createElement('div');
     issuesTitle.className = 'reporting-issues-title';
