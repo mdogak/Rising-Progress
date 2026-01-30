@@ -41,11 +41,16 @@
       overlay.id = 'reportingOverlay';
       overlay.className = 'issues-overlay hidden';
       overlay.innerHTML = `
-        <div class="issues-modal" role="dialog" aria-modal="true" aria-label="Reporting">
-          <div class="issues-modal-header reporting-modal-header">
-            <button type="button" class="issues-close" aria-label="Close reporting">&times;</button>
+        <div class="issues-modal" role="dialog" aria-modal="true" aria-labelledby="reportingTitle">
+          <div class="issues-modal-header">
+            <div class="issues-modal-heading">
+              <div id="reportingTitle" class="issues-modal-title">Reporting</div>
+              <div class="issues-modal-subtitle" style="display:none"></div>
+              <div id="reportingLastHistory" class="issues-last-history" style="display:none"></div>
+            </div>
+            <button type="button" class="issues-close" aria-label="Close recommendations">&times;</button>
           </div>
-          <div id="reportingContent class="reporting-content">
+          <div id="reportingContent" class="reporting-content">
             <div id="reportingContentWrap" class="reporting-content-wrap">
               <div id="reportingProjectHeader" class="reporting-project-header"></div>
               <div id="reportingHealthWrap" class="reporting-health-wrap"></div>
@@ -517,8 +522,7 @@
     copyBtn.type = 'button';
     copyBtn.id = 'reportingCopyBtn';
     copyBtn.className = 'issues-copy-btn';
-    copyBtn.setAttribute('aria-label','Copy reporting to clipboard');
-    copyBtn.innerHTML = '<span class="rp-copy-icon" aria-hidden="true">📋</span><span>Copy</span>';
+    copyBtn.innerHTML = '<span class="rp-share-icon" aria-hidden="true"></span><span>Copy</span>';
 
     headRow.appendChild(healthTitle);
     headRow.appendChild(copyBtn);
@@ -672,14 +676,18 @@ function openReportingModal(){
       window.syncActualFromDOM();
     }
 
-    // Set project header inside scrollable content.
-try{
-  const proj = getProjectName();
-  const hdr = overlay.querySelector('#reportingProjectHeader');
-  if (hdr) hdr.textContent = proj + ' Reporting';
-}catch(e){ /* ignore */ }
+    // Always use a simple, consistent title.
+    const titleEl = overlay.querySelector('#reportingTitle');
+    if (titleEl) {
+      const proj = getProjectName();
+      titleEl.textContent = 'Reporting';
+      try{
+        const hdr = overlay.querySelector('#reportingProjectHeader');
+        if (hdr) hdr.textContent = proj + ' Reporting';
+      }catch(e){ /* ignore */ }
+    }
 
-// Update last history date line if available
+    // Update last history date line if available
     try{
       const historyDateField = document.getElementById('historyDate');
       const fieldDate = historyDateField && historyDateField.value ? historyDateField.value : '';
@@ -735,282 +743,25 @@ function closeReportingModal(){
 
   
   
-  
-function copyReportingToClipboard(){
-  const overlay = document.getElementById('reportingOverlay') || ensureOverlay();
-  const srcRoot = overlay.querySelector('#reportingContentWrap') || overlay.querySelector('#reportingContent') || overlay.querySelector('.reporting-content');
-  if (!srcRoot) return;
+  function copyReportingToClipboard(){
+    const overlay = document.getElementById('reportingOverlay') || ensureOverlay();
+    const src = overlay.querySelector('#reportingContentWrap') || overlay.querySelector('#reportingContent') || overlay.querySelector('.reporting-content');
+    if (!src) return;
 
-  const payload = buildReportingCopyPayload(overlay, srcRoot);
-
-  writeReportingToClipboard(payload.html, payload.text)
-    .then(function(){
-      window.alert('Reporting copied. Paste into email or notes.');
-    })
-    .catch(function(){
-      // Last resort: plain text
-      fallbackCopyText(payload.text || '');
-    });
-}
-
-function buildReportingCopyPayload(overlay, srcRoot){
-  // Plain text: clone and remove any UI-only elements.
-  let plain = '';
-  try{
-    const clone = srcRoot.cloneNode(true);
-    const copyBtn = clone.querySelector('#reportingCopyBtn');
-    if (copyBtn && copyBtn.parentNode) copyBtn.parentNode.removeChild(copyBtn);
-    plain = (clone.innerText || clone.textContent || '').trim();
-  }catch(e){
-    plain = (srcRoot.innerText || srcRoot.textContent || '').trim();
-  }
-
-  const html = buildEmailSafeReportingHtml(overlay, srcRoot);
-
-  return { html: html, text: plain };
-}
-
-function escHtml(s){
-  return String(s == null ? '' : s)
-    .replace(/&/g,'&amp;')
-    .replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;')
-    .replace(/"/g,'&quot;')
-    .replace(/'/g,'&#39;');
-}
-
-function buildEmailSafeReportingHtml(overlay, srcRoot){
-  const accent = '#2563eb';
-  const accent2 = '#ea580c';
-  const danger = '#dc2626';
-  const border = '#e2e8f0';
-  const text = '#374151';
-
-  function pickText(sel){
-    try{
-      const el = srcRoot.querySelector(sel);
-      return el ? (el.textContent || '').trim() : '';
-    }catch(e){ return ''; }
-  }
-
-  const projectHeader = pickText('#reportingProjectHeader');
-  const healthTitle = pickText('.reporting-health-title') || 'Project Health:';
-  const summaryLine = pickText('.reporting-summary-line');
-  const asOfLine = pickText('.reporting-asof');
-  const daysRelLine = (function(){
-    try{
-      const el = srcRoot.querySelector('.reporting-daysrel') || srcRoot.querySelector('.legend-daysrel');
-      return el ? (el.textContent || '').trim() : '';
-    }catch(e){ return ''; }
-  })();
-
-  // Chart image: MUST be copied exactly as-is.
-  let chartSrc = '';
-  let chartAlt = 'Progress chart';
-  try{
-    const img = srcRoot.querySelector('.reporting-chart-img');
-    if (img && img.getAttribute) {
-      chartSrc = img.getAttribute('src') || '';
-      chartAlt = img.getAttribute('alt') || chartAlt;
-    }
-  }catch(e){ /* ignore */ }
-
-  // Health table: read existing DOM and rebuild with inline styles.
-  let healthTableHtml = '';
-  try{
-    const tbl = srcRoot.querySelector('.reporting-health-table');
-    if (tbl) {
-      const rows = Array.from(tbl.querySelectorAll('tr'));
-      const headerCells = rows.length ? Array.from(rows[0].querySelectorAll('th,td')).map(c => (c.textContent||'').trim()) : ['Progress','Actual','Plan'];
-
-      const bodyRows = Array.from(tbl.querySelectorAll('tbody tr'));
-      const bodyHtml = bodyRows.map(function(tr){
-        const tds = Array.from(tr.querySelectorAll('td')).map(td => (td.textContent||'').trim());
-        const isTotal = tr.classList && tr.classList.contains('reporting-health-total');
-
-        // Determine if actual is behind plan (red)
-        let actualStyle = '';
-        try{
-          const actualTd = tr.querySelector('td:nth-child(2)');
-          if (actualTd && actualTd.classList && actualTd.classList.contains('rp-actual-behind')) {
-            actualStyle = 'color:' + danger + ';';
-          }
-        }catch(e){}
-
-        const baseCellStyle = 'padding:6px 10px;border:1px solid ' + border + ';text-align:left;font-size:16px;line-height:1.25;color:' + text + ';';
-        const bold = isTotal ? 'font-weight:700;' : '';
-        return (
-          '<tr>' +
-            '<td style="' + baseCellStyle + bold + '">' + escHtml(tds[0] || '') + '</td>' +
-            '<td style="' + baseCellStyle + bold + actualStyle + '">' + escHtml(tds[1] || '') + '</td>' +
-            '<td style="' + baseCellStyle + bold + '">' + escHtml(tds[2] || '') + '</td>' +
-          '</tr>'
-        );
-      }).join('');
-
-      const thStyle = 'padding:6px 10px;border:1px solid ' + border + ';background:' + accent + ';color:#ffffff;font-weight:700;text-align:left;font-size:16px;line-height:1.25;';
-      healthTableHtml =
-        '<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin:0 0 10px 0;">' +
-          '<tr>' +
-            '<td style="' + thStyle + '">' + escHtml(headerCells[0] || 'Progress') + '</td>' +
-            '<td style="' + thStyle + '">' + escHtml(headerCells[1] || 'Actual') + '</td>' +
-            '<td style="' + thStyle + '">' + escHtml(headerCells[2] || 'Plan') + '</td>' +
-          '</tr>' +
-          bodyHtml +
-        '</table>';
-    }
-  }catch(e){ /* ignore */ }
-
-  // Issues list: transform to email-safe structure (NO ul/li).
-  let issuesHtml = '';
-  try{
-    const list = srcRoot.querySelector('#reportingList');
-    if (list) {
-      const items = Array.from(list.querySelectorAll('li'));
-      const rows = [];
-
-      items.forEach(function(li){
-        const cls = li.classList || {};
-        const t = (li.textContent || '').replace(/\s+$/,'').replace(/^\s+/,'');
-        if (!t) return;
-
-        const isSection = cls.contains && cls.contains('issues-section-title');
-        const isScope = cls.contains && cls.contains('issues-scope-title');
-        const isItem = cls.contains && cls.contains('issues-scope-item');
-
-        if (isSection) {
-          rows.push(
-            '<tr><td colspan="2" style="padding:10px 0 4px 0;font-size:16px;line-height:1.25;color:' + accent + ';font-weight:700;">' +
-              escHtml(t.replace(/^--|--$/g,'')) +
-            '</td></tr>'
-          );
-          return;
-        }
-
-        if (isScope) {
-          rows.push(
-            '<tr><td colspan="2" style="padding:10px 0 2px 0;font-size:16px;line-height:1.25;color:#111827;font-weight:700;">' +
-              escHtml(t) +
-            '</td></tr>'
-          );
-          return;
-        }
-
-        if (isItem) {
-          rows.push(
-            '<tr>' +
-              '<td valign="top" style="width:18px;padding:2px 6px 6px 0;font-size:18px;line-height:1.25;color:' + text + ';">&bull;</td>' +
-              '<td valign="top" style="padding:2px 0 6px 0;font-size:16px;line-height:1.25;color:' + text + ';">' + escHtml(t) + '</td>' +
-            '</tr>'
-          );
-          return;
-        }
-
-        // Fallback: treat as bullet.
-        rows.push(
-          '<tr>' +
-            '<td valign="top" style="width:18px;padding:2px 6px 6px 0;font-size:18px;line-height:1.25;color:' + text + ';">&bull;</td>' +
-            '<td valign="top" style="padding:2px 0 6px 0;font-size:16px;line-height:1.25;color:' + text + ';">' + escHtml(t) + '</td>' +
-          '</tr>'
-        );
-      });
-
-      issuesHtml =
-        '<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">' +
-          rows.join('') +
-        '</table>';
-    }
-  }catch(e){ /* ignore */ }
-
-  const outerStyle = 'font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:' + text + ';';
-  const sectionPad = 'padding:0 0 10px 0;';
-
-  const html =
-    '<div style="' + outerStyle + '">' +
-
-      // Project header
-      (projectHeader ? (
-        '<div style="font-size:24px;line-height:1.25;font-weight:700;color:' + accent2 + ';padding:0 0 12px 0;">' +
-          escHtml(projectHeader) +
-        '</div>'
-      ) : '') +
-
-      // Health title + copy omitted
-      '<div style="font-size:22px;line-height:1.25;font-weight:700;color:' + accent + ';' + sectionPad + '">' + escHtml(healthTitle) + '</div>' +
-
-      // Summary
-      (summaryLine ? (
-        '<div style="font-size:16px;line-height:1.3;color:' + accent2 + ';padding:0 0 2px 0;">' + escHtml(summaryLine) + '</div>'
-      ) : '') +
-      (asOfLine ? (
-        '<div style="font-size:16px;line-height:1.3;color:' + text + ';padding:0 0 8px 0;">' + escHtml(asOfLine) + '</div>'
-      ) : '<div style="padding:0 0 8px 0;"></div>') +
-
-      // Table
-      (healthTableHtml || '') +
-
-      // DaysRel line (green)
-      (daysRelLine ? (
-        '<div style="font-size:15px;line-height:1.3;color:#16a34a;padding:0 0 10px 0;">' + escHtml(daysRelLine) + '</div>'
-      ) : '<div style="padding:0 0 10px 0;"></div>') +
-
-      // Chart image
-      (chartSrc ? (
-        '<div style="padding:0 0 14px 0;">' +
-          '<img src="' + chartSrc + '" alt="' + escHtml(chartAlt) + '" style="display:block;width:1000px;max-width:100%;height:auto;border:1px solid ' + border + ';border-radius:12px;background:#ffffff;" />' +
-        '</div>'
-      ) : '') +
-
-      // Issues title
-      '<div style="font-size:22px;line-height:1.25;font-weight:700;color:' + accent + ';padding:0 0 10px 0;">Issues:</div>' +
-
-      // Issues content
-      (issuesHtml || '') +
-
-    '</div>';
-
-  return html;
-}
-
-function writeReportingToClipboard(html, text){
-  // Prefer the async Clipboard API with both HTML and plain text.
-  try{
-    if (navigator && navigator.clipboard && window.ClipboardItem && typeof navigator.clipboard.write === 'function') {
-      const item = new ClipboardItem({
-        'text/html': new Blob([String(html || '')], { type: 'text/html' }),
-        'text/plain': new Blob([String(text || '')], { type: 'text/plain' })
-      });
-      return navigator.clipboard.write([item]);
-    }
-  }catch(e){ /* ignore */ }
-
-  // Fallback: use execCommand('copy') with an oncopy handler to set both formats.
-  return new Promise(function(resolve, reject){
-    let ok = false;
-
-    function onCopy(e){
-      try{
-        if (e && e.clipboardData) {
-          e.clipboardData.setData('text/html', String(html || ''));
-          e.clipboardData.setData('text/plain', String(text || ''));
-          e.preventDefault();
-          ok = true;
-        }
-      }catch(_){}
-    }
-
+    // Copy the full Reporting modal content as HTML (includes chart image data URL).
     const holder = document.createElement('div');
     holder.style.position = 'fixed';
     holder.style.left = '-9999px';
     holder.style.top = '0';
     holder.style.width = '1200px';
-    holder.innerHTML = String(html || '');
+    holder.style.background = '#ffffff';
 
+    const clone = src.cloneNode(true);
+    holder.appendChild(clone);
     document.body.appendChild(holder);
 
+    let ok = false;
     try{
-      document.addEventListener('copy', onCopy);
-
       const range = document.createRange();
       range.selectNodeContents(holder);
       const sel = window.getSelection();
@@ -1022,34 +773,37 @@ function writeReportingToClipboard(html, text){
       if (sel) sel.removeAllRanges();
     }catch(e){
       ok = false;
+      try{
+        const sel = window.getSelection();
+        if (sel) sel.removeAllRanges();
+      }catch(_){ }
     }
 
-    try{ document.removeEventListener('copy', onCopy); }catch(_){}
-    try{ document.body.removeChild(holder); }catch(_){}
+    document.body.removeChild(holder);
 
-    if (ok) resolve();
-    else reject(new Error('copy_failed'));
-  });
-}
-
-function fallbackCopyText(text){
-(text){
-    const ta = document.createElement('textarea');
-    ta.value = String(text || '');
-    ta.style.position = 'fixed';
-    ta.style.left = '-9999px';
-    document.body.appendChild(ta);
-    ta.focus();
-    ta.select();
-    try{
-      document.execCommand('copy');
-    }catch(e){
-      // ignore
+    if (!ok) {
+      fallbackCopyText((src.innerText || src.textContent || '').trim());
+    } else {
+      window.alert('Reporting copied. Paste into email or notes.');
     }
-    document.body.removeChild(ta);
-    window.alert('Reporting copied. Paste into email or notes.');
   }
 
+  function fallbackCopyText(text){
+  const ta = document.createElement('textarea');
+  ta.value = String(text || '');
+  ta.style.position = 'fixed';
+  ta.style.left = '-9999px';
+  ta.style.top = '0';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  try{
+    document.execCommand('copy');
+  }catch(e){
+    // ignore
+  }
+  document.body.removeChild(ta);
+}
 
   // Expose public API
   window.openReportingModal = openReportingModal;
