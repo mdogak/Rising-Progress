@@ -822,7 +822,7 @@ html, body {
 
 /* Reporting modal only: section headers (issues grouping) */
 #reportingOverlay .issues-section-title{
-  color: var(--accent);
+  color: var(--accent-2);
   font-weight: 700;
   font-size: 1em;
   list-style: none;
@@ -891,18 +891,17 @@ html, body {
   width: auto;
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 18px;
+  gap: 8px;
+  padding: 8px 15px;
   border-radius: 9999px;
   border: 1px solid #2563eb;
   background: #ffffff;
   color: #2563eb;
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 600;
   line-height: 1.1;
   cursor: pointer;
-  height: 46px;
-
+  height: 40px;
 }
 
 /* Reporting modal only: CSS-drawn share icon (no unicode) */
@@ -937,12 +936,4 @@ html, body {
   border-right: 2px solid currentColor;
   border-top: 2px solid currentColor;
   transform: rotate(45deg);
-}
-
-
-/* Reporting modal: header left project title */
-#reportingOverlay .reporting-header-left{
-  font-size:24px;
-  font-weight:700;
-  color: var(--accent-2);
 }
