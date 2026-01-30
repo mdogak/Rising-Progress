@@ -1,0 +1,45 @@
+<!-- © 2025 Rising Progress LLC. All rights reserved. -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Reporting</title>
+  <link rel="stylesheet" href="css/progress.css"/>
+</head>
+<body>
+  <!-- Standalone recommendations view; in the main app this same structure is injected as a modal -->
+  <div id="reportingOverlay" class="issues-overlay">
+    <div class="issues-modal" role="dialog" aria-modal="true" aria-labelledby="reportingTitle">
+      <div class="issues-modal-header">
+        <div class="issues-modal-heading">
+          <div id="reportingTitle" class="issues-modal-title">Reporting</div>
+          <div class="issues-modal-subtitle" style="display:none"></div>
+
+          <div id="reportingLastHistory" style="display:none" class="issues-last-history" class="issues-last-history"></div>
+          <input type="hidden" id="projectName" value=""/>
+        </div>
+        <button type="button" class="issues-close" aria-label="Close recommendations">&times;</button>
+      </div>
+      <div id="reportingContent" class="reporting-content">
+        <div id="reportingContentWrap" class="reporting-content-wrap">
+          <div id="reportingProjectHeader" class="reporting-project-header"></div>
+          <div id="reportingHealthWrap" class="reporting-health-wrap"></div>
+          <ul id="reportingList" class="issues-list"></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/reporting.js"></script>
+  <script>
+    // When opened directly, build issues from any stored model in sessionStorage.
+    document.addEventListener('DOMContentLoaded', function(){
+      if (typeof window.openReportingModal === 'function') {
+        window.openReportingModal();
+      }
+    });
+  </script>
+</body>
+</html>

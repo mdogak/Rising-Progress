@@ -125,6 +125,10 @@
   <span class="issues-icon" aria-hidden="true">⚠️</span>
   <span>Issues</span>
 </button>
+<button id="toolbarReporting" class="btn-issues">
+  <span class="issues-icon" aria-hidden="true"><img src="https://risingprogress.com/risingprogress.ico" alt="" style="height:16px;width:16px;vertical-align:middle;"></span>
+  <span>Reporting</span>
+</button>
 </div>
 <div class="row head" style="margin-top:8px">
 <div>Scope</div>
@@ -256,10 +260,28 @@
     }
   };
 
+  window.requireAuthForReporting = function () {
+    const user = auth.currentUser;
+    if (!user) {
+      try {
+        sessionStorage.setItem("pendingSave", "reporting");
+      } catch (e) {
+        /* ignore */
+      }
+      redirectToLogin();
+      return;
+    }
+    if (typeof window.openReportingModal === "function") {
+      window.openReportingModal();
+    }
+  };
+
+
   document.addEventListener("DOMContentLoaded", () => {
     const authButton = document.getElementById("authButton");
     const saveButton = document.getElementById("toolbarSave");
     const issuesButton = document.getElementById("toolbarIssues");
+    const reportingButton = document.getElementById("toolbarReporting");
 
     if (issuesButton) {
       issuesButton.addEventListener("click", () => {
@@ -267,6 +289,16 @@
           window.requireAuthForIssues();
         } else if (typeof window.openIssuesModal === "function") {
           window.openIssuesModal();
+        }
+      });
+    }
+
+    if (reportingButton) {
+      reportingButton.addEventListener("click", () => {
+        if (typeof window.requireAuthForReporting === "function") {
+          window.requireAuthForReporting();
+        } else if (typeof window.openReportingModal === "function") {
+          window.openReportingModal();
         }
       });
     }
@@ -313,6 +345,8 @@
                 window.saveXml();
               } else if (pending === "issues" && typeof window.openIssuesModal === "function") {
                 window.openIssuesModal();
+              } else if (pending === "reporting" && typeof window.openReportingModal === "function") {
+                window.openReportingModal();
               }
             } finally {
               try {
@@ -334,6 +368,7 @@
 <script src="js/json-loader.js"></script>
 <script type="module" src="js/clear.js"></script>
 <script src="js/issues.js"></script>
+<script src="js/reporting.js"></script>
 <script type="module" src="js/image.js"></script>
 
   <div id="toast"></div>

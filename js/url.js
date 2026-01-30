@@ -182,6 +182,21 @@ export function initUrlLoader(){
         clearHistoryDateProjectSuppression();
         loadFromPrgsText(text);
 
+        // URL loads don't trigger user-driven DOM events, so dependent UI (like section header planned %)
+        // can appear stale until the user edits a field. Force a post-hydration render + compute.
+        try{
+          const kick = ()=>{
+            try { window.syncScopeRowsToModel && window.syncScopeRowsToModel(); } catch(_){ }
+            try { window.computeAndRender && window.computeAndRender(); } catch(_){ }
+          };
+          // Defer to ensure loadFromPrgsText has finished updating the model + inputs.
+          if (window.requestAnimationFrame) {
+            requestAnimationFrame(()=> setTimeout(kick, 0));
+          } else {
+            setTimeout(kick, 0);
+          }
+        }catch(_){ }
+
         window.__RP_URL_HYDRATED = true;
         try { sessionStorage.setItem('rp_prgs_loaded', '1'); } catch(e){}
 

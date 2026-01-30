@@ -756,7 +756,184 @@ html, body {
 
 /* Issues modal: section headers only */
 #issuesOverlay .issues-section-title{
-  color: var(--accent);
+  color: var(--accent-2);
   font-weight: 700;
   font-size: 1.06em;
+}
+
+
+
+/* ===== Reporting modal: Project Health section (scoped) ===== */
+#reportingOverlay .issues-modal{
+  max-width: 1120px;
+  padding: 28px 32px;
+}
+
+#reportingOverlay .reporting-health-wrap{
+  margin-bottom: 10px;
+}
+
+#reportingOverlay .reporting-health-title,
+#reportingOverlay .reporting-issues-title{
+  font-weight: 700;
+  color: var(--accent);
+  font-size: 22px;
+  margin: 8px 0 10px 0;
+}
+
+#reportingOverlay .reporting-health-table{
+  width: auto;
+  border-collapse: collapse;
+  margin: 0 0 10px 0;
+}
+
+#reportingOverlay .reporting-health-table th{
+  background: rgba(37,99,235,0.5);
+  color: #ffffff;
+  font-weight: 700;
+}
+
+#reportingOverlay .reporting-health-table th,
+#reportingOverlay .reporting-health-table td{
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  text-align: left;
+}
+
+#reportingOverlay .reporting-health-total td{
+  font-weight: 700;
+}
+
+#reportingOverlay .reporting-chart-wrap{
+  display: flex;
+  justify-content: flex-start;
+  margin: 14px 0 14px 0;
+}
+
+#reportingOverlay .reporting-chart-img{
+  width: 1000px;
+  height: auto;
+  max-width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+
+/* Reporting modal only: section headers (issues grouping) */
+#reportingOverlay .issues-section-title{
+  color: var(--accent-2);
+  font-weight: 700;
+  font-size: 1em;
+  list-style: none;
+  margin-left: 0;
+}
+
+
+#reportingOverlay .reporting-content-wrap{
+  font-size: 1em;
+}
+
+#reportingOverlay .issues-list{
+  font-size: 1em;
+}
+
+#reportingOverlay .reporting-project-header{
+  color: var(--accent-2);
+  font-weight: 700;
+  font-size: 24px;
+  margin: 0 0 12px 0;
+}
+
+#reportingOverlay .rp-actual-behind{
+  color: var(--danger);
+}
+
+/* Reporting modal only: single scroll container for all content */
+#reportingOverlay .issues-modal{
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+#reportingOverlay .issues-modal-header{
+  flex-shrink: 0;
+  margin-bottom: 0;
+}
+#reportingOverlay .reporting-content{
+  flex: 1 1 auto;
+  overflow-y: auto;
+  margin: 0;
+  padding-right: 6px;
+}
+
+#reportingOverlay .reporting-head-row{
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+/* Reporting modal only: summary block */
+#reportingOverlay .reporting-summary{
+  margin: 0 0 10px 0;
+}
+#reportingOverlay .reporting-summary-line{
+  color: #ea580c;
+  font-weight: 400;
+}
+#reportingOverlay .reporting-asof{
+  margin-top: 2px;
+  color: #374151;
+}
+
+/* Reporting modal only: Copy button tweaks */
+#reportingOverlay .issues-copy-btn{
+  width: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 15px;
+  border-radius: 9999px;
+  border: 1px solid #2563eb;
+  background: #ffffff;
+  color: #2563eb;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.1;
+  cursor: pointer;
+  height: 40px;
+}
+
+/* Reporting modal only: CSS-drawn share icon (no unicode) */
+#reportingOverlay .rp-share-icon{
+  width: 14px;
+  height: 14px;
+  display: inline-block;
+  position: relative;
+  box-sizing: border-box;
+  border: 2px solid currentColor;
+  border-top: 0;
+  border-radius: 2px;
+}
+#reportingOverlay .rp-share-icon::before{
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 2px;
+  width: 8px;
+  height: 2px;
+  background: currentColor;
+  transform: rotate(-45deg);
+  transform-origin: left center;
+}
+#reportingOverlay .rp-share-icon::after{
+  content: "";
+  position: absolute;
+  right: 0px;
+  top: 0px;
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid currentColor;
+  border-top: 2px solid currentColor;
+  transform: rotate(45deg);
 }
