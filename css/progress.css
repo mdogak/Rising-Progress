@@ -857,8 +857,6 @@ html, body {
 }
 #reportingOverlay .issues-modal-header{
   flex-shrink: 0;
-  justify-content: flex-end;
-  margin-bottom: 0;
 }
 #reportingOverlay .reporting-content{
   flex: 1 1 auto;
@@ -892,14 +890,40 @@ html, body {
   width: auto;
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 16px;
-  font-size: 24px;
-  line-height: 1.1;
+  gap: 8px;
+  padding: 6px 10px;
 }
 
-/* Reporting modal only: Copy icon (unicode, no CSS-drawn icon) */
-#reportingOverlay .rp-copy-icon{
-  font-size: 24px;
-  line-height: 1;
+/* Reporting modal only: CSS-drawn share icon (no unicode) */
+#reportingOverlay .rp-share-icon{
+  width: 14px;
+  height: 14px;
+  display: inline-block;
+  position: relative;
+  box-sizing: border-box;
+  border: 2px solid currentColor;
+  border-top: 0;
+  border-radius: 2px;
+}
+#reportingOverlay .rp-share-icon::before{
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 2px;
+  width: 8px;
+  height: 2px;
+  background: currentColor;
+  transform: rotate(-45deg);
+  transform-origin: left center;
+}
+#reportingOverlay .rp-share-icon::after{
+  content: "";
+  position: absolute;
+  right: 0px;
+  top: 0px;
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid currentColor;
+  border-top: 2px solid currentColor;
+  transform: rotate(45deg);
 }
