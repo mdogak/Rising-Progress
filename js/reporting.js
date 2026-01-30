@@ -43,12 +43,20 @@
       overlay.innerHTML = `
         <div class="issues-modal" role="dialog" aria-modal="true" aria-label="Reporting">
           <div class="issues-modal-header">
-            <div class="issues-modal-heading"></div>
-            <button type="button" class="issues-close" aria-label="Close recommendations">&times;</button>
+            <div class="issues-modal-heading">
+              <div id="reportingProjectHeader" class="reporting-project-header"></div>
+            </div>
+            <div style="display:flex; gap:10px; align-items:center;">
+              <button type="button" id="reportingCopyBtn" class="issues-copy-btn" aria-label="Copy reporting">
+                <span aria-hidden="true">📋</span>
+                <span>Copy</span>
+              </button>
+              <button type="button" class="issues-close" aria-label="Close recommendations">&times;</button>
+            </div>
           </div>
           <div id="reportingContent" class="reporting-content">
             <div id="reportingContentWrap" class="reporting-content-wrap">
-                            <div id="reportingHealthWrap" class="reporting-health-wrap"></div>
+              <div id="reportingHealthWrap" class="reporting-health-wrap"></div>
               <ul id="reportingList" class="issues-list"></ul>
             </div>
           </div>
@@ -513,14 +521,7 @@
     healthTitle.className = 'reporting-health-title';
     healthTitle.textContent = 'Project Health:';
 
-    const copyBtn = document.createElement('button');
-    copyBtn.type = 'button';
-    copyBtn.id = 'reportingCopyBtn';
-    copyBtn.className = 'issues-copy-btn';
-    copyBtn.innerHTML = '<span aria-hidden="true">📋</span><span>Copy</span>';
-
     headRow.appendChild(healthTitle);
-    headRow.appendChild(copyBtn);
 
     const summaryBlock = document.createElement('div');
     summaryBlock.className = 'reporting-summary';
@@ -674,7 +675,7 @@ function openReportingModal(){
     // Always use a simple, consistent title.
     try{
       const proj = getProjectName();
-      const hdr = overlay.querySelector('#reportingHeaderLeft');
+      const hdr = overlay.querySelector('#reportingProjectHeader');
       if (hdr) hdr.textContent = proj + ' Reporting';
     }catch(e){ /* ignore */ }
 
@@ -929,7 +930,7 @@ function closeReportingModal(){
 
         if (ent.kind === 'section') {
           bullet = '';
-          textStyle = 'font-size:16px; color:' + accentBlue + '; font-weight:700;';
+          textStyle = 'font-size:16px; color:' + accentOrange + '; font-weight:700;';
           padTop = 8;
         } else if (ent.kind === 'scope') {
           bullet = '';
