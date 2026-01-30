@@ -44,7 +44,13 @@
         <div class="issues-modal" role="dialog" aria-modal="true" aria-label="Reporting">
           <div class="issues-modal-header">
             <div class="issues-modal-heading"></div>
-            <button type="button" class="issues-close" aria-label="Close recommendations">&times;</button>
+            <div style="display:flex; gap:10px; align-items:center;">
+              <button type="button" id="reportingCopyBtn" class="issues-copy-btn" aria-label="Copy reporting">
+                <span aria-hidden="true">📋</span>
+                <span>Copy</span>
+              </button>
+              <button type="button" class="issues-close" aria-label="Close recommendations">&times;</button>
+            </div>
           </div>
           <div id="reportingContent" class="reporting-content">
             <div id="reportingContentWrap" class="reporting-content-wrap">
@@ -514,14 +520,7 @@
     healthTitle.className = 'reporting-health-title';
     healthTitle.textContent = 'Project Health:';
 
-    const copyBtn = document.createElement('button');
-    copyBtn.type = 'button';
-    copyBtn.id = 'reportingCopyBtn';
-    copyBtn.className = 'issues-copy-btn';
-    copyBtn.innerHTML = '<span aria-hidden="true">📋</span><span>Copy</span>';
-
     headRow.appendChild(healthTitle);
-    headRow.appendChild(copyBtn);
 
     const summaryBlock = document.createElement('div');
     summaryBlock.className = 'reporting-summary';
@@ -930,7 +929,7 @@ function closeReportingModal(){
 
         if (ent.kind === 'section') {
           bullet = '';
-          textStyle = 'font-size:16px; color:' + accentBlue + '; font-weight:700;';
+          textStyle = 'font-size:16px; color:' + accentOrange + '; font-weight:700;';
           padTop = 8;
         } else if (ent.kind === 'scope') {
           bullet = '';
