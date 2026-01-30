@@ -102,12 +102,7 @@
 <div style="display:flex;justify-content:space-between;align-items:center">
 <hr class="section-divider">
 </div>
-<div class="toolbar" style="margin:8px 0 4px 0">
-
-	<div style="position:relative; display:inline-block;">
-	  <button id="toolbarSave">💾 Save Project</button>
-	  <div id="saveDropdown" style="display:none; position:absolute; top:calc(100% + 4px); left:0; background:white; border:1px solid #ccc; z-index:1000;">
-	    <div id="saveCSV" style="padding:8px; cursor:pointer;">Save as CSV</div>
+<div class="toolbar" style="margin:8px 0 4px 0"></div>
 	    <div id="saveXML" style="padding:8px; cursor:pointer;">Save as XML</div>
 	    <div id="saveIMG" style="padding:8px; cursor:pointer;">Save Image</div>
 	  </div>
@@ -119,17 +114,10 @@
 <button id="baselineBtn">🧱 Set Original Plan</button>
 </div>
 
-<div class="toolbar" style="margin-top: 8px;">
-<span class="pill"><button class="btn-primary" id="snapshot">📈 Add to History</button>Current Progress: <strong id="totalActual">0.00%</strong> <input id="historyDate" style="margin-left:6px" type="date"/></span>
-<button id="toolbarIssues" class="btn-issues">
-  <span class="issues-icon" aria-hidden="true">⚠️</span>
-  <span>Issues</span>
-</button>
-<button id="toolbarReporting" class="btn-issues">
+<div class="toolbar" style="margin-top: 8px;"><button id="toolbarReporting" class="btn-issues">
   <span class="issues-icon" aria-hidden="true"><img src="https://risingprogress.com/risingprogress.ico" alt="" style="height:16px;width:16px;vertical-align:middle;"></span>
   <span>Reporting</span>
-</button>
-</div>
+</button></div>
 <div class="row head" style="margin-top:8px">
 <div>Scope</div>
 <div>Start</div>
@@ -145,9 +133,7 @@
 </div>
 <!-- Controls BELOW Scope Tracking -->
 <div class="card" style="margin-top:16px">
-<div class="toolbar" id="summaryBar">
-
-</div>
+<div class="toolbar" id="summaryBar"></div>
 </div>
 <!-- History + Baseline -->
 <div class="stack-when-narrow" style="margin-top:16px">
