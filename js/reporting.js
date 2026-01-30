@@ -41,13 +41,9 @@
       overlay.id = 'reportingOverlay';
       overlay.className = 'issues-overlay hidden';
       overlay.innerHTML = `
-        <div class="issues-modal" role="dialog" aria-modal="true" aria-labelledby="reportingTitle">
+        <div class="issues-modal" role="dialog" aria-modal="true" aria-label="Reporting">
           <div class="issues-modal-header">
-            <div class="issues-modal-heading">
-              <div id="reportingTitle" class="issues-modal-title">Reporting</div>
-              <div class="issues-modal-subtitle" style="display:none"></div>
-              <div id="reportingLastHistory" class="issues-last-history" style="display:none"></div>
-            </div>
+            <div class="issues-modal-heading"></div>
             <button type="button" class="issues-close" aria-label="Close recommendations">&times;</button>
           </div>
           <div id="reportingContent" class="reporting-content">
@@ -522,7 +518,7 @@
     copyBtn.type = 'button';
     copyBtn.id = 'reportingCopyBtn';
     copyBtn.className = 'issues-copy-btn';
-    copyBtn.innerHTML = '<span class="rp-share-icon" aria-hidden="true"></span><span>Copy</span>';
+    copyBtn.innerHTML = '<span aria-hidden="true">📋</span><span>Copy</span>';
 
     headRow.appendChild(healthTitle);
     headRow.appendChild(copyBtn);
@@ -677,15 +673,11 @@ function openReportingModal(){
     }
 
     // Always use a simple, consistent title.
-    const titleEl = overlay.querySelector('#reportingTitle');
-    if (titleEl) {
+    try{
       const proj = getProjectName();
-      titleEl.textContent = 'Reporting';
-      try{
-        const hdr = overlay.querySelector('#reportingProjectHeader');
-        if (hdr) hdr.textContent = proj + ' Reporting';
-      }catch(e){ /* ignore */ }
-    }
+      const hdr = overlay.querySelector('#reportingProjectHeader');
+      if (hdr) hdr.textContent = proj + ' Reporting';
+    }catch(e){ /* ignore */ }
 
     // Update last history date line if available
     try{
@@ -745,47 +737,283 @@ function closeReportingModal(){
   
   function copyReportingToClipboard(){
     const overlay = document.getElementById('reportingOverlay') || ensureOverlay();
-    const src = overlay.querySelector('#reportingContentWrap') || overlay.querySelector('#reportingContent') || overlay.querySelector('.reporting-content');
-    if (!src) return;
 
-    // Copy the full Reporting modal content as HTML (includes chart image data URL).
-    const holder = document.createElement('div');
-    holder.style.position = 'fixed';
-    holder.style.left = '-9999px';
-    holder.style.top = '0';
-    holder.style.width = '1200px';
-    holder.style.background = '#ffffff';
+    function readText(el){
+      try{ return (el && (el.textContent || el.innerText || '') || '').trim(); }catch(e){ return ''; }
+    }
 
-    const clone = src.cloneNode(true);
-    holder.appendChild(clone);
-    document.body.appendChild(holder);
+    function escapeHtml(s){
+      return String(s == null ? '' : s)
+        .replace(/&/g,'&amp;')
+        .replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;')
+        .replace(/"/g,'&quot;')
+        .replace(/'/g,'&#39;');
+    }
 
-    let ok = false;
-    try{
-      const range = document.createRange();
-      range.selectNodeContents(holder);
-      const sel = window.getSelection();
-      if (sel) {
-        sel.removeAllRanges();
-        sel.addRange(range);
-      }
-      ok = document.execCommand('copy');
-      if (sel) sel.removeAllRanges();
-    }catch(e){
-      ok = false;
+    function buildPlainText(){
+      const lines = [];
+      const projHdr = readText(overlay.querySelector('#reportingProjectHeader'));
+      if (projHdr) lines.push(projHdr);
+
+      lines.push('');
+      lines.push('Project Health:');
+      lines.push('Summary of project health comparing planned progress to actual progress.');
+
       try{
+        const asOfPretty = overlay && overlay.dataset ? (overlay.dataset.reportingAsOfPretty || '') : '';
+        if (asOfPretty) lines.push('Data as of: ' + asOfPretty);
+      }catch(e){ /* ignore */ }
+
+      try{
+        const tbl = overlay.querySelector('.reporting-health-table');
+        if (tbl) {
+          const rows = Array.from(tbl.querySelectorAll('tr'));
+          rows.forEach(function(tr, idx){
+            const cells = Array.from(tr.children || []);
+            const vals = cells.map(function(c){ return readText(c); }).filter(Boolean);
+            if (!vals.length) return;
+            if (idx === 0) return; // skip header row
+            if (vals.length >= 3) {
+              lines.push(vals[0] + ' | Actual: ' + vals[1] + ' | Plan: ' + vals[2]);
+            } else {
+              lines.push(vals.join(' | '));
+            }
+          });
+        }
+      }catch(e){ /* ignore */ }
+
+      try{
+        const daysRel = overlay.querySelector('.reporting-daysrel');
+        const daysText = readText(daysRel);
+        if (daysText) lines.push(daysText);
+      }catch(e){ /* ignore */ }
+
+      lines.push('');
+      lines.push('Issues:');
+
+      try{
+        const lis = Array.from(overlay.querySelectorAll('#reportingList li'));
+        lis.forEach(function(li){
+          const t = readText(li);
+          if (!t) return;
+          if (li.classList.contains('issues-section-title')) {
+            lines.push(t);
+          } else if (li.classList.contains('issues-scope-title')) {
+            lines.push(t);
+          } else {
+            lines.push('• ' + t);
+          }
+        });
+      }catch(e){ /* ignore */ }
+
+      return lines.join('\n');
+    }
+
+    function buildEmailSafeHtml(){
+      const projHdr = readText(overlay.querySelector('#reportingProjectHeader'));
+      const asOfPretty = (overlay && overlay.dataset) ? (overlay.dataset.reportingAsOfPretty || '') : '';
+
+      // Health table extraction
+      let healthRows = [];
+      try{
+        const tbl = overlay.querySelector('.reporting-health-table');
+        if (tbl) {
+          const trs = Array.from(tbl.querySelectorAll('tbody tr'));
+          trs.forEach(function(tr){
+            const tds = Array.from(tr.querySelectorAll('td'));
+            if (tds.length >= 3) {
+              healthRows.push({
+                label: readText(tds[0]),
+                actual: readText(tds[1]),
+                plan: readText(tds[2]),
+                isTotal: tr.classList.contains('reporting-health-total')
+              });
+            }
+          });
+        }
+      }catch(e){ /* ignore */ }
+
+      const daysText = readText(overlay.querySelector('.reporting-daysrel'));
+
+      // Chart image src (unchanged)
+      let imgSrc = '';
+      try{
+        const img = overlay.querySelector('.reporting-chart-img');
+        if (img && img.src) imgSrc = img.src;
+      }catch(e){ /* ignore */ }
+
+      // Issues list
+      const issueEntries = [];
+      try{
+        const lis = Array.from(overlay.querySelectorAll('#reportingList li'));
+        lis.forEach(function(li){
+          const t = readText(li);
+          if (!t) return;
+          let kind = 'item';
+          if (li.classList.contains('issues-section-title')) kind = 'section';
+          else if (li.classList.contains('issues-scope-title')) kind = 'scope';
+          issueEntries.push({ kind: kind, text: t });
+        });
+      }catch(e){ /* ignore */ }
+
+      // Build email-safe HTML using only allowed tags, inline styles, table-based layout.
+      const font = 'system-ui, -apple-system, Segoe UI, Roboto, Arial, Helvetica, sans-serif';
+      const baseColor = '#374151';
+      const accentBlue = '#2563eb';
+      const accentOrange = '#ea580c';
+      const border = '#e2e8f0';
+      const danger = '#dc2626';
+
+      let h = '';
+      h += '<table cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse; width:100%; font-family:' + font + '; color:' + baseColor + ';">';
+      h += '<tr><td style="padding:0;">';
+
+      if (projHdr) {
+        h += '<div style="font-size:24px; font-weight:700; color:' + accentOrange + '; padding:0 0 12px 0;">' + escapeHtml(projHdr) + '</div>';
+      }
+
+      h += '<div style="font-size:22px; font-weight:700; color:' + accentBlue + '; padding:0 0 10px 0;">Project Health:</div>';
+      h += '<div style="font-size:16px; color:' + accentOrange + '; padding:0 0 2px 0;">Summary of project health comparing planned progress to actual progress.</div>';
+      if (asOfPretty) {
+        h += '<div style="font-size:16px; color:' + baseColor + '; padding:0 0 10px 0;">Data as of: ' + escapeHtml(asOfPretty) + '</div>';
+      } else {
+        h += '<div style="font-size:16px; color:' + baseColor + '; padding:0 0 10px 0;"></div>';
+      }
+
+      // Health table
+      h += '<table cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse; width:auto; border:1px solid ' + border + ';">';
+      h += '<tr>';
+      h += '<td style="padding:6px 10px; border:1px solid ' + border + '; background:' + accentBlue + '; color:#ffffff; font-weight:700;">Progress</td>';
+      h += '<td style="padding:6px 10px; border:1px solid ' + border + '; background:' + accentBlue + '; color:#ffffff; font-weight:700;">Actual</td>';
+      h += '<td style="padding:6px 10px; border:1px solid ' + border + '; background:' + accentBlue + '; color:#ffffff; font-weight:700;">Plan</td>';
+      h += '</tr>';
+      healthRows.forEach(function(r){
+        const weight = r.isTotal ? '700' : '400';
+        // Red actual if behind plan (simple parse)
+        let actualStyle = 'padding:6px 10px; border:1px solid ' + border + '; font-weight:' + weight + ';';
+        try{
+          const a = parseFloat(String(r.actual||'').replace(/[^0-9.\-]/g,''));
+          const p = parseFloat(String(r.plan||'').replace(/[^0-9.\-]/g,''));
+          if (isFinite(a) && isFinite(p) && a < p) {
+            actualStyle += ' color:' + danger + ';';
+          }
+        }catch(e){ /* ignore */ }
+
+        h += '<tr>';
+        h += '<td style="padding:6px 10px; border:1px solid ' + border + '; font-weight:' + weight + ';">' + escapeHtml(r.label) + '</td>';
+        h += '<td style="' + actualStyle + '">' + escapeHtml(r.actual) + '</td>';
+        h += '<td style="padding:6px 10px; border:1px solid ' + border + '; font-weight:' + weight + ';">' + escapeHtml(r.plan) + '</td>';
+        h += '</tr>';
+      });
+      h += '</table>';
+
+      if (daysText) {
+        h += '<div style="font-size:16px; color:#16a34a; padding:8px 0 0 0;">' + escapeHtml(daysText) + '</div>';
+      }
+
+      if (imgSrc) {
+        h += '<div style="padding:14px 0 0 0;">';
+        h += '<img src="' + escapeHtml(imgSrc) + '" alt="Progress chart" style="width:1000px; max-width:100%; height:auto; border:1px solid ' + border + '; border-radius:12px;" />';
+        h += '</div>';
+      }
+
+      h += '<div style="font-size:22px; font-weight:700; color:' + accentBlue + '; padding:14px 0 10px 0;">Issues:</div>';
+
+      // Bullets as table rows: bullet cell + text cell
+      h += '<table cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse; width:100%;">';
+      issueEntries.forEach(function(ent){
+        let bullet = '';
+        let textStyle = 'font-size:16px; color:' + baseColor + ';';
+        let bulletStyle = 'font-size:16px; color:' + baseColor + ';';
+        let padTop = 0;
+
+        if (ent.kind === 'section') {
+          bullet = '';
+          textStyle = 'font-size:16px; color:' + accentBlue + '; font-weight:700;';
+          padTop = 8;
+        } else if (ent.kind === 'scope') {
+          bullet = '';
+          textStyle = 'font-size:16px; color:#111827; font-weight:700;';
+          padTop = 8;
+        } else {
+          bullet = '•';
+          textStyle = 'font-size:16px; color:' + baseColor + ';';
+          bulletStyle = 'font-size:16px; color:' + baseColor + ';';
+          padTop = 0;
+        }
+
+        h += '<tr>';
+        h += '<td valign="top" style="width:18px; padding:' + padTop + 'px 6px 6px 0; ' + bulletStyle + '">' + escapeHtml(bullet) + '</td>';
+        h += '<td valign="top" style="padding:' + padTop + 'px 0 6px 0; ' + textStyle + '">' + escapeHtml(ent.text) + '</td>';
+        h += '</tr>';
+      });
+      h += '</table>';
+
+      h += '</td></tr></table>';
+      return h;
+    }
+
+    const html = buildEmailSafeHtml();
+    const text = buildPlainText();
+
+    function execCommandCopyHtml(htmlString){
+      let ok = false;
+      const holder = document.createElement('div');
+      holder.style.position = 'fixed';
+      holder.style.left = '-9999px';
+      holder.style.top = '0';
+      holder.style.width = '1200px';
+      holder.style.background = '#ffffff';
+      holder.innerHTML = htmlString;
+      document.body.appendChild(holder);
+
+      try{
+        const range = document.createRange();
+        range.selectNodeContents(holder);
         const sel = window.getSelection();
+        if (sel) {
+          sel.removeAllRanges();
+          sel.addRange(range);
+        }
+        ok = document.execCommand('copy');
         if (sel) sel.removeAllRanges();
-      }catch(_){ }
+      }catch(e){
+        ok = false;
+        try{
+          const sel = window.getSelection();
+          if (sel) sel.removeAllRanges();
+        }catch(_){ }
+      }
+
+      try{ document.body.removeChild(holder); }catch(e){ /* ignore */ }
+      return ok;
     }
 
-    document.body.removeChild(holder);
+    (async function(){
+      let ok = false;
+      try{
+        if (navigator && navigator.clipboard && navigator.clipboard.write && typeof window.ClipboardItem !== 'undefined') {
+          const htmlBlob = new Blob([html], { type: 'text/html' });
+          const textBlob = new Blob([text], { type: 'text/plain' });
+          const item = new ClipboardItem({ 'text/html': htmlBlob, 'text/plain': textBlob });
+          await navigator.clipboard.write([item]);
+          ok = true;
+        }
+      }catch(e){
+        ok = false;
+      }
 
-    if (!ok) {
-      fallbackCopyText((src.innerText || src.textContent || '').trim());
-    } else {
-      window.alert('Reporting copied. Paste into email or notes.');
-    }
+      if (!ok) {
+        ok = execCommandCopyHtml(html);
+      }
+
+      if (!ok) {
+        fallbackCopyText(text);
+      } else {
+        try{ window.alert('Reporting copied. Paste into email or notes.'); }catch(e){ /* ignore */ }
+      }
+    })();
   }
 
   function fallbackCopyText(text){
