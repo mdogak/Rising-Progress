@@ -857,6 +857,7 @@ html, body {
 }
 #reportingOverlay .issues-modal-header{
   flex-shrink: 0;
+  margin-bottom: 0;
 }
 #reportingOverlay .reporting-content{
   flex: 1 1 auto;
@@ -890,8 +891,18 @@ html, body {
   width: auto;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
+  gap: 10px;
+  padding: 10px 18px;
+  border-radius: 9999px;
+  border: 1px solid #2563eb;
+  background: #ffffff;
+  color: #2563eb;
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.1;
+  cursor: pointer;
+  height: 46px;
+
 }
 
 /* Reporting modal only: CSS-drawn share icon (no unicode) */
