@@ -30,6 +30,7 @@
 
     .card {
         width: 360px;
+        height: auto;
         background: white;
         border-radius: 14px;
         padding: 32px;
@@ -102,20 +103,6 @@
         margin-top: 8px;
     }
     .btn-signup:hover { background: #c94a0a; }
-
-    .google-btn {
-        margin-top: 16px;
-        background: white;
-        border: 1px solid #d1d5db;
-        color: #374151;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-    }
-
-    .google-btn img { width: 18px; }
-
     .forgot {
         text-align: right;
         margin-top: -10px;
@@ -169,8 +156,6 @@
         signInWithEmailAndPassword,
         createUserWithEmailAndPassword,
         sendPasswordResetEmail,
-        signInWithPopup,
-        GoogleAuthProvider,
         updateProfile
     } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 
@@ -188,7 +173,6 @@
 
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
-    const provider = new GoogleAuthProvider();
 
     window.login = function () {
         const email = document.getElementById("email").value;
@@ -198,68 +182,11 @@
             .catch(err => alert(err.message));
     };
 
-    window.showSignup = function () {
-        document.getElementById("loginCard").style.display = "none";
-        document.getElementById("signupCard").style.display = "block";
-    };
-
-    window.showLogin = function () {
-        document.getElementById("signupCard").style.display = "none";
-        document.getElementById("loginCard").style.display = "block";
-    };
-
-    function generateAvatarURL(first, last) {
-        const initials = encodeURIComponent(
-            (first.charAt(0) || "").toUpperCase() + (last.charAt(0) || "").toUpperCase()
-        );
-        return `https://ui-avatars.com/api/?name=${initials}&background=2563eb&color=ffffff`;
-    }
-
-    window.createAccount = function () {
-        const first = document.getElementById("firstName").value.trim();
-        const last = document.getElementById("lastName").value.trim();
-        const email = document.getElementById("signupEmail").value;
-        const password = document.getElementById("signupPassword").value;
-        const confirm = document.getElementById("signupConfirm").value;
-
-        if (!first || !last) {
-            alert("Please enter your first and last name.");
-            return;
-        }
-        if (!email || !password || !confirm) {
-            alert("Please fill out all fields.");
-            return;
-        }
-        if (password !== confirm) {
-            alert("Passwords do not match.");
-            return;
-        }
-
-        createUserWithEmailAndPassword(auth, email, password)
-            .then(async (cred) => {
-                const user = cred.user;
-                const avatar = generateAvatarURL(first, last);
-
-                try {
-                    await updateProfile(user, {
-                        displayName: `${first} ${last}`,
-                        photoURL: avatar
-                    });
-                } catch (e) {
-                    console.error("Profile update failed:", e);
-                }
-
-                window.location.href = getRedirectTarget();
-            })
-            .catch(err => alert(err.message));
-    };
-
-    window.googleLogin = function () {
-        signInWithPopup(auth, provider)
-            .then(() => window.location.href = getRedirectTarget())
-            .catch(err => alert(err.message));
-    };
-
+    
+    
+    
+    
+    
     window.resetPassword = function () {
         const email = document.getElementById("email").value;
         if (!email) {
@@ -294,40 +221,13 @@
 
     
       
-        <button class="btn btn-signup" onclick="showSignup()">Create Account</button>
-
-  
-
-        <button class="btn google-btn" onclick="googleLogin()">
-            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" />
-            Sign in with Google
-        </button>
-
-        <div class="terms">
+        <button class="btn btn-signup" 
+        onclick="window.open('https://docs.google.com/forms/d/e/1FAIpQLScWccu5cvg6SR4HL2eFDzZF-4q-81zK7VPBIXekUgkJSpGl_Q/viewform?usp=header', '_blank', 'noopener,noreferrer')">
+        Create Account ↗
+    </button>
+<div class="terms">
             By logging in, you accept the <a href="terms.html" target="_blank">Terms & Conditions</a>.
         </div>
     </div>
-
-    <div class="card" id="signupCard" style="display:none;">
-        <div class="close-btn" onclick="window.location.href='progress.html'">×</div>
-
-        <img src="risingprogress.png" class="logo" alt="Rising Progress Logo">
-
-        <div class="subtitle">Create your Rising Progress account</div>
-
-        <input id="firstName" type="text" placeholder="First Name" />
-        <input id="lastName" type="text" placeholder="Last Name" />
-        <input id="signupEmail" type="email" placeholder="Email" />
-        <input id="signupPassword" type="password" placeholder="Password" />
-        <input id="signupConfirm" type="password" placeholder="Confirm Password" />
-
-        <button class="btn btn-signup" onclick="createAccount()">Create Account</button>
-
-        <div class="terms">
-            Already have an account?
-            <a href="#" onclick="showLogin()">Back to login</a>
-        </div>
-    </div>
-
 </body>
 </html>
