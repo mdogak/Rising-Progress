@@ -161,7 +161,7 @@
 
 </div>
 
-<a id="skipBtn" class="skip-btn" href="#">Skip Intro →</a>
+<a id="skipBtn" class="skip-btn" href="#">Skip Ahead →</a>
 
 <script>
     const line1 = document.getElementById("line1");
@@ -175,7 +175,7 @@
     function fadeAndGo() {
         skip.style.display = "none";
         main.classList.add("slide-away");
-        setTimeout(() => { window.location.href = "progress.html?open=loader"; }, 1000);
+        setTimeout(() => { window.location.href = "landing.html"; }, 1000);
     }
 
     setTimeout(fadeAndGo, TIME_FADEOUT);
