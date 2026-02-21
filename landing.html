@@ -21,9 +21,24 @@ h2{font-size:2rem;margin-bottom:20px}
 ul{line-height:1.7}
 footer{text-align:center;padding:60px 20px}
 .logo{width:180px;margin-bottom:40px}
+
+/* === Smooth page fade-in === */
+#page-wrapper {
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.8s ease, transform 0.8s ease;
+}
+
+#page-wrapper.loaded {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 </style>
 </head>
 <body>
+
+<div id="page-wrapper">
 
 <div class="section hero">
 <img src="risingprogress.png" class="logo" />
@@ -128,6 +143,15 @@ footer{text-align:center;padding:60px 20px}
 </a>
 <a href="progress.html?open=loader" class="btn-secondary">Launch the Tool</a>
 </footer>
+
+
+</div>
+
+<script>
+  window.addEventListener("load", function () {
+    document.getElementById("page-wrapper").classList.add("loaded");
+  });
+</script>
 
 </body>
 </html>
