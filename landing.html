@@ -7,8 +7,8 @@
 <link rel="stylesheet" href="progress.css">
 <style>
 body{background:#ffffff;color:#0f172a;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Helvetica Neue,Arial;margin:0}
-.section{padding:90px 24px;max-width:1100px;margin:auto}
-.hero{text-align:center;padding-top:120px}
+.section{padding:65px 24px;max-width:1100px;margin:auto}
+.hero{text-align:center;padding-top:110px;padding-bottom:80px}
 .hero h1{font-size:2.8rem;margin-bottom:20px}
 .hero p{font-size:1.2rem;max-width:700px;margin:0 auto 20px auto}
 .accent-line{width:120px;height:4px;margin:20px auto 40px auto;background:linear-gradient(90deg,#ea580c,#2563eb);animation:growBar 2s forwards}
@@ -44,6 +44,48 @@ footer{text-align:center;padding:60px 20px}
   border-radius: 12px;
 }
 
+/* === Scroll Indicator === */
+#scroll-indicator{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  margin-top:40px;
+  opacity:0.7;
+  cursor:pointer;
+  transition: opacity 0.45s ease, transform 0.45s ease;
+  animation: scrollBounce 1.8s infinite;
+}
+#scroll-indicator svg{
+  width:28px;
+  height:28px;
+  stroke: #2563eb;
+  stroke-width:2.25;
+  fill:none;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+#scroll-indicator.hidden{
+  opacity:0;
+  transform: translateY(-6px);
+  pointer-events:none;
+  animation:none;
+}
+@keyframes scrollBounce{
+  0%, 100%{ transform: translateY(0); }
+  50%{ transform: translateY(6px); }
+}
+@media (prefers-reduced-motion: reduce){
+  #scroll-indicator{ animation:none; }
+}
+
+/* Tighter mobile spacing */
+@media (max-width: 640px){
+  .section{ padding:48px 18px; }
+  .hero{ padding-top:92px; padding-bottom:56px; }
+  #scroll-indicator{ margin-top:26px; }
+  #scroll-indicator svg{ width:24px; height:24px; }
+}
+
 </style>
 </head>
 <body>
@@ -63,6 +105,13 @@ footer{text-align:center;padding:60px 20px}
    Schedule a Demo
 </a>
 <a href="progress.html?open=loader" class="btn-secondary">Launch the Tool</a>
+
+
+<div id="scroll-indicator" aria-label="Scroll to content" role="button" tabindex="0">
+  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <path d="M6 9l6 6 6-6" />
+  </svg>
+</div>
 </div>
 
 <div class="section">
@@ -160,6 +209,30 @@ footer{text-align:center;padding:60px 20px}
 <script>
   window.addEventListener("load", function () {
     document.getElementById("page-wrapper").classList.add("loaded");
+
+    const indicator = document.getElementById("scroll-indicator");
+    if (!indicator) return;
+
+    const setIndicator = () => {
+      if (window.scrollY > 50) indicator.classList.add("hidden");
+      else indicator.classList.remove("hidden");
+    };
+
+    window.addEventListener("scroll", setIndicator, { passive: true });
+    setIndicator();
+
+    const scrollNext = () => {
+      indicator.classList.add("hidden");
+      window.scrollTo({ top: window.innerHeight, behavior: "smooth" });
+    };
+
+    indicator.addEventListener("click", scrollNext);
+    indicator.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        scrollNext();
+      }
+    });
   });
 </script>
 
