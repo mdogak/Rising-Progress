@@ -5,7 +5,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Issues</title>
+  <title>Create Project Template with AI</title>
   <link rel="stylesheet" href="css/progress.css"/>
 </head>
 <body>
@@ -15,28 +15,9 @@
       <div class="issues-modal-header">
         <div class="issues-modal-heading">
           <div id="issuesTitle" class="issues-modal-title">Issues</div>
-          <div class="issues-modal-subtitle">Summary of issues based on differences between the current plan and actual progress. Be sure to click the 'Add to History' button to log any entered changes.</div>
+          <div class="issues-modal-subtitle">Don’t include any confidential or sensitive information in the description as this will be processed with AI. - see Terms and Conditions</div>
 
 <p style="margin-top: 8px; font-size: 15px; color: #444;">
-  Be sure to click the 'Add to History' button to log any entered changes.
-          
-          <div id="issuesLastHistory" class="issues-last-history"></div>
-        </div>
-        <button type="button" class="issues-close" aria-label="Close recommendations">&times;</button>
-      </div>
-      <ul id="issuesList" class="issues-list"></ul>
-      <button type="button" id="issuesCopyBtn" class="issues-copy-btn">Copy Issues</button>
-    </div>
-  </div>
-
-  <script src="js/issues.js"></script>
-  <script>
-    // When opened directly, build issues from any stored model in sessionStorage.
-    document.addEventListener('DOMContentLoaded', function(){
-      if (typeof window.openIssuesModal === 'function') {
-        window.openIssuesModal();
-      }
-    });
-  </script>
+  
 </body>
 </html>
