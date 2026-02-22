@@ -11,7 +11,7 @@ function track(eventName, payload){
 
 let _open = false;
 
-export function openProjectLoader(){
+export function openAiLoader(){
   if (_open) return;
   _open = true;
 
