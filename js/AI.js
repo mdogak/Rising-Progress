@@ -305,7 +305,16 @@
   async function onGenerate(){
     const overlay = document.getElementById('AIOverlay') || await ensureOverlay();
     const ta = $('#aiProjectDescription', overlay);
-    const projectDescription = (ta && ta.value) ? String(ta.value) : ''; // Spec name: "project-description"
+
+    // Raw user input (limit enforced by maxlength on textarea)
+    const projectDescriptionText = (ta && ta.value) ? String(ta.value) : '';
+
+    // Store as a JSON string under the spec-required variable name "project-description"
+    const projectDescriptionJSON = JSON.stringify({ "project-description": projectDescriptionText });
+
+    // Expose variables (hyphenated names require bracket notation)
+    try{ window['project-description'] = projectDescriptionJSON; }catch(e){}
+
     showToast('Processing...', true);
 
     try{
@@ -314,10 +323,20 @@
         fetch('schema/schema-columnar-full.json', { cache: 'no-store' }).then(r=>{ if(!r.ok) throw new Error('Schema fetch failed'); return r.text(); })
       ]);
 
-      const aiRequest = promptJSON + "\n\n" + projectDescription + "\n\n" + schemaJSON; // Spec name: "AI-request"
+      // Create the spec-required variable "AI-request" by joining:
+      // 1) Prompt/Create-Template-Prompt.json
+      // 2) project-description (JSON string)
+      // 3) schema/schema-columnar-full.json
+      const aiRequestText = promptJSON + "
+
+" + projectDescriptionJSON + "
+
+" + schemaJSON;
+
+      try{ window['AI-request'] = aiRequestText; }catch(e){}
 
       // Clipboard copy
-      const copied = await copyToClipboard(aiRequest);
+      const copied = await copyToClipboard(aiRequestText);
       if (copied) {
         showToast('Copied to clipboard.', false);
       } else {
@@ -327,6 +346,7 @@
       showToast('Error. Please try again.', false);
     }
   }
+
 
   async function copyToClipboard(text){
     try{
