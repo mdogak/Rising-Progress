@@ -1,0 +1,25 @@
+<!-- © 2025 Rising Progress LLC. All rights reserved. -->
+<!-- Modal markup only. Behavior is injected/managed by js/AI.js. -->
+<div id="AIOverlay" class="issues-overlay hidden">
+  <div class="issues-modal" role="dialog" aria-modal="true" aria-labelledby="aiTitle">
+    <div class="issues-modal-header">
+      <div class="issues-modal-heading">
+        <div id="aiTitle" class="issues-modal-title">Create Project Template with AI</div>
+        <div class="issues-modal-subtitle">
+          Don’t include any confidential or sensitive information in the description as this will be processed with AI. -
+          see <a id="aiTermsLink" href="terms.html">Terms and Conditions</a>
+        </div>
+      </div>
+      <button type="button" class="issues-close" aria-label="Close AI Template Generator">&times;</button>
+    </div>
+
+    <div class="ai-body">
+      <div class="ai-textarea-wrap">
+        <textarea id="aiProjectDescription" maxlength="2000" placeholder="<<Enter a detailed project description>>"></textarea>
+        <div id="aiCharCount" class="ai-char-count">0/2,000 characters</div>
+      </div>
+
+      <button type="button" id="aiGenerateBtn">Generate Project Template</button>
+    </div>
+  </div>
+</div>
