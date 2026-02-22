@@ -646,7 +646,7 @@
 
     const issuesTitle = document.createElement('div');
     issuesTitle.className = 'reporting-issues-title';
-    issuesTitle.textContent = 'Issues:';
+    issuesTitle.textContent = 'Potential Issues:';
 
     wrap.appendChild(headRow);
     wrap.appendChild(summaryBlock);
@@ -790,7 +790,7 @@ function closeReportingModal(){
       }catch(e){ /* ignore */ }
 
       lines.push('');
-      lines.push('Issues:');
+      lines.push('Potential Issues:');
 
       try{
         const lis = Array.from(overlay.querySelectorAll('#reportingList li'));
@@ -918,7 +918,7 @@ function closeReportingModal(){
         h += '</div>';
       }
 
-      h += '<div style="font-size:22px; font-weight:700; color:' + accentBlue + '; padding:14px 0 10px 0;">Issues:</div>';
+      h += '<div style="font-size:22px; font-weight:700; color:' + accentBlue + '; padding:14px 0 10px 0;">Potential Issues:</div>';
 
       // Bullets as table rows: bullet cell + text cell
       h += '<table cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse; width:100%;">';

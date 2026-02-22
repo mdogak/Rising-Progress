@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Rising Progress | Strategic Progress Advisory</title>
+<link rel="stylesheet" href="progress.css">
+<style>
+body{background:#ffffff;color:#0f172a;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Helvetica Neue,Arial;margin:0}
+.section{padding:65px 24px;max-width:1100px;margin:auto}
+.hero{text-align:center;padding-top:40px;padding-bottom:40px}
+.hero h1{font-size:2.8rem;margin-bottom:20px}
+.hero p{font-size:1.2rem;max-width:700px;margin:0 auto 20px auto}
+.accent-line{width:120px;height:4px;margin:20px auto 40px auto;background:linear-gradient(90deg,#ea580c,#2563eb);animation:growBar 2s forwards}
+.btn-primary{background:#2563eb;color:#fff;padding:14px 26px;border-radius:8px;text-decoration:none;font-weight:600;margin:10px;display:inline-block}
+.btn-secondary{border:2px solid #2563eb;color:#2563eb;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;margin:10px;display:inline-block}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:24px;margin-top:40px}
+.card{border:1px solid #e2e8f0;border-top:4px solid #ea580c;padding:28px;border-radius:16px;box-shadow:0 6px 18px rgba(2,6,23,.06);transition:transform .2s ease,box-shadow .2s ease}
+.card:hover{transform:translateY(-6px);box-shadow:0 10px 24px rgba(2,6,23,.08)}
+h2{font-size:2rem;margin-bottom:20px}
+ul{line-height:1.7}
+footer{text-align:center;padding:60px 20px}
+.logo{width:180px;margin-bottom:40px}
+
+/* === Smooth page fade-in === */
+#page-wrapper {
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+#page-wrapper.loaded {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+
+/* === Improved visual image fit === */
+.responsive-img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 30px auto 0 auto;
+  border-radius: 12px;
+}
+
+/* === Scroll Indicator === */
+#scroll-indicator{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  margin-top:40px;
+  opacity:0.7;
+  cursor:pointer;
+  transition: opacity 0.45s ease, transform 0.45s ease;
+  animation: scrollBounce 1.8s infinite;
+}
+#scroll-indicator svg{
+  width:28px;
+  height:28px;
+  stroke: #2563eb;
+  stroke-width:2.25;
+  fill:none;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+#scroll-indicator.hidden{
+  opacity:0;
+  transform: translateY(-6px);
+  pointer-events:none;
+  animation:none;
+}
+@keyframes scrollBounce{
+  0%, 100%{ transform: translateY(0); }
+  50%{ transform: translateY(6px); }
+}
+@media (prefers-reduced-motion: reduce){
+  #scroll-indicator{ animation:none; }
+}
+
+/* Tighter mobile spacing */
+@media (max-width: 640px){
+  .section{ padding:48px 18px; }
+  .hero{ padding-top:92px; padding-bottom:56px; }
+  #scroll-indicator{ margin-top:26px; }
+  #scroll-indicator svg{ width:24px; height:24px; }
+}
+
+</style>
+</head>
+<body>
+
+<div id="page-wrapper">
+
+<div class="section hero">
+<img src="risingprogress.png" class="logo" />
+<h1>Clear progress. Direct insights.</h1>
+<div class="accent-line"></div>
+<p>Advisory led, technology enabled, and focused on delivering visibility.</p>
+<p style="color:#ea580c;font-weight:600;">Rapid to deploy. Seamless to integrate. Low overhead. Competitive pricing.</p>
+<a href="https://docs.google.com/forms/d/e/1FAIpQLSfDGh8K0m_lO1BYvaJ7FRuw02XhqbW28e8R6C1_B4GvwQO1Bg/viewform?usp=header" 
+   class="btn-primary" 
+   target="_blank" 
+   rel="noopener noreferrer">
+   Schedule a Demo
+</a>
+<a href="progress.html?open=loader" class="btn-secondary">Launch the Tool</a>
+
+
+<div id="scroll-indicator" aria-label="Scroll to content" role="button" tabindex="0">
+  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <path d="M6 9l6 6 6-6" />
+  </svg>
+</div>
+</div>
+
+<div class="section">
+<h2>What is at Stake When Problems Go Unnoticed?</h2>
+<div class="card-grid">
+<div class="card">Missed deadlines</div>
+<div class="card">Budget Overruns</div>
+<div class="card">Misaligned focus</div>
+</div>
+<p style="margin-top:30px;">Too often, project progress relies on intution, not data. Rising Progress reveals risk before impacting delivery.</p>
+</div>
+
+<div class="section" style="background:#f8fafc;">
+<h2>Your Strategic Progress Advisory Partner.</h2>
+<div class="card-grid">
+<div class="card"><strong>Assess</strong><br/>We help determine the essential metrics to track.</div>
+<div class="card"><strong>Integrate</strong><br/>We guide rapid deployment leveraging your existing team's strengths.</div>
+<div class="card"><strong>Empower</strong><br/>One-click health insights for decisive reporting.</div>
+</div>
+</div>
+
+<div class="section">
+<h2>The Progress Engine</h2>
+<div class="card-grid">
+<div>
+<ul>
+
+<li>A streamlined tool</li>
+<li>Minimal input</li>
+<li>Quick integration</li>
+<li>Early risk detection</li>
+<li>One-click reporting</li>
+<li>Actionable visibility</li>
+</ul>
+</div>
+<div>
+<div style="border:1px solid #e2e8f0;border-radius:12px;padding:20px;">
+<div style="height:10px;background:#e5e7eb;border-radius:6px;overflow:hidden;">
+<div style="height:100%;background:linear-gradient(90deg,#ea580c,#2563eb);animation:growBar 3s forwards;"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<div class="section" style="background:#f8fafc;">
+  <h2>Advisory-Led Integration.</h2>
+  <p class="section-subtext">
+    We assess your needs and set your team up for long-term success.
+  </p>
+  <div class="card-grid">
+<div class="card">
+<strong>Step 1: Advisory-guided setup</strong>
+<ul>
+<li>Identify team needs</li>
+<li>Customize tracking</li>
+<li>Establish reporting process</li>
+</ul>
+</div>
+<div class="card">
+<strong>Step 2: Empowered, self-directed success</strong>
+<ul>
+<li>Track progress independently</li>
+<li>Ongoing actionable reporting</li>
+<li>Ongoing tool access with <br>
+  advisory support available upon request</li>
+<li>Drive results with confidence</li>
+</ul>
+</div>
+
+</div>
+</div>
+  
+<div class="section">
+<h2>Reporting Example</h2>
+<ul>
+<img src="images/reporting-example.jpg" alt="Progress chart" class="responsive-img" />
+</ul>
+</div>
+  
+<footer>
+<h2>Lead with Insight.</h2>
+<p>Provide the clarity required to deliver results.</p>
+<a href="https://docs.google.com/forms/d/e/1FAIpQLSfDGh8K0m_lO1BYvaJ7FRuw02XhqbW28e8R6C1_B4GvwQO1Bg/viewform?usp=header" 
+   class="btn-primary" 
+   target="_blank" 
+   rel="noopener noreferrer">
+   Schedule a Demo
+</a>
+<a href="progress.html?open=loader" class="btn-secondary">Launch the Tool</a>
+</footer>
+
+
+</div>
+
+<script>
+  window.addEventListener("load", function () {
+    document.getElementById("page-wrapper").classList.add("loaded");
+
+    const indicator = document.getElementById("scroll-indicator");
+    if (!indicator) return;
+
+    const setIndicator = () => {
+      if (window.scrollY > 50) indicator.classList.add("hidden");
+      else indicator.classList.remove("hidden");
+    };
+
+    window.addEventListener("scroll", setIndicator, { passive: true });
+    setIndicator();
+
+    const scrollNext = () => {
+      indicator.classList.add("hidden");
+      window.scrollTo({ top: window.innerHeight, behavior: "smooth" });
+    };
+
+    indicator.addEventListener("click", scrollNext);
+    indicator.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        scrollNext();
+      }
+    });
+  });
+</script>
+
+</body>
+</html>
