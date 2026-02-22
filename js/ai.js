@@ -120,8 +120,16 @@
 
   async function fetchMarkupOnce(){
     // Fetch AI.html and append its root overlay element
-    const res = await fetch('AI.html', { cache: 'no-store' });
-    if (!res.ok) throw new Error('Failed to load AI.html');
+    let res = null;
+    // Be tolerant to filename casing (ai.html vs AI.html)
+    const candidates = ['ai.html', 'AI.html'];
+    for (const p of candidates) {
+      try{
+        const r = await fetch(p, { cache: 'no-store' });
+        if (r && r.ok) { res = r; break; }
+      }catch(e){}
+    }
+    if (!res) throw new Error('Failed to load AI.html');
     const html = await res.text();
 
     const wrap = document.createElement('div');
@@ -327,12 +335,7 @@
       // 1) Prompt/Create-Template-Prompt.json
       // 2) project-description (JSON string)
       // 3) schema/schema-columnar-full.json
-      const aiRequestText = promptJSON + "
-
-" + projectDescriptionJSON + "
-
-" + schemaJSON;
-
+      const aiRequestText = promptJSON + "\n\n" + projectDescriptionJSON + "\n\n" + schemaJSON;
       try{ window['AI-request'] = aiRequestText; }catch(e){}
 
       // Clipboard copy
