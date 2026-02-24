@@ -48,7 +48,178 @@
     return false;
   }
 
+
+  const AUTH_READY_TIMEOUT_MS = 2800;
+  const AUTH_FALLBACK_DELAY_MS = 450;
+  const REDIRECT_INFLIGHT_KEY = 'rp_ai_login_redirect_inflight';
+
+  function withTimeout(promise, ms){
+    return new Promise((resolve)=>{
+      let done = false;
+      const t = setTimeout(()=>{ if(done) return; done = true; resolve({ timedOut: true }); }, ms);
+      Promise.resolve()
+        .then(()=>promise)
+        .then((v)=>{ if(done) return; done = true; clearTimeout(t); resolve({ value: v, timedOut: false }); })
+        .catch(()=>{ if(done) return; done = true; clearTimeout(t); resolve({ timedOut: true }); });
+    });
+  }
+
+  function getAuthAdapter(){
+    // Prefer host-app helper
+    try{
+      if (typeof window.whenAuthReady === 'function') {
+        return {
+          kind: 'host',
+          waitReady: () => window.whenAuthReady(),
+          getUser: () => {
+            try{
+              if (typeof window.getCurrentUser === 'function') return window.getCurrentUser() || null;
+              if (typeof window.getAuthUser === 'function') return window.getAuthUser() || null;
+            }catch(e){}
+            return null;
+          },
+          onChange: (cb) => {
+            try{
+              if (typeof window.onAuthStateChanged === 'function' && typeof window.getAuth === 'function') {
+                const a = window.getAuth();
+                return window.onAuthStateChanged(a, cb);
+              }
+            }catch(e){}
+            return null;
+          }
+        };
+      }
+    }catch(e){}
+
+    // Firebase compat
+    try{
+      if (window.firebase && window.firebase.auth && typeof window.firebase.auth === 'function') {
+        const fa = window.firebase.auth();
+        if (fa && typeof fa.onAuthStateChanged === 'function') {
+          return {
+            kind: 'firebase_compat',
+            getUser: () => { try{ return window.firebase.auth().currentUser || null; }catch(e){ return null; } },
+            onChange: (cb) => { try{ return window.firebase.auth().onAuthStateChanged(cb); }catch(e){ return null; } }
+          };
+        }
+      }
+    }catch(e){}
+
+    // Firebase modular v9+ (if the app exposes adapters globally)
+    try{
+      if (typeof window.getAuth === 'function' && typeof window.onAuthStateChanged === 'function') {
+        const a = window.getAuth();
+        return {
+          kind: 'firebase_modular',
+          getUser: () => { try{ return (a && a.currentUser) ? a.currentUser : null; }catch(e){ return null; } },
+          onChange: (cb) => { try{ return window.onAuthStateChanged(a, cb); }catch(e){ return null; } }
+        };
+      }
+    }catch(e){}
+
+    // Pre-initialized auth object exposed directly
+    try{
+      if (window.auth && typeof window.auth.onAuthStateChanged === 'function') {
+        const a = window.auth;
+        return {
+          kind: 'auth_global',
+          getUser: () => { try{ return a.currentUser || null; }catch(e){ return null; } },
+          onChange: (cb) => { try{ return a.onAuthStateChanged(cb); }catch(e){ return null; } }
+        };
+      }
+    }catch(e){}
+
+    return null;
+  }
+
+  async function waitForAuthReady(){
+    // Fast path: already logged in according to best-effort heuristics
+    if (isLoggedIn()) return true;
+
+    const adapter = getAuthAdapter();
+
+    // If host app has an explicit readiness promise, prefer it
+    if (adapter && adapter.kind === 'host' && typeof adapter.waitReady === 'function') {
+      const r = await withTimeout(adapter.waitReady(), AUTH_READY_TIMEOUT_MS);
+      const authed = isLoggedIn() || !!adapter.getUser?.();
+      return !!authed;
+    }
+
+    // Otherwise, if we can subscribe to auth state changes, do it with a timeout.
+    if (adapter && typeof adapter.onChange === 'function') {
+      return await new Promise((resolve)=>{
+        let settled = false;
+        let unsub = null;
+
+        const finish = (v)=>{
+          if (settled) return;
+          settled = true;
+          try{ if (typeof unsub === 'function') unsub(); }catch(e){}
+          resolve(!!v);
+        };
+
+        const timer = setTimeout(()=>{
+          clearTimeout(timer);
+          // last-chance check: currentUser may have been restored by now
+          finish(isLoggedIn() || !!adapter.getUser?.());
+        }, AUTH_READY_TIMEOUT_MS);
+
+        try{
+          unsub = adapter.onChange((user)=>{
+            clearTimeout(timer);
+            finish(!!user);
+          });
+        }catch(e){
+          clearTimeout(timer);
+          finish(isLoggedIn() || !!adapter.getUser?.());
+        }
+      });
+    }
+
+    // Last resort: small delay to reduce false negatives.
+    const d = await withTimeout(new Promise(r=>setTimeout(r, AUTH_FALLBACK_DELAY_MS)), AUTH_READY_TIMEOUT_MS);
+    void d;
+    return isLoggedIn();
+  }
+
+  function clearRedirectInflight(){
+    try{ sessionStorage.removeItem(REDIRECT_INFLIGHT_KEY); }catch(e){}
+  }
+
+  function ensureAuthSignOutListener(){
+    if (window.__rpAiAuthListenerBound) return;
+    window.__rpAiAuthListenerBound = true;
+
+    const adapter = getAuthAdapter();
+    if (!adapter || typeof adapter.onChange !== 'function') return;
+
+    try{
+      adapter.onChange((user)=>{
+        // If signed out while modal is open, close it gracefully.
+        if (!user) {
+          const overlay = document.getElementById('AIOverlay');
+          if (overlay && !overlay.classList.contains('hidden')) {
+            try{ closeAIModal(); }catch(e){}
+          }
+        } else {
+          // Signed in: allow future redirects again (and stop loop)
+          clearRedirectInflight();
+        }
+      });
+    }catch(e){}
+  }
+
+  
   function redirectToLoginPreserveOpen(){
+    // Prevent repeated redirects in the same browser session (login loop guard)
+    try{
+      if (sessionStorage.getItem(REDIRECT_INFLIGHT_KEY) === '1') {
+        showToast('Finishing sign-in…', false);
+        return;
+      }
+      sessionStorage.setItem(REDIRECT_INFLIGHT_KEY, '1');
+    }catch(e){}
+
     // Preserve open=ai so post-login returns to the modal
     const here = new URL(window.location.href);
     if (here.searchParams.get('open') !== 'ai') {
@@ -70,12 +241,15 @@
     // Best-effort fallback: stash return URL for the login page if it supports it.
     try{ sessionStorage.setItem('rp_post_login_redirect', here.toString()); }catch(e){}
     try{ sessionStorage.setItem('rp_login_return', here.toString()); }catch(e){}
+    try{ sessionStorage.setItem('returnUrl', here.toString()); }catch(e){}
+    try{ sessionStorage.setItem('redirectUrl', here.toString()); }catch(e){}
 
     // Conservative login URL: many apps use login.html with a redirect param
     const loginUrl = new URL('login.html', window.location.href);
     loginUrl.searchParams.set('redirect', here.toString());
     window.location.href = loginUrl.toString();
   }
+
 
   function ensureToast(){
     let t = document.getElementById('aiToast');
@@ -378,24 +552,24 @@
     }
   }
 
+  
   async function openAIModal(){
-    // Firebase login gating
-    if (!isLoggedIn()) {
-      redirectToLoginPreserveOpen();
-      return;
-    }
+    // Avoid double-open if url.js and DOMContentLoaded both trigger
+    if (window.__rpAiOpening) return;
+    window.__rpAiOpening = true;
 
-    const overlay = await ensureOverlay();
+    try{
+      ensureAuthSignOutListener();
 
-    // Ensure counter is correct on open
-    updateCounter(overlay);
+      // Wait for Firebase/auth to finish restoring state before deciding to redirect
+      const authed = await waitForAuthReady();
+      if (!authed) {
+        redirectToLoginPreserveOpen();
+        return;
+      }
 
-    // Open
-    overlay.classList.remove('hidden');
-    lockScroll();
-
-    // If opened via URL, keep existing cleanup behavior on close
-  }
+      // Signed in: clear redirect loop guard
+      clearRedirectInflight();
 
   function closeAIModal(){
     const overlay = document.getElementById('AIOverlay');
