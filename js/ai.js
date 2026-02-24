@@ -48,9 +48,109 @@
     return false;
   }
 
+
+  // Wait for auth state to be restored before making redirect decisions.
+  // This prevents false negatives where Firebase auth is still initializing.
+  async function waitForAuthReady(opts){
+    const timeoutMs = (opts && opts.timeoutMs) ? opts.timeoutMs : 2500;
+    const minDelayMs = (opts && opts.minDelayMs) ? opts.minDelayMs : 250;
+    const start = Date.now();
+
+    if (isLoggedIn()) return true;
+
+    // If host app provides a helper, use it.
+    try{
+      if (typeof window.whenAuthReady === 'function') {
+        const res = await Promise.race([
+          Promise.resolve().then(()=>window.whenAuthReady()),
+          new Promise((_,rej)=>setTimeout(()=>rej(new Error('auth timeout')), timeoutMs))
+        ]);
+        return !!res || isLoggedIn();
+      }
+    }catch(e){}
+
+    // Firebase compat (namespaced)
+    try{
+      if (window.firebase && window.firebase.auth && typeof window.firebase.auth === 'function') {
+        const auth = window.firebase.auth();
+        return await new Promise((resolve)=>{
+          let done = false;
+          const t = setTimeout(()=>{ if(!done){ done=true; resolve(!!(auth && auth.currentUser)); } }, timeoutMs);
+          auth.onAuthStateChanged((user)=>{
+            if(done) return;
+            done = true;
+            clearTimeout(t);
+            resolve(!!user);
+          });
+        });
+      }
+    }catch(e){}
+
+    // Best-effort polling for modular auth or app-provided globals.
+    // progress.html sets window.currentUserForSave inside onAuthStateChanged().
+    return await new Promise((resolve)=>{
+      const tickMs = 100;
+      let sawInitialized = false;
+
+      const timer = setInterval(()=>{
+        const elapsed = Date.now() - start;
+
+        if (!sawInitialized && elapsed >= minDelayMs) {
+          try{
+            if (typeof window.currentUserForSave !== 'undefined') sawInitialized = true;
+          }catch(e){}
+          try{
+            if (typeof window.auth !== 'undefined') sawInitialized = true;
+          }catch(e){}
+        }
+
+        if (isLoggedIn()) {
+          clearInterval(timer);
+          resolve(true);
+          return;
+        }
+
+        if (sawInitialized) {
+          try{
+            if (typeof window.currentUserForSave !== 'undefined' && window.currentUserForSave === null) {
+              clearInterval(timer);
+              resolve(false);
+              return;
+            }
+          }catch(e){}
+          try{
+            if (window.auth && window.auth.currentUser === null) {
+              clearInterval(timer);
+              resolve(false);
+              return;
+            }
+          }catch(e){}
+        }
+
+        if (elapsed >= timeoutMs) {
+          clearInterval(timer);
+          resolve(isLoggedIn());
+        }
+      }, tickMs);
+    });
+  }
+
+  function clearLoginRedirectInflight(){
+    try{ sessionStorage.removeItem('rp_ai_login_redirect_inflight'); }catch(e){}
+  }
+
   function redirectToLoginPreserveOpen(){
     // Preserve open=ai so post-login returns to the modal
     const here = new URL(window.location.href);
+
+    // Prevent redirect loops within the same tab/session.
+    try{
+      if (sessionStorage.getItem('rp_ai_login_redirect_inflight') === '1') {
+        showToast('Finishing sign-in...', true);
+        return;
+      }
+      sessionStorage.setItem('rp_ai_login_redirect_inflight', '1');
+    }catch(e){}
     if (here.searchParams.get('open') !== 'ai') {
       here.searchParams.set('open', 'ai');
     }
@@ -379,11 +479,18 @@
   }
 
   async function openAIModal(){
-    // Firebase login gating
-    if (!isLoggedIn()) {
-      redirectToLoginPreserveOpen();
-      return;
-    }
+    // Prevent double-open if url.js + DOMContentLoaded both trigger
+    if (window.__rpAiOpening) return;
+    window.__rpAiOpening = true;
+
+    try{
+      // Firebase login gating (wait for auth restoration first)
+      const authed = await waitForAuthReady({ timeoutMs: 2500, minDelayMs: 250 });
+      if (!authed) {
+        redirectToLoginPreserveOpen();
+        return;
+      }
+      clearLoginRedirectInflight();
 
     const overlay = await ensureOverlay();
 
@@ -393,11 +500,18 @@
     // Open
     overlay.classList.remove('hidden');
     lockScroll();
-
+    try{ window.__rpAiOpening = false; }catch(e){}
     // If opened via URL, keep existing cleanup behavior on close
+  }catch(e){
+    try{ console.error(e); }catch(_){}
+  }finally{
+    try{ window.__rpAiOpening = false; }catch(e){}
   }
+}
 
   function closeAIModal(){
+    try{ window.__rpAiOpening = false; }catch(e){}
+
     const overlay = document.getElementById('AIOverlay');
     if (overlay) overlay.classList.add('hidden');
     unlockScroll();
@@ -427,11 +541,33 @@
     }
   });
 
+
+
+  // Best-effort: clear redirect inflight when auth becomes available.
+  (function bindAuthInflightClear(){
+    if (window.__rpAiAuthListenerBound) return;
+    window.__rpAiAuthListenerBound = true;
+    try{
+      if (window.firebase && window.firebase.auth && typeof window.firebase.auth === 'function') {
+        window.firebase.auth().onAuthStateChanged((user)=>{
+          if (user) clearLoginRedirectInflight();
+        });
+        return;
+      }
+    }catch(e){}
+    const start = Date.now();
+    const t = setInterval(()=>{
+      try{
+        if (typeof window.currentUserForSave !== 'undefined') {
+          if (window.currentUserForSave) clearLoginRedirectInflight();
+          clearInterval(t);
+        }
+      }catch(e){}
+      if (Date.now() - start > 4000) clearInterval(t);
+    }, 200);
+  })();
+
 /* ES Module Export: allows url.js to import openAiLoader without modification */
 export async function openAiLoader() {
   return await openAIModal();
 }
-
-
-// Attach to global scope for non-module usage
-
