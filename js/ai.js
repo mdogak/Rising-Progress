@@ -428,10 +428,10 @@
   });
 
 /* ES Module Export: allows url.js to import openAiLoader without modification */
-async function openAiLoader() {
+export async function openAiLoader() {
   return await openAIModal();
 }
 
 
 // Attach to global scope for non-module usage
-window.openAiLoader = openAiLoader;
+
