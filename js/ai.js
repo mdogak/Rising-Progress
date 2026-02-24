@@ -1,430 +1,164 @@
 /*
- (c) 2026 Rising Progress LLC. All rights reserved.
- AI Template Generator modal injector + behavior
+  Project Loader modal injector + event wiring.
+  Revised:
+  - Modal closes BEFORE triggering Open File dialog (guaranteed cleanup)
+  - Adds body class to disable Beta badge while modal is open
 */
-(function(){
 
-  const STORAGE_KEY = 'rp_ai_project_description';
-  const MAX_CHARS = 2000;
+function track(eventName, payload){
+  try{ console.log('[analytics]', eventName, payload || {}); }catch(e){}
+}
 
-  function $(sel, root){ return (root||document).querySelector(sel); }
+let _open = false;
 
-  function cleanupOpenParam(){
-    try{
-      const url = new URL(window.location.href);
-      if (url.searchParams.get('open') === 'ai') {
-        url.searchParams.delete('open');
-        window.history.replaceState({}, '', url.toString());
-      }
-    }catch(e){}
+export function openAiLoader(){
+  if (_open) return;
+  _open = true;
+
+  fetch('ai.html', { cache:'no-store' }).then(r=>r.text()).then(html=>{
+    const host = document.createElement('div');
+    host.id = 'rp-loader-host';
+    host.innerHTML = html;
+    document.body.appendChild(host);
+
+    document.body.classList.add('rp-loader-open');
+  const betaBadge = document.getElementById('betaBadge');
+  let betaPrevDisplay = null;
+  if(betaBadge){
+    betaPrevDisplay = betaBadge.style.display;
+    betaBadge.style.display = 'none';
   }
 
-  function isLoggedIn(){
-    // Prefer app-provided helpers (reusing existing auth mechanism when present)
+
+    const tileJsonEl = host.querySelector('#rp-loader-tiles');
+    let tiles = [];
     try{
-      if (typeof window.isLoggedIn === 'function') return !!window.isLoggedIn();
-      if (typeof window.getCurrentUser === 'function') return !!window.getCurrentUser();
-      if (typeof window.getAuthUser === 'function') return !!window.getAuthUser();
+      tiles = JSON.parse(tileJsonEl ? tileJsonEl.textContent : '[]') || [];
     }catch(e){}
 
-    // Common Firebase patterns (best-effort, no imports)
-    try{
-      if (window.auth && window.auth.currentUser) return true;
-    }catch(e){}
-    try{
-      if (window.firebase && window.firebase.auth && typeof window.firebase.auth === 'function') {
-        const u = window.firebase.auth().currentUser;
-        if (u) return true;
-      }
-    }catch(e){}
-    try{
-      // modular v9 style, if app has already initialized and exposed getAuth()
-      if (window.getAuth && typeof window.getAuth === 'function') {
-        const a = window.getAuth();
-        if (a && a.currentUser) return true;
-      }
-    }catch(e){}
+    const overlay = document.createElement('div');
+    overlay.className = 'rp-loader-overlay';
 
-    return false;
-  }
+    const modal = document.createElement('div');
+    modal.className = 'rp-loader-modal';
 
-  function redirectToLoginPreserveOpen(){
-    // Preserve open=ai so post-login returns to the modal
-    const here = new URL(window.location.href);
-    if (here.searchParams.get('open') !== 'ai') {
-      here.searchParams.set('open', 'ai');
-    }
+    const close = document.createElement('div');
+    close.className = 'rp-close';
+    close.textContent = '×';
 
-    // If the app exposes a central auth redirect helper, use it.
-    try{
-      if (typeof window.requireLogin === 'function') {
-        window.requireLogin(here.toString());
-        return;
-      }
-      if (typeof window.redirectToLogin === 'function') {
-        window.redirectToLogin(here.toString());
-        return;
-      }
-    }catch(e){}
+    const header = document.createElement('div');
+    header.className = 'rp-loader-header';
+    header.innerHTML = '<div class="rp-loader-brand"><img src="risingprogress.png" alt="Rising Progress"></div>';
 
-    // Best-effort fallback: stash return URL for the login page if it supports it.
-    try{ sessionStorage.setItem('rp_post_login_redirect', here.toString()); }catch(e){}
-    try{ sessionStorage.setItem('rp_login_return', here.toString()); }catch(e){}
+    modal.appendChild(close);
+    modal.appendChild(header);
 
-    // Conservative login URL: many apps use login.html with a redirect param
-    const loginUrl = new URL('login.html', window.location.href);
-    loginUrl.searchParams.set('redirect', here.toString());
-    window.location.href = loginUrl.toString();
-  }
+    const primaryGrid = document.createElement('div');
+    primaryGrid.className = 'rp-grid rp-grid-primary';
+    tiles.slice(0,3).forEach(t => primaryGrid.appendChild(buildTile(t)));
+    modal.appendChild(primaryGrid);
 
-  function ensureToast(){
-    let t = document.getElementById('aiToast');
-    if (t) return t;
+    const sec = document.createElement('div');
+    sec.className = 'rp-section';
+    sec.innerHTML = '<h3 class="rp-templates-title"><img src="icon.png" class="rp-title-icon">TEMPLATES<img src="icon.png" class="rp-title-icon"></h3><small>(draft examples to get started)</small>';
+    modal.appendChild(sec);
 
-    t = document.createElement('div');
-    t.id = 'aiToast';
-    t.style.cssText = [
-      'position: fixed',
-      'left: 50%',
-      'bottom: 24px',
-      'transform: translateX(-50%)',
-      'background: rgba(17,24,39,0.92)',
-      'color: #fff',
-      'padding: 10px 14px',
-      'border-radius: 10px',
-      'font-size: 14px',
-      'z-index: 10050',
-      'max-width: calc(100vw - 40px)',
-      'box-shadow: 0 10px 30px rgba(0,0,0,0.25)',
-      'display: none'
-    ].join(';');
-    document.body.appendChild(t);
-    return t;
-  }
+    const templateGrid = document.createElement('div');
+    templateGrid.className = 'rp-grid';
+    tiles.slice(3).forEach(t => templateGrid.appendChild(buildTile(t)));
+    modal.appendChild(templateGrid);
 
-  let toastTimer = null;
-  function showToast(msg, sticky){
-    const t = ensureToast();
-    t.textContent = msg || '';
-    t.style.display = 'block';
-    if (toastTimer) { clearTimeout(toastTimer); toastTimer = null; }
-    if (!sticky) {
-      toastTimer = setTimeout(()=>{ try{ t.style.display='none'; }catch(e){} }, 2200);
-    }
-  }
-  function hideToast(){
-    const t = document.getElementById('aiToast');
-    if (t) t.style.display = 'none';
-    if (toastTimer) { clearTimeout(toastTimer); toastTimer = null; }
-  }
-
-  async function fetchMarkupOnce(){
-    // Fetch AI.html and append its root overlay element
-    let res = null;
-    // Be tolerant to filename casing (ai.html vs AI.html)
-    const candidates = ['ai.html', 'AI.html'];
-    for (const p of candidates) {
-      try{
-        const r = await fetch(p, { cache: 'no-store' });
-        if (r && r.ok) { res = r; break; }
-      }catch(e){}
-    }
-    if (!res) throw new Error('Failed to load AI.html');
-    const html = await res.text();
-
-    const wrap = document.createElement('div');
-    wrap.innerHTML = html.trim();
-    const overlay = wrap.firstElementChild;
-    if (!overlay || overlay.id !== 'AIOverlay') {
-      throw new Error('AI.html is missing #AIOverlay root');
-    }
+    overlay.appendChild(modal);
     document.body.appendChild(overlay);
-    return overlay;
-  }
 
-  function applySizing(overlay){
-    const modal = $('.issues-modal', overlay);
-    if (!modal) return;
+        let disarmCloseOnPick = null;
 
-    // Measure Issues modal max-width (if it exists), then multiply by 1.3
-    let issuesMaxPx = 720;
-    try{
-      const issuesModal = document.getElementById('issuesOverlay') ? $('#issuesOverlay .issues-modal') : $('.issues-modal');
-      if (issuesModal) {
-        const cs = window.getComputedStyle(issuesModal);
-        const mw = cs && cs.maxWidth ? cs.maxWidth : '';
-        const n = parseFloat(mw);
-        if (isFinite(n) && n > 0) issuesMaxPx = n;
+function cleanup(){
+      if (disarmCloseOnPick){ try{ disarmCloseOnPick(); }catch(e){} disarmCloseOnPick = null; }
+      document.removeEventListener('keydown', onKey);
+      overlay.remove();
+      host.remove();
+      document.body.classList.remove('rp-loader-open');
+      if(betaBadge){
+        betaBadge.style.display = betaPrevDisplay;
       }
-    }catch(e){}
 
-    const target = issuesMaxPx * 1.3;
-    const cap = Math.floor(window.innerWidth * 0.95);
-    modal.style.maxWidth = Math.min(target, cap) + 'px';
-    modal.style.width = '95%';
-  }
-
-  function injectScopedStyles(overlay){
-    if ($('#aiModalScrollStyles', overlay)) return;
-
-    const style = document.createElement('style');
-    style.id = 'aiModalScrollStyles';
-    style.textContent = `
-      /* Scoped to AI modal only */
-      #AIOverlay .issues-modal{
-        max-height: 90vh;
-        display: flex;
-        flex-direction: column;
-      }
-      #AIOverlay .issues-modal-header{
-        flex-shrink: 0;
-      }
-      #AIOverlay .ai-body{
-        flex: 1 1 auto;
-        overflow-y: auto;
-        padding: 0 2px 6px 2px;
-      }
-      #AIOverlay .ai-textarea-wrap{
-        position: relative;
-        margin-top: 10px;
-      }
-      #AIOverlay #aiProjectDescription{
-        width: 100%;
-        min-height: 220px;
-        resize: vertical;
-        box-sizing: border-box;
-        padding: 12px 12px 30px 12px;
-      }
-      #AIOverlay .ai-char-count{
-        position: absolute;
-        right: 10px;
-        bottom: 8px;
-        font-size: 12px;
-        color: #6b7280;
-        user-select: none;
-        pointer-events: none;
-      }
-      #AIOverlay #aiGenerateBtn{
-        margin-top: 14px;
-      }
-      #AIOverlay #aiTermsLink{
-        color: #2563eb;
-        text-decoration: none;
-      }
-      #AIOverlay #aiTermsLink:hover{
-        text-decoration: underline;
-      }
-    `;
-    overlay.appendChild(style);
-  }
-
-  function lockScroll(){
-    document.body.dataset.aiScrollLock = document.body.style.overflow || '';
-    document.body.style.overflow = 'hidden';
-  }
-  function unlockScroll(){
-    if (document.body.dataset.aiScrollLock !== undefined) {
-      document.body.style.overflow = document.body.dataset.aiScrollLock;
-      delete document.body.dataset.aiScrollLock;
+      _open = false;
     }
+
+    function onKey(e){ if(e.key === 'Escape') cleanup(); }
+
+    close.addEventListener('click', cleanup);
+    overlay.addEventListener('click', e => { if(e.target === overlay) cleanup(); });
+    document.addEventListener('keydown', onKey);
+
+
+function armCloseOnFilePicked(){
+  let done = false;
+
+  function finish(){
+    if (done) return;
+    done = true;
+    cleanup();
   }
 
-  function updateCounter(overlay){
-    const ta = $('#aiProjectDescription', overlay);
-    const c = $('#aiCharCount', overlay);
-    if (!ta || !c) return;
-
-    const n = (ta.value || '').length;
-    c.textContent = n.toLocaleString() + '/2,000 characters';
+  function onChange(e){
+    const t = e && e.target;
+    if (!t || !t.matches) return;
+    if (!t.matches('input[type="file"]')) return;
+    // Only close if a file was actually selected.
+    if (t.files && t.files.length) finish();
   }
 
-  function wireOnce(overlay){
-    if (overlay.dataset.bound === '1') return;
+  document.addEventListener('change', onChange, true);
 
-    const closeBtn = $('.issues-close', overlay);
-    if (closeBtn) closeBtn.addEventListener('click', closeAIModal);
+  // If the app uses the File System Access API, close once a picker resolves.
+  try{
+    if (window.showOpenFilePicker && !window.__rpShowOpenFilePickerPatched){
+      const orig = window.showOpenFilePicker.bind(window);
+      window.showOpenFilePicker = async (...args) => {
+        const res = await orig(...args);
+        try{ window.dispatchEvent(new CustomEvent('rp:filepicked')); }catch(e){}
+        return res;
+      };
+      window.__rpShowOpenFilePickerPatched = true;
+    }
+  }catch(e){}
 
-    overlay.addEventListener('click', (e)=>{
-      if (e.target === overlay) closeAIModal();
-    });
+  function onPicked(){ finish(); }
+  window.addEventListener('rp:filepicked', onPicked, { once:true });
 
-    document.addEventListener('keydown', (e)=>{
-      if (e.key === 'Escape') {
-        const o = document.getElementById('AIOverlay');
-        if (o && !o.classList.contains('hidden')) closeAIModal();
-      }
-    });
+  return () => {
+    document.removeEventListener('change', onChange, true);
+    window.removeEventListener('rp:filepicked', onPicked);
+  };
+}
 
-    const ta = $('#aiProjectDescription', overlay);
-    if (ta) {
-      ta.addEventListener('input', ()=>{
-        // Session-only persistence (cleared on reload via beforeunload)
-        try{ sessionStorage.setItem(STORAGE_KEY, ta.value || ''); }catch(e){}
-        updateCounter(overlay);
+    function buildTile(tile){
+      const wrap = document.createElement('div');
+      wrap.className = 'rp-tile';
+      wrap.innerHTML = `<div class="rp-tile-box"><img src="${tile.imagePath}" alt="${tile.title}"></div>
+                        <div class="rp-tile-title">${tile.title}</div>`;
+
+      wrap.addEventListener('click', ()=>{
+        track('tile_clicked', { id: tile.id });
+
+        if(tile.action === 'openFile'){
+          cleanup();
+          requestAnimationFrame(() => {
+            const openItem = document.querySelector('#loadDropdown [data-act="open"]');
+            if (openItem) {
+              openItem.dispatchEvent(new MouseEvent('click', { bubbles:true, cancelable:true, view:window }));
+            }
+          });
+          return;
+        }
+
+        if (tile.url) {
+          window.location.href = tile.url;
+        }
       });
+      return wrap;
     }
-
-    const btn = $('#aiGenerateBtn', overlay);
-    if (btn) btn.addEventListener('click', onGenerate);
-
-    // Clear session-only storage on reload/navigation
-    if (!window.__rpAiBeforeUnloadBound) {
-      window.__rpAiBeforeUnloadBound = true;
-      window.addEventListener('beforeunload', ()=>{
-        try{ sessionStorage.removeItem(STORAGE_KEY); }catch(e){}
-      });
-    }
-
-    overlay.dataset.bound = '1';
-  }
-
-  async function ensureOverlay(){
-    let overlay = document.getElementById('AIOverlay');
-    if (!overlay) overlay = await fetchMarkupOnce();
-    injectScopedStyles(overlay);
-    wireOnce(overlay);
-
-    // Style the generate button to match existing buttons when possible
-    try{
-      const gen = $('#aiGenerateBtn', overlay);
-      if (gen && !gen.dataset.styled) {
-        const ref = document.getElementById('baselineBtn') ||
-                    document.getElementById('toolbarIssues') ||
-                    document.querySelector('button');
-        if (ref && ref.className) gen.className = ref.className;
-        gen.dataset.styled = '1';
-      }
-    }catch(e){}
-
-    // Restore textarea value if present (session-only)
-    try{
-      const ta = $('#aiProjectDescription', overlay);
-      if (ta) {
-        const saved = sessionStorage.getItem(STORAGE_KEY) || '';
-        ta.value = saved;
-        updateCounter(overlay);
-      }
-    }catch(e){}
-
-    applySizing(overlay);
-    return overlay;
-  }
-
-  async function onGenerate(){
-    const overlay = document.getElementById('AIOverlay') || await ensureOverlay();
-    const ta = $('#aiProjectDescription', overlay);
-
-    // Raw user input (limit enforced by maxlength on textarea)
-    const projectDescriptionText = (ta && ta.value) ? String(ta.value) : '';
-
-    // Store as a JSON string under the spec-required variable name "project-description"
-    const projectDescriptionJSON = JSON.stringify({ "project-description": projectDescriptionText });
-
-    // Expose variables (hyphenated names require bracket notation)
-    try{ window['project-description'] = projectDescriptionJSON; }catch(e){}
-
-    showToast('Processing...', true);
-
-    try{
-      const [promptJSON, schemaJSON] = await Promise.all([
-        fetch('Prompt/Create-Template-Prompt.json', { cache: 'no-store' }).then(r=>{ if(!r.ok) throw new Error('Prompt fetch failed'); return r.text(); }),
-        fetch('schema/schema-columnar-full.json', { cache: 'no-store' }).then(r=>{ if(!r.ok) throw new Error('Schema fetch failed'); return r.text(); })
-      ]);
-
-      // Create the spec-required variable "AI-request" by joining:
-      // 1) Prompt/Create-Template-Prompt.json
-      // 2) project-description (JSON string)
-      // 3) schema/schema-columnar-full.json
-      const aiRequestText = promptJSON + "\n\n" + projectDescriptionJSON + "\n\n" + schemaJSON;
-      try{ window['AI-request'] = aiRequestText; }catch(e){}
-
-      // Clipboard copy
-      const copied = await copyToClipboard(aiRequestText);
-      if (copied) {
-        showToast('Copied to clipboard.', false);
-      } else {
-        showToast('Copy failed. Please try again.', false);
-      }
-    } catch(e){
-      showToast('Error. Please try again.', false);
-    }
-  }
-
-
-  async function copyToClipboard(text){
-    try{
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(text);
-        return true;
-      }
-    }catch(e){ /* fall through */ }
-    return fallbackCopy(text);
-  }
-
-  function fallbackCopy(text){
-    try{
-      const ta = document.createElement('textarea');
-      ta.value = text;
-      ta.style.position = 'fixed';
-      ta.style.left = '-9999px';
-      document.body.appendChild(ta);
-      ta.focus();
-      ta.select();
-      try{ document.execCommand('copy'); }catch(e){}
-      document.body.removeChild(ta);
-      return true;
-    }catch(e){
-      return false;
-    }
-  }
-
-  async function openAIModal(){
-    // Firebase login gating
-    if (!isLoggedIn()) {
-      redirectToLoginPreserveOpen();
-      return;
-    }
-
-    const overlay = await ensureOverlay();
-
-    // Ensure counter is correct on open
-    updateCounter(overlay);
-
-    // Open
-    overlay.classList.remove('hidden');
-    lockScroll();
-
-    // If opened via URL, keep existing cleanup behavior on close
-  }
-
-  function closeAIModal(){
-    const overlay = document.getElementById('AIOverlay');
-    if (overlay) overlay.classList.add('hidden');
-    unlockScroll();
-    hideToast();
-    cleanupOpenParam();
-  }
-
-  // Expose public API for url.js
-  window.openAIModal = openAIModal;
-  window.closeAIModal = closeAIModal;
-
-  // URL-based open (defensive; url.js also triggers)
-  document.addEventListener('DOMContentLoaded', ()=>{
-    try{
-      const params = new URLSearchParams(window.location.search || '');
-      if (params.get('open') === 'ai' && !params.has('prgs') && !params.has('preset')) {
-        openAIModal();
-      }
-    }catch(e){}
-  });
-
-  // Keep sizing responsive
-  window.addEventListener('resize', ()=>{
-    const overlay = document.getElementById('AIOverlay');
-    if (overlay && !overlay.classList.contains('hidden')) {
-      try{ applySizing(overlay); }catch(e){}
-    }
-  });
-
-})();
+  }).catch(()=>{ _open = false; });
+}
