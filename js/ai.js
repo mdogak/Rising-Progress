@@ -2,7 +2,7 @@
  (c) 2026 Rising Progress LLC. All rights reserved.
  AI Template Generator modal injector + behavior
 */
-(function(){
+
 
   const STORAGE_KEY = 'rp_ai_project_description';
   const MAX_CHARS = 2000;
@@ -427,4 +427,7 @@
     }
   });
 
-})();
+/* ES Module Export: allows url.js to import openAiLoader without modification */
+export async function openAiLoader() {
+  return await openAIModal();
+}
