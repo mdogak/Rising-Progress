@@ -1,1 +1,323 @@
-{"meta":{"formatVersion":1,"source":"ai"},"project":{"name":"CS25MMSCFD","datesaved":"","timesaved":"","startup":"","markerLabel":""},"scopes":{"scopeId":["S001","S002","S003","S004","S005","S006","S007","S008","S009","S010","S011","S012","S013","S014","S015","S016","S017","S018","S019","S020","S021","S022","S023","S024"],"label":["Mobilization & Site Setup","Clearing/Grading & Earthwork","Roads/Drainage/Fencing","Concrete Foundations & Equipment Pads","Structural Steel & Pipe Supports","Set Slug Catcher","Install Suction Metering Skid/Run","Install 20in Suction Header Piping","Set CAT 3516 Compressors (Qty 5)","Install Discharge Header Piping","Set Filter Separator","Set Glycol Dehy Tower","Install Glycol System Piping & Reboiler","Set Fuel Gas Supply Skid","Set Instrument Air Skid","Set Condensate Tanks (Qty 4)","Set Water Bullet Tank","Set VRUs (Qty 2)","Install Vent Stack & Separator","Set PDC/Control Building","Electrical Grounding/Conduit/Cable Tray","Electrical Cable Pull/Terminate/Power-Up","Instrumentation Install & Tubing/Hookup","Pre-Commissioning, Commissioning & Demobilization"],"start":["","","","","","","","","","","","","","","","","","","","","","","","",""],"end":["","","","","","","","","","","","","","","","","","","","","","","","",""],"cost":[2,4,4,8,4,4,3,5,18,6,3,4,4,2,2,3,2,3,2,4,7,6,6,4],"progressValue":["","","","","","","","","","","","","","","","","","","","","","","","",""],"unitsToDate":["","","","","","","","","","","","","","","","","","","","","","","","",""],"totalUnits":["","","","","","","","","","","","","","","","","","","","","","","","",""],"unitsLabel":["%","%","%","Each","Tons","Each","Each","Feet","Each","Feet","Each","Each","%","Each","Each","Each","Each","Each","Each","Each","Feet","Feet","Feet","%"],"sectionName":["Site-Civil","Site-Civil","Site-Civil","Foundations-Structural","Foundations-Structural","Mechanical-Process","Mechanical-Process","Mechanical-Process","Mechanical-Process","Mechanical-Process","Mechanical-Process","Mechanical-Process","Mechanical-Process","Mechanical-Process","Mechanical-Process","Mechanical-Process","Mechanical-Process","Mechanical-Process","Mechanical-Process","Electrical-IE","Electrical-IE","Electrical-IE","Electrical-IE","Commissioning-Closeout"],"sectionID":["SEC1","SEC1","SEC1","SEC2","SEC2","SEC3","SEC3","SEC3","SEC3","SEC3","SEC3","SEC3","SEC3","SEC3","SEC3","SEC3","SEC3","SEC3","SEC3","SEC4","SEC4","SEC4","SEC4","SEC5"]},"timeseries":{"project":{"date":[],"baselinePct":[],"plannedPct":[],"dailyActual":[],"actualPct":[]},"scopes":{"historyDate":[],"scopeId":[],"label":[],"start":[],"end":[],"cost":[],"perDay":[],"actualPct":[],"unitsToDate":[],"totalUnits":[],"unitsLabel":[],"plannedtodate":[],"sectionName":[],"sectionID":[]},"sections":{"historyDate":[],"sectionID":[],"sectionTitle":[],"sectionWeight":[],"sectionPct":[],"sectionPlannedPct":[]},"projectMeta":{"historyDate":[],"key":[],"value":[]}}}
+{
+  "promptId": "prgs-project-health-analysis-v1",
+  "role": "system",
+  "description": "AI analysis prompt for evaluating construction project health using PRGS columnar data.",
+  "prompt": [
+    "You are an experienced construction manager and project controls lead with deep expertise in construction scheduling, progress tracking, earned value principles, and field execution practices.",
+    "",
+    "You are analyzing authoritative, immutable project progress data provided in a PRGS-derived columnar JSON format. All values are trusted as reported. Do not recompute or correct historical data.",
+    "",
+    "Your objective is to assess overall project health by comparing planned versus actual progress at the project, section, and scope levels, with appropriate weighting based on scope cost.",
+    "",
+    "Use statistical analysis of progress trends, including rate-of-progress comparisons, slope changes, and divergence between planned and actual curves. Linear interpolation between time-series points may be assumed where helpful.",
+    "",
+    "If actual progress is behind planned progress, identify the primary contributors to underperformance, prioritizing higher-cost (higher-weight) scopes and sections.",
+    "",
+    "Provide concise, actionable, non-fluffy feedback focused on execution reality. Avoid generic advice.",
+    "",
+    "Your output MUST be structured as short, bulleted sections using the following format:",
+    "",
+    "\u2022 Project Health Summary",
+    "  - One or two bullets summarizing overall status (on track, at risk, behind).",
+    "",
+    "\u2022 Key Variances",
+    "  - Bullets identifying where and when planned vs actual progress diverged.",
+    "",
+    "\u2022 Primary Drivers",
+    "  - Bullets identifying specific scopes or sections driving the variance, weighted by importance.",
+    "",
+    "\u2022 Trend Analysis",
+    "  - Bullets describing whether performance is improving, flat, or deteriorating over time.",
+    "",
+    "\u2022 Recommended Corrective Actions",
+    "  - Bullets describing concrete actions (crew adjustments, sequencing changes, resource shifts, scope focus), grounded in observed trends.",
+    "",
+    "Do not restate raw data. Do not provide motivational language. Focus on analytical insight and practical recommendations grounded in the provided data."
+  ]
+}
+
+
+{"project-description":"This project is a 25MMSCFD compressor station with suction metering, a slug catcher, a 20\\\" suction header, qty 5 CAT 3516 compressors on chat pads, discharge header, filter separator, glycol dehy tower, fuel gas supply skid, instrument air skid, PDC, qty 4 condensate tanks, water bullet tank, qty 2 VRUs, vent stack with separator, dehy and glycol reboiler."}
+
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://risingprogress.com/schema/schema-columnar-full.json",
+  "title": "PRGS Columnar Project Progress Schema",
+  "type": "object",
+  "$comment": [
+    "AI_ANALYSIS_PROMPT:",
+    "",
+    "You are analyzing project progress data provided in a columnar JSON schema derived from a PRGS ledger.",
+    "",
+    "All numeric values are authoritative and must not be altered or recomputed.",
+    "",
+    "Time-series data is an immutable ledger; past entries must be treated as final.",
+    "Missing values are represented as empty strings and should be interpreted as null.",
+    "",
+    "Gaps in time series are expected. Linear interpolation between percentage-based series may be assumed.",
+    "",
+    "actualPct values may exceed 100%. plannedPct and sectionPct are typically 0\u2013100 but are not enforced.",
+    "",
+    "Cost values represent relative weighting. Higher-cost scopes are more important to analysis.",
+    "",
+    "Arrays are index-aligned by contract.",
+    "Identifiers are stable and unique within the project.",
+    "Labels provide contextual meaning but do not define identity.",
+    "",
+    "Analyze trends, risks, anomalies, and weighting-aware impacts strictly from the provided data."
+  ],
+  "required": [
+    "meta",
+    "project",
+    "scopes",
+    "timeseries"
+  ],
+  "properties": {
+    "meta": {
+      "type": "object",
+      "$comment": "Metadata describing the export format and source.",
+      "required": [
+        "formatVersion",
+        "source"
+      ],
+      "properties": {
+        "formatVersion": {
+          "type": "integer",
+          "$comment": "PRGS format version."
+        },
+        "source": {
+          "type": "string",
+          "$comment": "Exporter identifier."
+        }
+      }
+    },
+    "project": {
+      "type": "object",
+      "$comment": "High-level project attributes.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "$comment": "Human-readable project name."
+        },
+        "datesaved": {
+          "type": "string",
+          "$comment": "Date file was saved (YYYY-MM-DD)."
+        },
+        "timesaved": {
+          "type": "string",
+          "$comment": "Time file was saved (HH:MM)."
+        },
+        "startup": {
+          "type": "string",
+          "$comment": "Startup date or marker; may be blank."
+        },
+        "markerLabel": {
+          "type": "string",
+          "$comment": "Baseline/start marker label."
+        }
+      }
+    },
+    "scopes": {
+      "type": "object",
+      "$comment": "Current scope state in columnar form. All arrays are index-aligned.",
+      "properties": {
+        "scopeId": {
+          "type": "array",
+          "$comment": "Unique identifier for each scope (stable within project)."
+        },
+        "label": {
+          "type": "array",
+          "$comment": "Human-readable scope name."
+        },
+        "start": {
+          "type": "array",
+          "$comment": "Scope start date."
+        },
+        "end": {
+          "type": "array",
+          "$comment": "Scope end date."
+        },
+        "cost": {
+          "type": "array",
+          "$comment": "Relative cost or weighting of the scope."
+        },
+        "progressValue": {
+          "type": "array",
+          "$comment": "Reported scope progress percent."
+        },
+        "unitsToDate": {
+          "type": "array",
+          "$comment": "Units installed to date; blank for percent-based scopes."
+        },
+        "totalUnits": {
+          "type": "array",
+          "$comment": "Total units for the scope; blank for percent-based scopes."
+        },
+        "unitsLabel": {
+          "type": "array",
+          "$comment": "Units of measure (%, Feet, etc.)."
+        },
+        "sectionName": {
+          "type": "array",
+          "$comment": "Human-readable section name."
+        },
+        "sectionID": {
+          "type": "array",
+          "$comment": "Section identifier for grouping scopes."
+        }
+      },
+      "additionalProperties": false
+    },
+    "timeseries": {
+      "type": "object",
+      "$comment": "Immutable ledger of historical snapshots.",
+      "required": [
+        "project",
+        "scopes",
+        "sections"
+      ],
+      "properties": {
+        "project": {
+          "type": "object",
+          "$comment": "Project-level progress curves over time.",
+          "properties": {
+            "date": {
+              "type": "array",
+              "$comment": "Snapshot date."
+            },
+            "baselinePct": {
+              "type": "array",
+              "$comment": "Baseline cumulative percent complete."
+            },
+            "plannedPct": {
+              "type": "array",
+              "$comment": "Planned cumulative percent complete."
+            },
+            "dailyActual": {
+              "type": "array",
+              "$comment": "Daily incremental actual progress."
+            },
+            "actualPct": {
+              "type": "array",
+              "$comment": "Actual cumulative percent complete."
+            }
+          },
+          "additionalProperties": false
+        },
+        "scopes": {
+          "type": "object",
+          "$comment": "Scope-level historical snapshots.",
+          "properties": {
+            "historyDate": {
+              "type": "array",
+              "$comment": "Snapshot date."
+            },
+            "scopeId": {
+              "type": "array",
+              "$comment": "Scope identifier."
+            },
+            "label": {
+              "type": "array",
+              "$comment": "Scope label at snapshot time."
+            },
+            "start": {
+              "type": "array",
+              "$comment": "Scope start date at snapshot."
+            },
+            "end": {
+              "type": "array",
+              "$comment": "Scope end date at snapshot."
+            },
+            "cost": {
+              "type": "array",
+              "$comment": "Scope cost or weighting at snapshot."
+            },
+            "perDay": {
+              "type": "array",
+              "$comment": "Planned percent per day for the scope."
+            },
+            "actualPct": {
+              "type": "array",
+              "$comment": "Actual percent complete at snapshot."
+            },
+            "unitsToDate": {
+              "type": "array",
+              "$comment": "Units installed at snapshot."
+            },
+            "totalUnits": {
+              "type": "array",
+              "$comment": "Total units at snapshot."
+            },
+            "unitsLabel": {
+              "type": "array",
+              "$comment": "Units of measure."
+            },
+            "plannedtodate": {
+              "type": "array",
+              "$comment": "Planned cumulative percent complete at snapshot."
+            },
+            "sectionName": {
+              "type": "array",
+              "$comment": "Section name at snapshot."
+            },
+            "sectionID": {
+              "type": "array",
+              "$comment": "Section identifier at snapshot."
+            }
+          },
+          "additionalProperties": false
+        },
+        "sections": {
+          "type": "object",
+          "$comment": "Section-level rollups by snapshot date.",
+          "properties": {
+            "historyDate": {
+              "type": "array",
+              "$comment": "Snapshot date."
+            },
+            "sectionID": {
+              "type": "array",
+              "$comment": "Section identifier."
+            },
+            "sectionTitle": {
+              "type": "array",
+              "$comment": "Section name."
+            },
+            "sectionWeight": {
+              "type": "array",
+              "$comment": "Relative weight of the section."
+            },
+            "sectionPct": {
+              "type": "array",
+              "$comment": "Actual cumulative percent complete for the section."
+            },
+            "sectionPlannedPct": {
+              "type": "array",
+              "$comment": "Planned cumulative percent complete for the section."
+            }
+          },
+          "additionalProperties": false
+        },
+        "projectMeta": {
+          "type": "object",
+          "$comment": "Project-level historical metadata ledger (non-numeric, versioned by date). Mirrors PRGS #SECTION:TIMESERIES_PROJECT.",
+          "properties": {
+            "historyDate": {
+              "type": "array",
+              "$comment": "Snapshot date for the project metadata entry."
+            },
+            "key": {
+              "type": "array",
+              "$comment": "Project metadata field name (e.g., name, startup, markerLabel)."
+            },
+            "value": {
+              "type": "array",
+              "$comment": "Value of the project metadata field at the snapshot date."
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    }
+  }
+}
