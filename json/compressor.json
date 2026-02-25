@@ -5,8 +5,8 @@
   },
   "project": {
     "datesaved": "2026-02-24",
-    "timesaved": "21:05",
-    "name": "Compressor-Station",
+    "timesaved": "21:25",
+    "name": "<Project Name>",
     "startup": "",
     "markerLabel": "Original Complete",
     "labelToggle": "true",
@@ -17,23 +17,20 @@
   },
   "scopes": {
     "scopeId": [
-      "sc_01",
-      "sc_02",
-      "sc_03",
-      "sc_04",
-      "sc_05",
-      "sc_06"
+      "sc_frkl20",
+      "sc_dtfs3n",
+      "sc_kf6453",
+      "sc_wddmap",
+      "sc_tyqoiy"
     ],
     "label": [
-      "Mobilization",
-      "Site-Grading",
-      "Foundations-Pads",
-      "Mechanical-Install",
-      "Electrical-IE",
-      "Commissioning-Demob"
+      "Scope #1",
+      "Scope #2",
+      "Scope #3",
+      "Scope #4",
+      "Scope #5"
     ],
     "start": [
-      "",
       "",
       "",
       "",
@@ -45,27 +42,23 @@
       "",
       "",
       "",
-      "",
       ""
     ],
     "cost": [
-      5,
-      15,
       20,
-      35,
-      15,
-      10
+      20,
+      20,
+      20,
+      20
     ],
     "progressValue": [
-      "",
-      "",
-      "",
-      "",
-      "",
-      ""
+      0,
+      0,
+      0,
+      0,
+      0
     ],
     "unitsToDate": [
-      "",
       "",
       "",
       "",
@@ -77,32 +70,28 @@
       "",
       "",
       "",
-      "",
       ""
     ],
     "unitsLabel": [
-      "Percent",
-      "Percent",
-      "Percent",
-      "Percent",
-      "Percent",
-      "Percent"
+      "%",
+      "%",
+      "%",
+      "%",
+      "%"
     ],
     "sectionName": [
-      "Site-Civil",
-      "Site-Civil",
-      "Site-Civil",
-      "Mechanical",
-      "Electrical-IE",
-      "Commissioning"
+      "Section #1",
+      "Section #1",
+      "Section #1",
+      "Section #2",
+      "Section #2"
     ],
     "sectionID": [
-      "sec_site",
-      "sec_site",
-      "sec_site",
-      "sec_mech",
-      "sec_elec",
-      "sec_comm"
+      "sec_8bd783",
+      "sec_8bd783",
+      "sec_8bd783",
+      "sec_831d14",
+      "sec_831d14"
     ]
   },
   "timeseries": {
@@ -141,9 +130,6 @@
       "sectionWeight": [],
       "sectionPct": [],
       "sectionPlannedPct": []
-    },
-    "#SECTION:DAILY-ACTUALS": [],
-    "#SECTION:HISTORY": [],
-    "#SECTION:BASELINE": []
+    }
   }
 }
