@@ -5,7 +5,7 @@
   },
   "project": {
     "datesaved": "2026-02-24",
-    "timesaved": "21:05",
+    "timesaved": "21:25",
     "name": "<Project Name>",
     "startup": "",
     "markerLabel": "Original Complete",
@@ -96,61 +96,11 @@
   },
   "timeseries": {
     "project": {
-      "date": [
-        "2025-11-14",
-        "2025-11-15",
-        "2025-11-16",
-        "2025-11-17",
-        "2025-11-18",
-        "2025-11-19",
-        "2025-11-20",
-        "2025-11-21",
-        "2025-11-22"
-      ],
-      "baselinePct": [
-        0,
-        12.5,
-        25,
-        37.5,
-        50,
-        62.5,
-        75,
-        87.5,
-        100
-      ],
-      "plannedPct": [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "dailyActual": [
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        ""
-      ],
-      "actualPct": [
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        ""
-      ]
+      "date": [],
+      "baselinePct": [],
+      "plannedPct": [],
+      "dailyActual": [],
+      "actualPct": []
     },
     "projectMeta": {
       "historyDate": [],
