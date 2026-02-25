@@ -5,7 +5,7 @@
   },
   "project": {
     "datesaved": "2026-02-24",
-    "timesaved": "21:54",
+    "timesaved": "22:06",
     "name": "<Project Name>",
     "startup": "",
     "markerLabel": "Original Complete",
@@ -96,21 +96,11 @@
   },
   "timeseries": {
     "project": {
-      "date": [
-        "2026-02-24"
-      ],
-      "baselinePct": [
-        0
-      ],
-      "plannedPct": [
-        0
-      ],
-      "dailyActual": [
-        ""
-      ],
-      "actualPct": [
-        ""
-      ]
+      "date": [],
+      "baselinePct": [],
+      "plannedPct": [],
+      "dailyActual": [],
+      "actualPct": []
     },
     "projectMeta": {
       "historyDate": [],
