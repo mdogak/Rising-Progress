@@ -428,6 +428,45 @@ function applyTimeseriesScopes(model, tsScopes, mode){
     };
   }
 
+
+  // Derive model.sections from model.scopes.
+  // Section weight is the sum of scope.cost values for all scopes in that section.
+  // This keeps sections as a pure structural view of scopes and prevents drift.
+  function buildSectionsFromScopes(model){
+    model = model || {};
+    var scopes = ensureArray(model.scopes);
+    var map = {};
+    var order = [];
+
+    for (var i=0;i<scopes.length;i++){
+      var s = scopes[i];
+      if (!s) continue;
+
+      var secId = (s.sectionID != null) ? String(s.sectionID) : '';
+      if (!secId) continue;
+
+      if (!map[secId]){
+        map[secId] = {
+          sectionID: secId,
+          sectionName: (s.sectionName != null) ? String(s.sectionName) : '',
+          sectionTitle: (s.sectionName != null) ? String(s.sectionName) : '',
+          weight: 0
+        };
+        order.push(secId);
+      }
+
+      var w = parseFloat(s.cost);
+      if (!isNaN(w)) map[secId].weight += w;
+    }
+
+    var sections = [];
+    for (var j=0;j<order.length;j++){
+      sections.push(map[order[j]]);
+    }
+
+    model.sections = sections;
+  }
+
   function mergeScopesAppend(model, newScopes){
     var existing = ensureArray(model.scopes);
     var byId = {};
@@ -506,8 +545,12 @@ function applyTimeseriesScopes(model, tsScopes, mode){
         var newScopes = readScopesColumnar(obj.scopes);
         if (mode === 'overwrite') model.scopes = newScopes;
         else mergeScopesAppend(model, newScopes);
+
+        // Always rebuild sections from scopes so section weights match sum of scope weights.
+        buildSectionsFromScopes(model);
       } else if (mode === 'overwrite') {
         model.scopes = [];
+        model.sections = [];
       }
 
       if (ts){
@@ -531,7 +574,11 @@ function applyTimeseriesScopes(model, tsScopes, mode){
         }
         if (hasAnyTsScopes){
           var synth = synthesizeScopesFromTimeseries(model);
-          if (synth) model.scopes = synth;
+          if (synth){
+            model.scopes = synth;
+            // Scopes were synthesized, so rebuild sections to match.
+            buildSectionsFromScopes(model);
+          }
         }
       }
 
