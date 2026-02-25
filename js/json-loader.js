@@ -582,6 +582,20 @@ function applyTimeseriesScopes(model, tsScopes, mode){
         }
       }
 
+
+
+      // Ensure minimal baseline exists so renderer always has a time axis
+      if (
+        !model.baseline ||
+        !Array.isArray(model.baseline.days) ||
+        model.baseline.days.length === 0
+      ){
+        var today = new Date().toISOString().split('T')[0];
+        model.baseline = {
+          days: [today],
+          planned: [0]
+        };
+      }
       finalizeToUI(model);
       return model;
     }
