@@ -16,9 +16,8 @@ PROJECT DEFINITION
 • Assume construction only unless explicitly stated otherwise.
 • Engineering, permitting, and design are excluded unless explicitly included.
 • Installed cost is the basis for weighting (cost column).
-• The project name must be fewer than 2 words.
+• The project name must be fewer than 2 words and separated by a space.
 • Project name may contain letters or hyphen only.
-• No spaces in project name.
 
 SCOPES (label column)
 
@@ -39,7 +38,6 @@ SECTION GROUPING (sectionName column)
 • Maximum 5 sections.
 • Scopes with identical sectionName must be adjacent.
 • sectionName may contain letters and hyphen only.
-• No spaces in sectionName.
 • sectionID must be unique per section.
 • All scopes within a section must use identical sectionID.
 • No unused sectionIDs allowed.
@@ -47,17 +45,14 @@ SECTION GROUPING (sectionName column)
 UNITS (unitsLabel column)
 
 • Prefer quantity-based tracking when measurable.
-• Acceptable units:
-Percent
+• Example Acceptable units:
 Feet
 Each
 CubicYards
 Tons
 Inches
-• Use Percent when quantity impractical.
-• Units must contain letters only.
-• No symbols such as %.
-• Use Percent instead of %.
+• Use % when quantity impractical.
+• Use % instead of percent
 
 WEIGHTING (cost column)
 
@@ -109,9 +104,7 @@ Update:
 
 Rules:
 • Fewer than 2 words
-• Letters or hyphen only
-• No spaces
-• No numbers
+• Letters
 • No special characters
 
 TIMESERIES SECTION
