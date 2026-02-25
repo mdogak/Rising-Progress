@@ -428,13 +428,13 @@
     try{
       const [promptJSON, schemaJSON] = await Promise.all([
         fetch('Prompt/Create-Template-Prompt.json', { cache: 'no-store' }).then(r=>{ if(!r.ok) throw new Error('Prompt fetch failed'); return r.text(); }),
-        fetch('schema/schema-columnar-full.json', { cache: 'no-store' }).then(r=>{ if(!r.ok) throw new Error('Schema fetch failed'); return r.text(); })
+        fetch('json/Project_Example.json', { cache: 'no-store' }).then(r=>{ if(!r.ok) throw new Error('Schema fetch failed'); return r.text(); })
       ]);
 
       // Create the spec-required variable "AI-request" by joining:
       // 1) Prompt/Create-Template-Prompt.json
       // 2) project-description (JSON string)
-      // 3) schema/schema-columnar-full.json
+      // 3) json/Project_Example.json
       const aiRequestText = promptJSON + "\n\n" + projectDescriptionJSON + "\n\n" + schemaJSON;
       try{ window['AI-request'] = aiRequestText; }catch(e){}
 
