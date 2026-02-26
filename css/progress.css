@@ -377,7 +377,7 @@ html, body {
 }
 
 .issues-modal-subtitle{
-  font-size: 15px;
+  font-size: 18px;
   color: #ea580c; /* orange-600 */
 }
 
@@ -447,6 +447,13 @@ html, body {
   white-space: pre-wrap;
 }
 
+#aiProjectDescription {
+  font-size: 18px;   /* Increase text size inside textarea */
+}
+
+#aiGenerateBtn {
+  font-size: 18px;
+}
 
 /* Removes bullet from scope titles only */
 .issues-list .issues-scope-title {
