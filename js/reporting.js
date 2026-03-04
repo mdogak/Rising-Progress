@@ -745,9 +745,7 @@ function closeReportingModal(){
 
   
   
-
-
-  function buildReportingHtml(){
+  function copyReportingToClipboard(){
     const overlay = document.getElementById('reportingOverlay') || ensureOverlay();
 
     function readText(el){
@@ -762,6 +760,67 @@ function closeReportingModal(){
         .replace(/"/g,'&quot;')
         .replace(/'/g,'&#39;');
     }
+
+    function buildPlainText(){
+      const lines = [];
+      const projHdr = readText(overlay.querySelector('#reportingProjectHeader'));
+      if (projHdr) lines.push(projHdr);
+
+      lines.push('');
+      lines.push('Project Health:');
+      lines.push('Summary of project health comparing planned progress to actual progress.');
+
+      try{
+        const asOfPretty = overlay && overlay.dataset ? (overlay.dataset.reportingAsOfPretty || '') : '';
+        if (asOfPretty) lines.push('Data as of: ' + asOfPretty);
+      }catch(e){ /* ignore */ }
+
+      try{
+        const tbl = overlay.querySelector('.reporting-health-table');
+        if (tbl) {
+          const rows = Array.from(tbl.querySelectorAll('tr'));
+          rows.forEach(function(tr, idx){
+            const cells = Array.from(tr.children || []);
+            const vals = cells.map(function(c){ return readText(c); }).filter(Boolean);
+            if (!vals.length) return;
+            if (idx === 0) return; // skip header row
+            if (vals.length >= 3) {
+              lines.push(vals[0] + ' | Actual: ' + vals[1] + ' | Plan: ' + vals[2]);
+            } else {
+              lines.push(vals.join(' | '));
+            }
+          });
+        }
+      }catch(e){ /* ignore */ }
+
+      try{
+        const daysRel = overlay.querySelector('.reporting-daysrel');
+        const daysText = readText(daysRel);
+        if (daysText) lines.push(daysText);
+      }catch(e){ /* ignore */ }
+
+      lines.push('');
+      lines.push('Potential Issues:');
+
+      try{
+        const lis = Array.from(overlay.querySelectorAll('#reportingList li'));
+        lis.forEach(function(li){
+          const t = readText(li);
+          if (!t) return;
+          if (li.classList.contains('issues-section-title')) {
+            lines.push(t);
+          } else if (li.classList.contains('issues-scope-title')) {
+            lines.push(t);
+          } else {
+            lines.push('• ' + t);
+          }
+        });
+      }catch(e){ /* ignore */ }
+
+      return lines.join('\n');
+    }
+
+    function buildEmailSafeHtml(){
       const projHdr = readText(overlay.querySelector('#reportingProjectHeader'));
       const asOfPretty = (overlay && overlay.dataset) ? (overlay.dataset.reportingAsOfPretty || '') : '';
 
@@ -903,83 +962,9 @@ function closeReportingModal(){
 
       h += '</td></tr></table>';
       return h;
-  }
-  function copyReportingToClipboard(){
-    const overlay = document.getElementById('reportingOverlay') || ensureOverlay();
-
-    function readText(el){
-      try{ return (el && (el.textContent || el.innerText || '') || '').trim(); }catch(e){ return ''; }
     }
 
-    function escapeHtml(s){
-      return String(s == null ? '' : s)
-        .replace(/&/g,'&amp;')
-        .replace(/</g,'&lt;')
-        .replace(/>/g,'&gt;')
-        .replace(/"/g,'&quot;')
-        .replace(/'/g,'&#39;');
-    }
-
-    function buildPlainText(){
-      const lines = [];
-      const projHdr = readText(overlay.querySelector('#reportingProjectHeader'));
-      if (projHdr) lines.push(projHdr);
-
-      lines.push('');
-      lines.push('Project Health:');
-      lines.push('Summary of project health comparing planned progress to actual progress.');
-
-      try{
-        const asOfPretty = overlay && overlay.dataset ? (overlay.dataset.reportingAsOfPretty || '') : '';
-        if (asOfPretty) lines.push('Data as of: ' + asOfPretty);
-      }catch(e){ /* ignore */ }
-
-      try{
-        const tbl = overlay.querySelector('.reporting-health-table');
-        if (tbl) {
-          const rows = Array.from(tbl.querySelectorAll('tr'));
-          rows.forEach(function(tr, idx){
-            const cells = Array.from(tr.children || []);
-            const vals = cells.map(function(c){ return readText(c); }).filter(Boolean);
-            if (!vals.length) return;
-            if (idx === 0) return; // skip header row
-            if (vals.length >= 3) {
-              lines.push(vals[0] + ' | Actual: ' + vals[1] + ' | Plan: ' + vals[2]);
-            } else {
-              lines.push(vals.join(' | '));
-            }
-          });
-        }
-      }catch(e){ /* ignore */ }
-
-      try{
-        const daysRel = overlay.querySelector('.reporting-daysrel');
-        const daysText = readText(daysRel);
-        if (daysText) lines.push(daysText);
-      }catch(e){ /* ignore */ }
-
-      lines.push('');
-      lines.push('Potential Issues:');
-
-      try{
-        const lis = Array.from(overlay.querySelectorAll('#reportingList li'));
-        lis.forEach(function(li){
-          const t = readText(li);
-          if (!t) return;
-          if (li.classList.contains('issues-section-title')) {
-            lines.push(t);
-          } else if (li.classList.contains('issues-scope-title')) {
-            lines.push(t);
-          } else {
-            lines.push('• ' + t);
-          }
-        });
-      }catch(e){ /* ignore */ }
-
-      return lines.join('\n');
-    }
-
-    const html = buildReportingHtml();
+    const html = buildEmailSafeHtml();
     const text = buildPlainText();
 
     function execCommandCopyHtml(htmlString){
@@ -1108,76 +1093,45 @@ async function downloadReportingPdf(){
       throw new Error("jsPDF failed to load");
     }
 
-    const pdf = new jsPDF({
-      orientation: "portrait",
-      unit: "mm",
-      format: "letter"
+    const canvas = await html2canvas(content,{
+      backgroundColor:'#ffffff',
+      scale:2,
+      useCORS:true
     });
 
-    const margin = {
-      top: 20,
-      bottom: 20,
-      left: 15,
-      right: 15
-    };
+    const imgData = canvas.toDataURL('image/png');
+
+    const pdf = new jsPDF({
+      orientation:'portrait',
+      unit:'px',
+      format:'a4'
+    });
 
     const pageWidth = pdf.internal.pageSize.getWidth();
-    const printableWidth = pageWidth - margin.left - margin.right;
+    const pageHeight = pdf.internal.pageSize.getHeight();
 
-    const pxWidth = printableWidth * 96 / 25.4;
+    // Page margins (px)
+    const margin = 40; // top/left/bottom
+    const marginRight = 10;
 
-    const html = buildReportingHtml();
+    const usableWidth = pageWidth - margin - marginRight;
+    const usableHeight = pageHeight - (margin * 2);
 
-    const temp = document.createElement("div");
-    temp.innerHTML = html;
+    const imgWidth = usableWidth;
+    const imgHeight = canvas.height * imgWidth / canvas.width;
 
+    // First page
+    pdf.addImage(imgData,'PNG',margin,margin,imgWidth,imgHeight);
 
-// --- PDF-only styling (do not modify buildReportingHtml output) ---
-try{
-  temp.classList.add('reporting-pdf-export');
-  const styleEl = document.createElement('style');
-  styleEl.type = 'text/css';
-  styleEl.textContent = `
-    /* Base typography */
-    .reporting-pdf-export{ font-size:12pt !important; line-height:1.25 !important; }
-    .reporting-pdf-export, .reporting-pdf-export *{ font-size:12pt !important; }
+    // Additional pages (keep margins)
+    let heightLeft = imgHeight - usableHeight;
+    let position = margin;
 
-    /* Headers (match existing inline colors) */
-    .reporting-pdf-export div[style*="color:#2563eb"]{ font-size:16pt !important; }
-    .reporting-pdf-export div[style*="color:#ea580c"][style*="font-weight:700"]{ font-size:18pt !important; }
-
-    /* Black sub-bullets (issue item rows: base color, not bold) */
-    .reporting-pdf-export td[style*="color:#374151"][style*="font-size:16px"]:not([style*="font-weight:700"]){ font-size:14pt !important; }
-    .reporting-pdf-export td[style*="width:18px"][style*="color:#374151"]:not([style*="font-weight:700"]){ font-size:14pt !important; }
-
-    /* Images scale to printable width while preserving aspect ratio */
-    .reporting-pdf-export img{ max-width:100% !important; width:100% !important; height:auto !important; }
-  `;
-  temp.prepend(styleEl);
-}catch(e){ /* ignore */ }
-    temp.style.width = `${pxWidth}px`;
-    temp.style.maxWidth = `${pxWidth}px`;
-    // Keep temp render off-screen to avoid UI flicker while jsPDF reads layout
-    temp.style.position = 'fixed';
-    temp.style.left = '-10000px';
-    temp.style.top = '0';
-    temp.style.background = '#ffffff';
-    temp.style.pointerEvents = 'none';
-    document.body.appendChild(temp);
-
-    try{
-      await pdf.html(temp,{
-        width: printableWidth,
-        margin:[margin.top,margin.left,margin.bottom,margin.right],
-        autoPaging:"text",
-        windowWidth:pxWidth,
-        html2canvas:{
-          scale:2,
-          useCORS:true
-        }
-      });
-    }finally{
-      try{ document.body.removeChild(temp); }catch(e){ /* ignore */ }
+    while(heightLeft > 0){
+      position = heightLeft - imgHeight + margin;
+      pdf.addPage();
+      pdf.addImage(imgData,'PNG',margin,position,imgWidth,imgHeight);
+      heightLeft -= usableHeight;
     }
 
 function sanitizeProjectName(name){
