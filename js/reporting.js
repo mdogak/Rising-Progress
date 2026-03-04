@@ -745,7 +745,9 @@ function closeReportingModal(){
 
   
   
-  function copyReportingToClipboard(){
+
+
+  function buildReportingHtml(){
     const overlay = document.getElementById('reportingOverlay') || ensureOverlay();
 
     function readText(el){
@@ -760,67 +762,6 @@ function closeReportingModal(){
         .replace(/"/g,'&quot;')
         .replace(/'/g,'&#39;');
     }
-
-    function buildPlainText(){
-      const lines = [];
-      const projHdr = readText(overlay.querySelector('#reportingProjectHeader'));
-      if (projHdr) lines.push(projHdr);
-
-      lines.push('');
-      lines.push('Project Health:');
-      lines.push('Summary of project health comparing planned progress to actual progress.');
-
-      try{
-        const asOfPretty = overlay && overlay.dataset ? (overlay.dataset.reportingAsOfPretty || '') : '';
-        if (asOfPretty) lines.push('Data as of: ' + asOfPretty);
-      }catch(e){ /* ignore */ }
-
-      try{
-        const tbl = overlay.querySelector('.reporting-health-table');
-        if (tbl) {
-          const rows = Array.from(tbl.querySelectorAll('tr'));
-          rows.forEach(function(tr, idx){
-            const cells = Array.from(tr.children || []);
-            const vals = cells.map(function(c){ return readText(c); }).filter(Boolean);
-            if (!vals.length) return;
-            if (idx === 0) return; // skip header row
-            if (vals.length >= 3) {
-              lines.push(vals[0] + ' | Actual: ' + vals[1] + ' | Plan: ' + vals[2]);
-            } else {
-              lines.push(vals.join(' | '));
-            }
-          });
-        }
-      }catch(e){ /* ignore */ }
-
-      try{
-        const daysRel = overlay.querySelector('.reporting-daysrel');
-        const daysText = readText(daysRel);
-        if (daysText) lines.push(daysText);
-      }catch(e){ /* ignore */ }
-
-      lines.push('');
-      lines.push('Potential Issues:');
-
-      try{
-        const lis = Array.from(overlay.querySelectorAll('#reportingList li'));
-        lis.forEach(function(li){
-          const t = readText(li);
-          if (!t) return;
-          if (li.classList.contains('issues-section-title')) {
-            lines.push(t);
-          } else if (li.classList.contains('issues-scope-title')) {
-            lines.push(t);
-          } else {
-            lines.push('• ' + t);
-          }
-        });
-      }catch(e){ /* ignore */ }
-
-      return lines.join('\n');
-    }
-
-    function buildEmailSafeHtml(){
       const projHdr = readText(overlay.querySelector('#reportingProjectHeader'));
       const asOfPretty = (overlay && overlay.dataset) ? (overlay.dataset.reportingAsOfPretty || '') : '';
 
@@ -962,9 +903,83 @@ function closeReportingModal(){
 
       h += '</td></tr></table>';
       return h;
+  }
+  function copyReportingToClipboard(){
+    const overlay = document.getElementById('reportingOverlay') || ensureOverlay();
+
+    function readText(el){
+      try{ return (el && (el.textContent || el.innerText || '') || '').trim(); }catch(e){ return ''; }
     }
 
-    const html = buildEmailSafeHtml();
+    function escapeHtml(s){
+      return String(s == null ? '' : s)
+        .replace(/&/g,'&amp;')
+        .replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;')
+        .replace(/"/g,'&quot;')
+        .replace(/'/g,'&#39;');
+    }
+
+    function buildPlainText(){
+      const lines = [];
+      const projHdr = readText(overlay.querySelector('#reportingProjectHeader'));
+      if (projHdr) lines.push(projHdr);
+
+      lines.push('');
+      lines.push('Project Health:');
+      lines.push('Summary of project health comparing planned progress to actual progress.');
+
+      try{
+        const asOfPretty = overlay && overlay.dataset ? (overlay.dataset.reportingAsOfPretty || '') : '';
+        if (asOfPretty) lines.push('Data as of: ' + asOfPretty);
+      }catch(e){ /* ignore */ }
+
+      try{
+        const tbl = overlay.querySelector('.reporting-health-table');
+        if (tbl) {
+          const rows = Array.from(tbl.querySelectorAll('tr'));
+          rows.forEach(function(tr, idx){
+            const cells = Array.from(tr.children || []);
+            const vals = cells.map(function(c){ return readText(c); }).filter(Boolean);
+            if (!vals.length) return;
+            if (idx === 0) return; // skip header row
+            if (vals.length >= 3) {
+              lines.push(vals[0] + ' | Actual: ' + vals[1] + ' | Plan: ' + vals[2]);
+            } else {
+              lines.push(vals.join(' | '));
+            }
+          });
+        }
+      }catch(e){ /* ignore */ }
+
+      try{
+        const daysRel = overlay.querySelector('.reporting-daysrel');
+        const daysText = readText(daysRel);
+        if (daysText) lines.push(daysText);
+      }catch(e){ /* ignore */ }
+
+      lines.push('');
+      lines.push('Potential Issues:');
+
+      try{
+        const lis = Array.from(overlay.querySelectorAll('#reportingList li'));
+        lis.forEach(function(li){
+          const t = readText(li);
+          if (!t) return;
+          if (li.classList.contains('issues-section-title')) {
+            lines.push(t);
+          } else if (li.classList.contains('issues-scope-title')) {
+            lines.push(t);
+          } else {
+            lines.push('• ' + t);
+          }
+        });
+      }catch(e){ /* ignore */ }
+
+      return lines.join('\n');
+    }
+
+    const html = buildReportingHtml();
     const text = buildPlainText();
 
     function execCommandCopyHtml(htmlString){
@@ -1045,7 +1060,6 @@ function closeReportingModal(){
 
   
 
-
 async function downloadReportingPdf(){
 
   const overlay = document.getElementById('reportingOverlay');
@@ -1107,28 +1121,27 @@ async function downloadReportingPdf(){
       right: 15
     };
 
-    // temporarily allow full content height
-    const contentContainer = overlay.querySelector('#reportingContent');
-    let originalOverflow = '';
-    if (contentContainer){
-      originalOverflow = contentContainer.style.overflow;
-      contentContainer.style.overflow = "visible";
+    const html = buildReportingHtml();
+
+    const temp = document.createElement("div");
+    temp.innerHTML = html;
+    temp.style.width = "800px";
+    document.body.appendChild(temp);
+
+    try{
+      await pdf.html(temp,{
+        margin:[margin.top,margin.left,margin.bottom,margin.right],
+        autoPaging:"text",
+        html2canvas:{
+          scale:2,
+          useCORS:true
+        }
+      });
+    }finally{
+      try{ document.body.removeChild(temp); }catch(e){ /* ignore */ }
     }
 
-    await pdf.html(content,{
-      margin: [margin.top, margin.left, margin.bottom, margin.right],
-      autoPaging: "text",
-      html2canvas:{
-        scale:2,
-        useCORS:true
-      }
-    });
-
-    if (contentContainer){
-      contentContainer.style.overflow = originalOverflow || "";
-    }
-
-    function sanitizeProjectName(name){
+function sanitizeProjectName(name){
       return String(name || '').replace(/[^a-zA-Z0-9]/g,'');
     }
 
@@ -1148,6 +1161,23 @@ async function downloadReportingPdf(){
 
     console.error("PDF generation failed:", err);
 
+    const errorBanner = document.createElement("div");
+    errorBanner.textContent = "PDF download failed.";
+    errorBanner.style.position = "fixed";
+    errorBanner.style.top = "10px";
+    errorBanner.style.left = "50%";
+    errorBanner.style.transform = "translateX(-50%)";
+    errorBanner.style.background = "#dc2626";
+    errorBanner.style.color = "#fff";
+    errorBanner.style.padding = "10px 16px";
+    errorBanner.style.borderRadius = "6px";
+    errorBanner.style.zIndex = "9999";
+    errorBanner.style.fontWeight = "600";
+
+    document.body.appendChild(errorBanner);
+
+    setTimeout(()=>errorBanner.remove(),4000);
+
   } finally {
 
     if (pdfBtn) pdfBtn.style.display = '';
@@ -1156,7 +1186,6 @@ async function downloadReportingPdf(){
   }
 
 }
-
 
 
   // Expose public API
