@@ -34,7 +34,23 @@
   }
 
 
-  function ensureOverlay(){
+  
+
+function ensureReportingPdfStyles(){
+  try{
+    if (document.getElementById('reportingPdfExportStyles')) return;
+    const style = document.createElement('style');
+    style.id = 'reportingPdfExportStyles';
+    style.textContent = `
+      .page-section{ page-break-inside: avoid; break-inside: avoid; }
+      #reportingOverlay.reporting-exporting #reportingPdfBtn,
+      #reportingOverlay.reporting-exporting #reportingCopyBtn{ display:none !important; }
+    `;
+    document.head.appendChild(style);
+  }catch(e){ /* ignore */ }
+}
+
+function ensureOverlay(){
     let overlay = document.getElementById('reportingOverlay');
     if(!overlay){
       overlay = document.createElement('div');
@@ -60,13 +76,15 @@
           <div id="reportingContent" class="reporting-content">
             <div id="reportingContentWrap" class="reporting-content-wrap">
               <div id="reportingProjectHeader" class="reporting-project-header"></div>
-              <div id="reportingHealthWrap" class="reporting-health-wrap"></div>
-              <ul id="reportingList" class="issues-list"></ul>
+              <div id="reportingHealthWrap" class="reporting-health-wrap page-section"></div>
+              <ul id="reportingList" class="issues-list page-section"></ul>
             </div>
           </div>
         </div>`;
       document.body.appendChild(overlay);
       
+
+      ensureReportingPdfStyles();
 
     }
 
@@ -594,7 +612,7 @@
 
     // Chart image (from #captureRegion; fallback to existing chart canvas)
     const chartWrap = document.createElement('div');
-    chartWrap.className = 'reporting-chart-wrap';
+    chartWrap.className = 'reporting-chart-wrap page-section';
 
     // Loading placeholder while html2canvas renders
     const loading = document.createElement('div');
@@ -1045,21 +1063,55 @@ function closeReportingModal(){
 
   
 
+
+
 async function downloadReportingPdf(){
 
   const overlay = document.getElementById('reportingOverlay');
   if (!overlay) return;
 
-  const content = overlay.querySelector('#reportingContentWrap');
-  if (!content) return;
+  const contentWrap = overlay.querySelector('#reportingContentWrap');
+  if (!contentWrap) return;
+
+  const scrollContent = overlay.querySelector('#reportingContent');
 
   const pdfBtn = overlay.querySelector('#reportingPdfBtn');
   const copyBtn = overlay.querySelector('#reportingCopyBtn');
 
+  // Track temporary DOM changes so we can restore
+  let originalChartCanvas = null;
+  let chartImgEl = null;
+
   try {
 
+    ensureReportingPdfStyles();
+    overlay.classList.add('reporting-exporting');
+
+    // Hide controls so they don't appear in the PDF
     if (pdfBtn) pdfBtn.style.display = 'none';
     if (copyBtn) copyBtn.style.display = 'none';
+
+    // Temporarily disable scroll truncation during export
+    if (scrollContent) {
+      scrollContent.dataset.originalOverflow = scrollContent.style.overflow;
+      scrollContent.style.overflow = 'visible';
+    }
+
+    // Preserve chart as an image (canvas -> img) so the rest stays selectable text
+    const chartCanvas = document.getElementById('progressChart');
+    if (chartCanvas && chartCanvas.tagName && chartCanvas.tagName.toLowerCase() === 'canvas' && typeof chartCanvas.toDataURL === 'function') {
+      const chartImage = chartCanvas.toDataURL('image/png');
+
+      const img = document.createElement('img');
+      img.src = chartImage;
+      img.className = 'reporting-chart-img';
+      img.alt = 'Progress chart';
+
+      originalChartCanvas = chartCanvas;
+      chartImgEl = img;
+
+      chartCanvas.replaceWith(img);
+    }
 
     // Ensure jsPDF is loaded
     if (!window.jspdf || !window.jspdf.jsPDF) {
@@ -1093,62 +1145,55 @@ async function downloadReportingPdf(){
       throw new Error("jsPDF failed to load");
     }
 
-    const canvas = await html2canvas(content,{
-      backgroundColor:'#ffffff',
-      scale:2,
-      useCORS:true
-    });
-
-    const imgData = canvas.toDataURL('image/png');
-
     const pdf = new jsPDF({
-      orientation:'portrait',
-      unit:'px',
-      format:'a4'
+      orientation: "portrait",
+      unit: "mm",
+      format: "letter"
     });
 
+    const margin = {
+      top: 20,
+      bottom: 20,
+      left: 15,
+      right: 15
+    };
+
+    // Render HTML -> PDF with selectable text and automatic pagination
+    await pdf.html(contentWrap, {
+      margin: [margin.top, margin.left, margin.bottom, margin.right],
+      autoPaging: "text",
+      html2canvas: {
+        scale: 2,
+        useCORS: true
+      }
+    });
+
+    // Header + footer on every page
+    const pageCount = pdf.getNumberOfPages();
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
 
-    // Page margins (px)
-    const margin = 40; // top/left/bottom
-    const marginRight = 10;
+    const projectName = document.getElementById("projectName")?.value || "Project Report";
+    const dateText = new Date().toLocaleDateString();
 
-    const usableWidth = pageWidth - margin - marginRight;
-    const usableHeight = pageHeight - (margin * 2);
+    for (let i = 1; i <= pageCount; i++) {
 
-    const imgWidth = usableWidth;
-    const imgHeight = canvas.height * imgWidth / canvas.width;
+      pdf.setPage(i);
+      pdf.setFontSize(10);
 
-    // First page
-    pdf.addImage(imgData,'PNG',margin,margin,imgWidth,imgHeight);
+      // Header
+      pdf.text(projectName + " Reporting", margin.left, 10);
 
-    // Additional pages (keep margins)
-    let heightLeft = imgHeight - usableHeight;
-    let position = margin;
+      const dateX = pageWidth - margin.right - pdf.getTextWidth(dateText);
+      pdf.text(dateText, dateX, 10);
 
-    while(heightLeft > 0){
-      position = heightLeft - imgHeight + margin;
-      pdf.addPage();
-      pdf.addImage(imgData,'PNG',margin,position,imgWidth,imgHeight);
-      heightLeft -= usableHeight;
+      // Footer
+      const pageLabel = "Page " + i + " of " + pageCount;
+      const labelX = (pageWidth - pdf.getTextWidth(pageLabel)) / 2;
+      pdf.text(pageLabel, labelX, pageHeight - 10);
     }
 
-function sanitizeProjectName(name){
-      return String(name || '').replace(/[^a-zA-Z0-9]/g,'');
-    }
-
-    const projectName = sanitizeProjectName(getProjectName());
-
-    let dateStr = overlay.dataset.reportingAsOfPretty || '';
-
-    if(dateStr){
-      dateStr = dateStr.replace(/\//g,'-');
-    }
-
-    const fileName = projectName + '-' + dateStr + '.pdf';
-
-    pdf.save(fileName);
+    pdf.save("project-report.pdf");
 
   } catch(err) {
 
@@ -1173,12 +1218,28 @@ function sanitizeProjectName(name){
 
   } finally {
 
+    // Restore scroll container overflow
+    if (scrollContent) {
+      scrollContent.style.overflow = scrollContent.dataset.originalOverflow || "";
+      delete scrollContent.dataset.originalOverflow;
+    }
+
+    // Restore original chart canvas
+    try{
+      if (originalChartCanvas && chartImgEl && chartImgEl.parentNode) {
+        chartImgEl.replaceWith(originalChartCanvas);
+      }
+    }catch(e){ /* ignore */ }
+
+    overlay.classList.remove('reporting-exporting');
+
     if (pdfBtn) pdfBtn.style.display = '';
     if (copyBtn) copyBtn.style.display = '';
 
   }
 
 }
+
 
 
   // Expose public API
