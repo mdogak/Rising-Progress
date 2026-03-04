@@ -954,3 +954,18 @@ html, body {
   border-radius: 12px;
   box-shadow: 0 8px 24px rgba(2,6,23,.08);
 }
+
+
+/* Reporting PDF icon */
+.reporting-pdf-icon {
+    width: 18px;
+    height: 18px;
+    vertical-align: text-bottom;
+    margin-right: 6px;
+    image-rendering: auto;
+}
+
+/* Prevent awkward PDF page breaks */
+.page-section {
+    page-break-inside: avoid;
+}
