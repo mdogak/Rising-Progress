@@ -1136,6 +1136,7 @@ async function downloadReportingPdf(){
 
     try{
       await pdf.html(temp,{
+        width: printableWidth,
         margin:[margin.top,margin.left,margin.bottom,margin.right],
         autoPaging:"text",
         windowWidth:pxWidth,
