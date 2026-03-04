@@ -51,7 +51,7 @@
                 <span>Copy</span>
               </button>
               <button type="button" id="reportingPdfBtn" class="issues-copy-btn reporting-pdf-btn" aria-label="Download PDF">
-                <img src="../images/pdf.ico" alt="PDF" class="reporting-pdf-icon" />
+                <img src="images/pdf.ico" alt="PDF" class="reporting-pdf-icon" />
                 <span>PDF</span>
               </button>
               <button type="button" class="issues-close" aria-label="Close recommendations">&times;</button>
@@ -66,15 +66,7 @@
           </div>
         </div>`;
       document.body.appendChild(overlay);
-      // Ensure PDF icon styles exist (works in both app and standalone contexts)
-      try{
-        if (!document.getElementById('reportingPdfIconStyle')) {
-          const st = document.createElement('style');
-          st.id = 'reportingPdfIconStyle';
-          st.textContent = '.reporting-pdf-icon{width:16px;height:16px;margin-right:6px;vertical-align:middle;}';
-          document.head.appendChild(st);
-        }
-      }catch(e){ /* ignore */ }
+      
 
     }
 
