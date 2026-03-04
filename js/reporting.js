@@ -51,6 +51,10 @@
                 <span aria-hidden="true">📋</span>
                 <span>Copy</span>
               </button>
+              <button type="button" id="reportingPdfBtn" class="issues-copy-btn reporting-pdf-btn" aria-label="Download PDF">
+                <span aria-hidden="true">📄</span>
+                <span>PDF</span>
+              </button>
               <button type="button" class="issues-close" aria-label="Close recommendations">&times;</button>
             </div>
           </div>
@@ -78,6 +82,10 @@
           const btn = e && e.target && e.target.closest ? e.target.closest('#reportingCopyBtn') : null;
           if (btn) {
             copyReportingToClipboard();
+          }
+          const pdfBtn = e && e.target && e.target.closest ? e.target.closest('#reportingPdfBtn') : null;
+          if (pdfBtn) {
+            downloadReportingPdf();
           }
         }catch(_){ }
       });
@@ -1031,6 +1039,75 @@ function closeReportingModal(){
     // ignore
   }
   document.body.removeChild(ta);
+}
+
+  
+async function downloadReportingPdf(){
+
+  const overlay = document.getElementById('reportingOverlay');
+  if (!overlay) return;
+
+  const content = overlay.querySelector('#reportingContentWrap');
+  if (!content) return;
+
+  const pdfBtn = overlay.querySelector('#reportingPdfBtn');
+  const copyBtn = overlay.querySelector('#reportingCopyBtn');
+
+  if (pdfBtn) pdfBtn.style.display = 'none';
+  if (copyBtn) copyBtn.style.display = 'none';
+
+  const canvas = await html2canvas(content,{
+    backgroundColor:'#ffffff',
+    scale:2,
+    useCORS:true
+  });
+
+  const imgData = canvas.toDataURL('image/png');
+
+  const { jsPDF } = window.jspdf;
+
+  const pdf = new jsPDF({
+    orientation:'portrait',
+    unit:'px',
+    format:'a4'
+  });
+
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+
+  const imgWidth = pageWidth;
+  const imgHeight = canvas.height * imgWidth / canvas.width;
+
+  let heightLeft = imgHeight;
+  let position = 0;
+
+  pdf.addImage(imgData,'PNG',0,position,imgWidth,imgHeight);
+  heightLeft -= pageHeight;
+
+  while(heightLeft > 0){
+    position = heightLeft - imgHeight;
+    pdf.addPage();
+    pdf.addImage(imgData,'PNG',0,position,imgWidth,imgHeight);
+    heightLeft -= pageHeight;
+  }
+
+  function sanitizeProjectName(name){
+    return String(name || '').replace(/[^a-zA-Z0-9]/g,'');
+  }
+
+  const projectName = sanitizeProjectName(getProjectName());
+
+  let dateStr = overlay.dataset.reportingAsOfPretty || '';
+  if(dateStr){
+    dateStr = dateStr.replace(/\//g,'-');
+  }
+
+  const fileName = projectName + '-' + dateStr + '.pdf';
+
+  pdf.save(fileName);
+
+  if (pdfBtn) pdfBtn.style.display = '';
+  if (copyBtn) copyBtn.style.display = '';
 }
 
   // Expose public API
