@@ -1059,6 +1059,38 @@ async function downloadReportingPdf(){
     if (pdfBtn) pdfBtn.style.display = 'none';
     if (copyBtn) copyBtn.style.display = 'none';
 
+    // Ensure jsPDF is loaded
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+
+      await new Promise((resolve, reject) => {
+
+        const existing = document.querySelector('script[data-jspdf]');
+
+        if (existing) {
+          existing.addEventListener('load', resolve);
+          existing.addEventListener('error', reject);
+          return;
+        }
+
+        const script = document.createElement('script');
+        script.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+        script.dataset.jspdf = "true";
+
+        script.onload = resolve;
+        script.onerror = reject;
+
+        document.head.appendChild(script);
+
+      });
+
+    }
+
+    const jsPDF = window.jspdf?.jsPDF;
+
+    if (!jsPDF) {
+      throw new Error("jsPDF failed to load");
+    }
+
     const canvas = await html2canvas(content,{
       backgroundColor:'#ffffff',
       scale:2,
@@ -1066,12 +1098,6 @@ async function downloadReportingPdf(){
     });
 
     const imgData = canvas.toDataURL('image/png');
-
-    const jsPDF = window.jspdf?.jsPDF;
-
-    if (!jsPDF) {
-      throw new Error("jsPDF failed to load");
-    }
 
     const pdf = new jsPDF({
       orientation:'portrait',
@@ -1105,6 +1131,7 @@ async function downloadReportingPdf(){
     const projectName = sanitizeProjectName(getProjectName());
 
     let dateStr = overlay.dataset.reportingAsOfPretty || '';
+
     if(dateStr){
       dateStr = dateStr.replace(/\//g,'-');
     }
@@ -1124,7 +1151,7 @@ async function downloadReportingPdf(){
     errorBanner.style.left = "50%";
     errorBanner.style.transform = "translateX(-50%)";
     errorBanner.style.background = "#dc2626";
-    errorBanner.style.color = "#ffffff";
+    errorBanner.style.color = "#fff";
     errorBanner.style.padding = "10px 16px";
     errorBanner.style.borderRadius = "6px";
     errorBanner.style.zIndex = "9999";
@@ -1132,11 +1159,7 @@ async function downloadReportingPdf(){
 
     document.body.appendChild(errorBanner);
 
-    setTimeout(()=>{
-      if(errorBanner && errorBanner.parentNode){
-        errorBanner.parentNode.removeChild(errorBanner);
-      }
-    },4000);
+    setTimeout(()=>errorBanner.remove(),4000);
 
   } finally {
 
@@ -1144,6 +1167,7 @@ async function downloadReportingPdf(){
     if (copyBtn) copyBtn.style.display = '';
 
   }
+
 }
 
 
