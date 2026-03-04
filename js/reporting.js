@@ -52,7 +52,7 @@
                 <span>Copy</span>
               </button>
               <button type="button" id="reportingPdfBtn" class="issues-copy-btn reporting-pdf-btn" aria-label="Download PDF">
-                <span aria-hidden="true">📄</span>
+                <span aria-hidden="true" style="color:#dc2626">📄</span>
                 <span>PDF</span>
               </button>
               <button type="button" class="issues-close" aria-label="Close recommendations">&times;</button>
@@ -1042,6 +1042,7 @@ function closeReportingModal(){
 }
 
   
+
 async function downloadReportingPdf(){
 
   const overlay = document.getElementById('reportingOverlay');
@@ -1053,62 +1054,98 @@ async function downloadReportingPdf(){
   const pdfBtn = overlay.querySelector('#reportingPdfBtn');
   const copyBtn = overlay.querySelector('#reportingCopyBtn');
 
-  if (pdfBtn) pdfBtn.style.display = 'none';
-  if (copyBtn) copyBtn.style.display = 'none';
+  try {
 
-  const canvas = await html2canvas(content,{
-    backgroundColor:'#ffffff',
-    scale:2,
-    useCORS:true
-  });
+    if (pdfBtn) pdfBtn.style.display = 'none';
+    if (copyBtn) copyBtn.style.display = 'none';
 
-  const imgData = canvas.toDataURL('image/png');
+    const canvas = await html2canvas(content,{
+      backgroundColor:'#ffffff',
+      scale:2,
+      useCORS:true
+    });
 
-  const { jsPDF } = window.jspdf;
+    const imgData = canvas.toDataURL('image/png');
 
-  const pdf = new jsPDF({
-    orientation:'portrait',
-    unit:'px',
-    format:'a4'
-  });
+    const jsPDF = window.jspdf?.jsPDF;
 
-  const pageWidth = pdf.internal.pageSize.getWidth();
-  const pageHeight = pdf.internal.pageSize.getHeight();
+    if (!jsPDF) {
+      throw new Error("jsPDF failed to load");
+    }
 
-  const imgWidth = pageWidth;
-  const imgHeight = canvas.height * imgWidth / canvas.width;
+    const pdf = new jsPDF({
+      orientation:'portrait',
+      unit:'px',
+      format:'a4'
+    });
 
-  let heightLeft = imgHeight;
-  let position = 0;
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
 
-  pdf.addImage(imgData,'PNG',0,position,imgWidth,imgHeight);
-  heightLeft -= pageHeight;
+    const imgWidth = pageWidth;
+    const imgHeight = canvas.height * imgWidth / canvas.width;
 
-  while(heightLeft > 0){
-    position = heightLeft - imgHeight;
-    pdf.addPage();
+    let heightLeft = imgHeight;
+    let position = 0;
+
     pdf.addImage(imgData,'PNG',0,position,imgWidth,imgHeight);
     heightLeft -= pageHeight;
+
+    while(heightLeft > 0){
+      position = heightLeft - imgHeight;
+      pdf.addPage();
+      pdf.addImage(imgData,'PNG',0,position,imgWidth,imgHeight);
+      heightLeft -= pageHeight;
+    }
+
+    function sanitizeProjectName(name){
+      return String(name || '').replace(/[^a-zA-Z0-9]/g,'');
+    }
+
+    const projectName = sanitizeProjectName(getProjectName());
+
+    let dateStr = overlay.dataset.reportingAsOfPretty || '';
+    if(dateStr){
+      dateStr = dateStr.replace(/\//g,'-');
+    }
+
+    const fileName = projectName + '-' + dateStr + '.pdf';
+
+    pdf.save(fileName);
+
+  } catch(err) {
+
+    console.error("PDF generation failed:", err);
+
+    const errorBanner = document.createElement("div");
+    errorBanner.textContent = "PDF download failed.";
+    errorBanner.style.position = "fixed";
+    errorBanner.style.top = "10px";
+    errorBanner.style.left = "50%";
+    errorBanner.style.transform = "translateX(-50%)";
+    errorBanner.style.background = "#dc2626";
+    errorBanner.style.color = "#ffffff";
+    errorBanner.style.padding = "10px 16px";
+    errorBanner.style.borderRadius = "6px";
+    errorBanner.style.zIndex = "9999";
+    errorBanner.style.fontWeight = "600";
+
+    document.body.appendChild(errorBanner);
+
+    setTimeout(()=>{
+      if(errorBanner && errorBanner.parentNode){
+        errorBanner.parentNode.removeChild(errorBanner);
+      }
+    },4000);
+
+  } finally {
+
+    if (pdfBtn) pdfBtn.style.display = '';
+    if (copyBtn) copyBtn.style.display = '';
+
   }
-
-  function sanitizeProjectName(name){
-    return String(name || '').replace(/[^a-zA-Z0-9]/g,'');
-  }
-
-  const projectName = sanitizeProjectName(getProjectName());
-
-  let dateStr = overlay.dataset.reportingAsOfPretty || '';
-  if(dateStr){
-    dateStr = dateStr.replace(/\//g,'-');
-  }
-
-  const fileName = projectName + '-' + dateStr + '.pdf';
-
-  pdf.save(fileName);
-
-  if (pdfBtn) pdfBtn.style.display = '';
-  if (copyBtn) copyBtn.style.display = '';
 }
+
 
   // Expose public API
   window.openReportingModal = openReportingModal;
