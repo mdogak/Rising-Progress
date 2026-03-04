@@ -44,15 +44,14 @@
         <div class="issues-modal" role="dialog" aria-modal="true" aria-label="Reporting">
           <div class="issues-modal-header">
             <div class="issues-modal-heading">
-              <div id="reportingProjectHeader" class="reporting-project-header"></div>
-            </div>
+</div>
             <div style="display:flex; gap:10px; align-items:center;">
               <button type="button" id="reportingCopyBtn" class="issues-copy-btn" aria-label="Copy reporting">
                 <span aria-hidden="true">📋</span>
                 <span>Copy</span>
               </button>
               <button type="button" id="reportingPdfBtn" class="issues-copy-btn reporting-pdf-btn" aria-label="Download PDF">
-                <span aria-hidden="true" style="color:#dc2626">📄</span>
+                <img src="../images/pdf.ico" alt="PDF" class="reporting-pdf-icon" />
                 <span>PDF</span>
               </button>
               <button type="button" class="issues-close" aria-label="Close recommendations">&times;</button>
@@ -60,12 +59,23 @@
           </div>
           <div id="reportingContent" class="reporting-content">
             <div id="reportingContentWrap" class="reporting-content-wrap">
+              <div id="reportingProjectHeader" class="reporting-project-header"></div>
               <div id="reportingHealthWrap" class="reporting-health-wrap"></div>
               <ul id="reportingList" class="issues-list"></ul>
             </div>
           </div>
         </div>`;
       document.body.appendChild(overlay);
+      // Ensure PDF icon styles exist (works in both app and standalone contexts)
+      try{
+        if (!document.getElementById('reportingPdfIconStyle')) {
+          const st = document.createElement('style');
+          st.id = 'reportingPdfIconStyle';
+          st.textContent = '.reporting-pdf-icon{width:16px;height:16px;margin-right:6px;vertical-align:middle;}';
+          document.head.appendChild(st);
+        }
+      }catch(e){ /* ignore */ }
+
     }
 
     // Wire up listeners once
@@ -1108,23 +1118,31 @@ async function downloadReportingPdf(){
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
 
-    const imgWidth = pageWidth;
+    // Page margins (px)
+    const margin = 40; // top/left/bottom
+    const marginRight = 10;
+
+    const usableWidth = pageWidth - margin - marginRight;
+    const usableHeight = pageHeight - (margin * 2);
+
+    const imgWidth = usableWidth;
     const imgHeight = canvas.height * imgWidth / canvas.width;
 
-    let heightLeft = imgHeight;
-    let position = 0;
+    // First page
+    pdf.addImage(imgData,'PNG',margin,margin,imgWidth,imgHeight);
 
-    pdf.addImage(imgData,'PNG',0,position,imgWidth,imgHeight);
-    heightLeft -= pageHeight;
+    // Additional pages (keep margins)
+    let heightLeft = imgHeight - usableHeight;
+    let position = margin;
 
     while(heightLeft > 0){
-      position = heightLeft - imgHeight;
+      position = heightLeft - imgHeight + margin;
       pdf.addPage();
-      pdf.addImage(imgData,'PNG',0,position,imgWidth,imgHeight);
-      heightLeft -= pageHeight;
+      pdf.addImage(imgData,'PNG',margin,position,imgWidth,imgHeight);
+      heightLeft -= usableHeight;
     }
 
-    function sanitizeProjectName(name){
+function sanitizeProjectName(name){
       return String(name || '').replace(/[^a-zA-Z0-9]/g,'');
     }
 
