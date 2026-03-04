@@ -1130,8 +1130,39 @@ async function downloadReportingPdf(){
 
     const temp = document.createElement("div");
     temp.innerHTML = html;
+
+
+// --- PDF-only styling (do not modify buildReportingHtml output) ---
+try{
+  temp.classList.add('reporting-pdf-export');
+  const styleEl = document.createElement('style');
+  styleEl.type = 'text/css';
+  styleEl.textContent = `
+    /* Base typography */
+    .reporting-pdf-export{ font-size:12pt !important; line-height:1.25 !important; }
+    .reporting-pdf-export, .reporting-pdf-export *{ font-size:12pt !important; }
+
+    /* Headers (match existing inline colors) */
+    .reporting-pdf-export div[style*="color:#2563eb"]{ font-size:16pt !important; }
+    .reporting-pdf-export div[style*="color:#ea580c"][style*="font-weight:700"]{ font-size:18pt !important; }
+
+    /* Black sub-bullets (issue item rows: base color, not bold) */
+    .reporting-pdf-export td[style*="color:#374151"][style*="font-size:16px"]:not([style*="font-weight:700"]){ font-size:14pt !important; }
+    .reporting-pdf-export td[style*="width:18px"][style*="color:#374151"]:not([style*="font-weight:700"]){ font-size:14pt !important; }
+
+    /* Images scale to printable width while preserving aspect ratio */
+    .reporting-pdf-export img{ max-width:100% !important; width:100% !important; height:auto !important; }
+  `;
+  temp.prepend(styleEl);
+}catch(e){ /* ignore */ }
     temp.style.width = `${pxWidth}px`;
     temp.style.maxWidth = `${pxWidth}px`;
+    // Keep temp render off-screen to avoid UI flicker while jsPDF reads layout
+    temp.style.position = 'fixed';
+    temp.style.left = '-10000px';
+    temp.style.top = '0';
+    temp.style.background = '#ffffff';
+    temp.style.pointerEvents = 'none';
     document.body.appendChild(temp);
 
     try{
