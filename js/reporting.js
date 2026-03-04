@@ -1121,17 +1121,24 @@ async function downloadReportingPdf(){
       right: 15
     };
 
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const printableWidth = pageWidth - margin.left - margin.right;
+
+    const pxWidth = printableWidth * 96 / 25.4;
+
     const html = buildReportingHtml();
 
     const temp = document.createElement("div");
     temp.innerHTML = html;
-    temp.style.width = "800px";
+    temp.style.width = `${pxWidth}px`;
+    temp.style.maxWidth = `${pxWidth}px`;
     document.body.appendChild(temp);
 
     try{
       await pdf.html(temp,{
         margin:[margin.top,margin.left,margin.bottom,margin.right],
         autoPaging:"text",
+        windowWidth:pxWidth,
         html2canvas:{
           scale:2,
           useCORS:true
