@@ -609,7 +609,14 @@ function buildAllCSV(isUserSave=false) {
   })());
 
   // TIMESERIES
-  if (model.timeSeriesProject || model.timeSeriesScopes || model.timeSeriesSections) {
+  if (
+  model.baseline ||
+  model.history?.length ||
+  Object.keys(model.dailyActuals || {}).length ||
+  model.timeSeriesProject ||
+  model.timeSeriesScopes ||
+  model.timeSeriesSections
+) {
     section('TIMESERIES', (function () {
       const lines = [];
       lines.push('date,baselinePct,plannedPct,dailyActual,actualPct');
