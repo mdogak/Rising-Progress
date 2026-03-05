@@ -494,6 +494,38 @@ function __fmt2(v){
 
 
 
+
+function buildDaysFromScopes(scopes){
+  if (!Array.isArray(scopes) || !scopes.length) return [];
+
+  const starts = scopes
+    .map(s => s && s.start)
+    .filter(Boolean)
+    .sort();
+
+  const ends = scopes
+    .map(s => s && s.end)
+    .filter(Boolean)
+    .sort();
+
+  if (!starts.length || !ends.length) return [];
+
+  const start = new Date(starts[0] + "T00:00:00");
+  const end = new Date(ends[ends.length - 1] + "T00:00:00");
+
+  if (isNaN(start) || isNaN(end) || end < start) return [];
+
+  const days = [];
+
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    days.push(d.toISOString().slice(0,10));
+  }
+
+  return days;
+}
+
+
+
 function buildAllCSV(isUserSave=false) {
   const model = getModel();
 
@@ -609,14 +641,7 @@ function buildAllCSV(isUserSave=false) {
   })());
 
   // TIMESERIES
-  if (
-  model.baseline ||
-  model.history?.length ||
-  Object.keys(model.dailyActuals || {}).length ||
-  model.timeSeriesProject ||
-  model.timeSeriesScopes ||
-  model.timeSeriesSections
-) {
+  if (model.timeSeriesProject || model.timeSeriesScopes || model.timeSeriesSections) {
     section('TIMESERIES', (function () {
       const lines = [];
       lines.push('date,baselinePct,plannedPct,dailyActual,actualPct');
@@ -626,17 +651,13 @@ function buildAllCSV(isUserSave=false) {
       const histMap = {};
       hist.forEach(h => { if (h && h.date) histMap[h.date] = h.actualPct; });
 
-let days = (model.baseline && Array.isArray(model.baseline.days))
-  ? model.baseline.days
-  : [];
+      let days = [];
 
-// Ensure a baseline exists so TIMESERIES can generate rows
-if(!model.baseline && days.length){
-  model.baseline = {
-    days: days,
-    planned: Array(days.length).fill(null)
-  };
-}
+      if (model.baseline && Array.isArray(model.baseline.days)) {
+        days = model.baseline.days;
+      } else {
+        days = buildDaysFromScopes(model.scopes);
+      }
 
       const baselineCum = (model.baseline && Array.isArray(model.baseline.planned))
         ? model.baseline.planned
