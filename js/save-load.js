@@ -626,9 +626,17 @@ function buildAllCSV(isUserSave=false) {
       const histMap = {};
       hist.forEach(h => { if (h && h.date) histMap[h.date] = h.actualPct; });
 
-      const days = (model.baseline && Array.isArray(model.baseline.days))
-        ? model.baseline.days
-        : [];
+let days = (model.baseline && Array.isArray(model.baseline.days))
+  ? model.baseline.days
+  : [];
+
+// Ensure a baseline exists so TIMESERIES can generate rows
+if(!model.baseline && days.length){
+  model.baseline = {
+    days: days,
+    planned: Array(days.length).fill(null)
+  };
+}
 
       const baselineCum = (model.baseline && Array.isArray(model.baseline.planned))
         ? model.baseline.planned
