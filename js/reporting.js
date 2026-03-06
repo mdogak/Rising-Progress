@@ -1118,18 +1118,15 @@ async function downloadReportingPdf(){
           ? window.buildReportingHtml()
           : content.innerHTML);
 
-    temp = document.createElement("div");
-    temp.innerHTML = html;
+    temp = content.cloneNode(true);
     temp.classList.add("reporting-pdf-export");
 
     temp.style.width = `${pxWidth}px`;
     temp.style.maxWidth = `${pxWidth}px`;
-    temp.style.position = "absolute";
-    temp.style.opacity = "0";
-    temp.style.pointerEvents = "none";
+    temp.style.position = "fixed";
+        temp.style.pointerEvents = "none";
     temp.style.background = "#ffffff";
-    temp.style.zIndex = "-1";
-    temp.style.left = "0";
+        temp.style.left = "0";
     temp.style.top = "0";
     temp.style.padding = "0";
     temp.style.margin = "0";
