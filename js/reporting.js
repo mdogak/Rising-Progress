@@ -1046,6 +1046,7 @@ function closeReportingModal(){
   
 
 
+
 async function downloadReportingPdf(){
 
   const overlay = document.getElementById('reportingOverlay');
@@ -1112,25 +1113,19 @@ async function downloadReportingPdf(){
     const printableWidth = pageWidth - margin.left - margin.right;
     const pxWidth = printableWidth * 96 / 25.4;
 
-    const html = (typeof buildReportingHtml === 'function')
-      ? buildReportingHtml()
-      : ((typeof window !== 'undefined' && typeof window.buildReportingHtml === 'function')
-          ? window.buildReportingHtml()
-          : content.innerHTML);
-
     temp = content.cloneNode(true);
     temp.classList.add("reporting-pdf-export");
 
     temp.style.width = `${pxWidth}px`;
     temp.style.maxWidth = `${pxWidth}px`;
-    temp.style.position = "fixed";
-        temp.style.pointerEvents = "none";
-    temp.style.background = "#ffffff";
-        temp.style.left = "0";
-    temp.style.top = "0";
-    temp.style.padding = "0";
     temp.style.margin = "0";
+    temp.style.padding = "0";
     temp.style.boxSizing = "border-box";
+    temp.style.position = "fixed";
+    temp.style.left = "0";
+    temp.style.top = "0";
+    temp.style.background = "#ffffff";
+    temp.style.pointerEvents = "none";
     temp.setAttribute('aria-hidden', 'true');
 
     const style = document.createElement("style");
@@ -1210,13 +1205,14 @@ async function downloadReportingPdf(){
     document.body.appendChild(temp);
 
     const images = Array.from(temp.querySelectorAll('img'));
-    await Promise.all(images.map(function(img){
-      return new Promise(function(resolve){
+
+    await Promise.all(images.map(img =>
+      new Promise(resolve => {
         if (img.complete) return resolve();
-        img.addEventListener('load', resolve, { once:true });
-        img.addEventListener('error', resolve, { once:true });
-      });
-    }));
+        img.onload = resolve;
+        img.onerror = resolve;
+      })
+    ));
 
     await pdf.html(temp,{
       width: printableWidth,
@@ -1283,6 +1279,7 @@ async function downloadReportingPdf(){
   }
 
 }
+
 
 
 
