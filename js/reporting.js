@@ -1045,6 +1045,7 @@ function closeReportingModal(){
 
   
 
+
 async function downloadReportingPdf(){
 
   const overlay = document.getElementById('reportingOverlay');
@@ -1093,48 +1094,150 @@ async function downloadReportingPdf(){
       throw new Error("jsPDF failed to load");
     }
 
-    const canvas = await html2canvas(content,{
-      backgroundColor:'#ffffff',
-      scale:2,
-      useCORS:true
-    });
-
-    const imgData = canvas.toDataURL('image/png');
-
     const pdf = new jsPDF({
       orientation:'portrait',
       unit:'px',
       format:'a4'
     });
 
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-
     // Page margins (px)
-    const margin = 40; // top/left/bottom
-    const marginRight = 10;
+    const margin = {
+      top: 40,
+      left: 40,
+      bottom: 40,
+      right: 10
+    };
 
-    const usableWidth = pageWidth - margin - marginRight;
-    const usableHeight = pageHeight - (margin * 2);
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const printableWidth = pageWidth - margin.left - margin.right;
+    const pxWidth = printableWidth * 96 / 25.4;
 
-    const imgWidth = usableWidth;
-    const imgHeight = canvas.height * imgWidth / canvas.width;
+    const html = (typeof buildReportingHtml === 'function')
+      ? buildReportingHtml()
+      : ((typeof window !== 'undefined' && typeof window.buildReportingHtml === 'function')
+          ? window.buildReportingHtml()
+          : content.innerHTML);
 
-    // First page
-    pdf.addImage(imgData,'PNG',margin,margin,imgWidth,imgHeight);
+    const temp = document.createElement("div");
+    temp.innerHTML = html;
+    temp.classList.add("reporting-pdf-export");
 
-    // Additional pages (keep margins)
-    let heightLeft = imgHeight - usableHeight;
-    let position = margin;
+    temp.style.width = `${pxWidth}px`;
+    temp.style.maxWidth = `${pxWidth}px`;
+    temp.style.position = "fixed";
+    temp.style.left = "-10000px";
+    temp.style.top = "0";
+    temp.style.background = "#ffffff";
+    temp.style.padding = "0";
+    temp.style.margin = "0";
+    temp.style.boxSizing = "border-box";
+    temp.setAttribute('aria-hidden', 'true');
 
-    while(heightLeft > 0){
-      position = heightLeft - imgHeight + margin;
-      pdf.addPage();
-      pdf.addImage(imgData,'PNG',margin,position,imgWidth,imgHeight);
-      heightLeft -= usableHeight;
-    }
+    const style = document.createElement("style");
+    style.textContent = `
+.reporting-pdf-export{
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  font-size:14px;
+  line-height:1.4;
+  color:#374151;
+}
 
-function sanitizeProjectName(name){
+/* Ensure content stays inside page width */
+.reporting-pdf-export table{
+  max-width:100%;
+  width:100%;
+  border-collapse:collapse;
+  table-layout:auto;
+}
+
+.reporting-pdf-export img{
+  width:100%;
+  max-width:100%;
+  height:auto;
+  display:block;
+}
+
+/* Prevent oversized inline fonts */
+.reporting-pdf-export *{
+  max-width:100%;
+  box-sizing:border-box;
+}
+
+.reporting-pdf-export .reporting-chart-wrap,
+.reporting-pdf-export .reporting-chart-img{
+  max-width:100%;
+  overflow:hidden;
+}
+
+.reporting-pdf-export .issues-section-title,
+.reporting-pdf-export .issues-scope-title{
+  page-break-after: avoid;
+  break-after: avoid-page;
+}
+
+.reporting-pdf-export .issues-scope-title + .issues-scope-item,
+.reporting-pdf-export .issues-section-title + .issues-scope-title,
+.reporting-pdf-export .issues-section-title + .issues-scope-item{
+  page-break-before: avoid;
+  break-before: avoid-page;
+}
+
+/* Pagination rules */
+.reporting-pdf-export tr{
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.reporting-pdf-export ul,
+.reporting-pdf-export li{
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+`;
+    temp.prepend(style);
+
+    // Preserve the rendered chart image from the live modal when available.
+    try{
+      const liveChart = content.querySelector('.reporting-chart-img');
+      const exportChart = temp.querySelector('.reporting-chart-img');
+      if (liveChart && exportChart && liveChart.src) {
+        exportChart.src = liveChart.src;
+        exportChart.style.display = '';
+      }
+      const exportLoading = temp.querySelector('.reporting-chart-loading');
+      if (exportChart && exportChart.src && exportLoading) {
+        exportLoading.style.display = 'none';
+      }
+    }catch(_){ /* ignore */ }
+
+    document.body.appendChild(temp);
+
+    // Wait for export images to finish loading so layout is stable.
+    const images = Array.from(temp.querySelectorAll('img'));
+    await Promise.all(images.map(function(img){
+      return new Promise(function(resolve){
+        if (img.complete) return resolve();
+        img.addEventListener('load', resolve, { once:true });
+        img.addEventListener('error', resolve, { once:true });
+      });
+    }));
+
+    await pdf.html(temp,{
+      width: printableWidth,
+      margin:[margin.top,margin.left,margin.bottom,margin.right],
+      windowWidth: pxWidth,
+      autoPaging:"text",
+      html2canvas:{
+        scale:2,
+        useCORS:true
+      }
+    });
+
+    try{
+      if (temp.parentNode) temp.parentNode.removeChild(temp);
+    }catch(_){ /* ignore */ }
+
+    function sanitizeProjectName(name){
       return String(name || '').replace(/[^a-zA-Z0-9]/g,'');
     }
 
@@ -1173,12 +1276,18 @@ function sanitizeProjectName(name){
 
   } finally {
 
+    try{
+      const stray = document.querySelector('.reporting-pdf-export[aria-hidden="true"]');
+      if (stray && stray.parentNode) stray.parentNode.removeChild(stray);
+    }catch(_){ /* ignore */ }
+
     if (pdfBtn) pdfBtn.style.display = '';
     if (copyBtn) copyBtn.style.display = '';
 
   }
 
 }
+
 
 
   // Expose public API
