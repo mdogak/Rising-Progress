@@ -1056,6 +1056,7 @@ async function downloadReportingPdf(){
 
   const pdfBtn = overlay.querySelector('#reportingPdfBtn');
   const copyBtn = overlay.querySelector('#reportingCopyBtn');
+  let temp = null;
 
   try {
 
@@ -1096,11 +1097,10 @@ async function downloadReportingPdf(){
 
     const pdf = new jsPDF({
       orientation:'portrait',
-      unit:'px',
-      format:'a4'
+      unit:'mm',
+      format:'letter'
     });
 
-    // Page margins (px)
     const margin = {
       top: 40,
       left: 40,
@@ -1118,16 +1118,19 @@ async function downloadReportingPdf(){
           ? window.buildReportingHtml()
           : content.innerHTML);
 
-    const temp = document.createElement("div");
+    temp = document.createElement("div");
     temp.innerHTML = html;
     temp.classList.add("reporting-pdf-export");
 
     temp.style.width = `${pxWidth}px`;
     temp.style.maxWidth = `${pxWidth}px`;
-    temp.style.position = "fixed";
-    temp.style.left = "-10000px";
-    temp.style.top = "0";
+    temp.style.position = "absolute";
+    temp.style.visibility = "hidden";
+    temp.style.pointerEvents = "none";
     temp.style.background = "#ffffff";
+    temp.style.zIndex = "-1";
+    temp.style.left = "0";
+    temp.style.top = "0";
     temp.style.padding = "0";
     temp.style.margin = "0";
     temp.style.boxSizing = "border-box";
@@ -1142,7 +1145,6 @@ async function downloadReportingPdf(){
   color:#374151;
 }
 
-/* Ensure content stays inside page width */
 .reporting-pdf-export table{
   max-width:100%;
   width:100%;
@@ -1157,7 +1159,6 @@ async function downloadReportingPdf(){
   display:block;
 }
 
-/* Prevent oversized inline fonts */
 .reporting-pdf-export *{
   max-width:100%;
   box-sizing:border-box;
@@ -1182,7 +1183,6 @@ async function downloadReportingPdf(){
   break-before: avoid-page;
 }
 
-/* Pagination rules */
 .reporting-pdf-export tr{
   page-break-inside: avoid;
   break-inside: avoid;
@@ -1212,7 +1212,6 @@ async function downloadReportingPdf(){
 
     document.body.appendChild(temp);
 
-    // Wait for export images to finish loading so layout is stable.
     const images = Array.from(temp.querySelectorAll('img'));
     await Promise.all(images.map(function(img){
       return new Promise(function(resolve){
@@ -1232,10 +1231,6 @@ async function downloadReportingPdf(){
         useCORS:true
       }
     });
-
-    try{
-      if (temp.parentNode) temp.parentNode.removeChild(temp);
-    }catch(_){ /* ignore */ }
 
     function sanitizeProjectName(name){
       return String(name || '').replace(/[^a-zA-Z0-9]/g,'');
@@ -1275,6 +1270,10 @@ async function downloadReportingPdf(){
     setTimeout(()=>errorBanner.remove(),4000);
 
   } finally {
+
+    try{
+      if (temp && temp.parentNode) temp.parentNode.removeChild(temp);
+    }catch(_){ /* ignore */ }
 
     try{
       const stray = document.querySelector('.reporting-pdf-export[aria-hidden="true"]');
