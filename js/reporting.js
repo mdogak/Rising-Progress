@@ -1125,7 +1125,7 @@ async function downloadReportingPdf(){
     temp.style.width = `${pxWidth}px`;
     temp.style.maxWidth = `${pxWidth}px`;
     temp.style.position = "absolute";
-    temp.style.visibility = "hidden";
+    temp.style.opacity = "0";
     temp.style.pointerEvents = "none";
     temp.style.background = "#ffffff";
     temp.style.zIndex = "-1";
