@@ -1058,6 +1058,7 @@ async function downloadReportingPdf(){
   const pdfBtn = overlay.querySelector('#reportingPdfBtn');
   const copyBtn = overlay.querySelector('#reportingCopyBtn');
   let temp = null;
+  let styleEl = null;
 
   try {
 
@@ -1122,21 +1123,19 @@ async function downloadReportingPdf(){
     temp.style.padding = "0";
     temp.style.boxSizing = "border-box";
     temp.style.position = "fixed";
-    temp.style.left = "0";
+    temp.style.left = "-10000px";
     temp.style.top = "0";
     temp.style.background = "#ffffff";
     temp.style.pointerEvents = "none";
+    temp.style.overflow = "visible";
     temp.setAttribute('aria-hidden', 'true');
 
-    const style = document.createElement("style");
-    style.textContent = `
+    styleEl = document.createElement("style");
+    styleEl.setAttribute('data-reporting-pdf-export-style', 'true');
+    styleEl.textContent = `
 .reporting-pdf-export-root,
 .reporting-pdf-export-root *{
   box-sizing:border-box;
-}
-
-.reporting-pdf-export-root{
-  overflow:hidden;
 }
 
 .reporting-pdf-export-root .reporting-pdf-export-context,
@@ -1220,7 +1219,7 @@ async function downloadReportingPdf(){
   break-inside: avoid;
 }
 `;
-    temp.appendChild(style);
+    document.head.appendChild(styleEl);
 
     const exportContext = document.createElement('div');
     exportContext.className = 'reporting-pdf-export-context';
@@ -1230,6 +1229,7 @@ async function downloadReportingPdf(){
     exportContext.style.margin = '0';
     exportContext.style.padding = '0';
     exportContext.style.boxSizing = 'border-box';
+    exportContext.style.background = '#ffffff';
 
     const modalContext = overlay.querySelector('.issues-modal');
     const contentParent = overlay.querySelector('#reportingContent');
@@ -1241,6 +1241,9 @@ async function downloadReportingPdf(){
     modalClone.style.margin = '0';
     modalClone.style.boxSizing = 'border-box';
     modalClone.style.position = 'static';
+    modalClone.style.left = 'auto';
+    modalClone.style.top = 'auto';
+    modalClone.style.transform = 'none';
 
     const contentClone = contentParent ? contentParent.cloneNode(false) : document.createElement('div');
     if (!contentParent) contentClone.id = 'reportingContent';
@@ -1263,6 +1266,14 @@ async function downloadReportingPdf(){
     modalClone.appendChild(contentClone);
     exportContext.appendChild(modalClone);
     temp.appendChild(exportContext);
+
+    let renderNode = exportContext;
+    if (renderNode && renderNode.querySelector && renderNode.querySelector('style')) {
+      renderNode = modalClone || contentClone || exportClone;
+    }
+    if (!renderNode) {
+      renderNode = modalClone || contentClone || exportClone;
+    }
 
     // Preserve the rendered chart image from the live modal when available.
     try{
@@ -1357,11 +1368,24 @@ async function downloadReportingPdf(){
 
       function clampNode(node){
         if (!node || !node.style) return;
+
         const tag = (node.tagName || '').toLowerCase();
         const className = (node.className || '').toString();
 
         node.style.maxWidth = '100%';
         node.style.minWidth = '0';
+
+        if (
+          node === renderNode ||
+          node === exportContext ||
+          node === modalClone ||
+          node === contentClone ||
+          node === exportClone ||
+          className.indexOf('reporting-chart-wrap') !== -1 ||
+          className.indexOf('reporting-health-wrap') !== -1
+        ) {
+          node.style.width = '100%';
+        }
 
         if (tag === 'table') {
           node.style.width = '100%';
@@ -1379,24 +1403,13 @@ async function downloadReportingPdf(){
           node.style.maxWidth = '100%';
           node.style.height = 'auto';
           node.style.display = 'block';
-          if (tag !== 'img') {
-            node.style.width = '100%';
-          }
-        }
-
-        if (className.indexOf('reporting-chart-wrap') !== -1 || className.indexOf('reporting-health-wrap') !== -1) {
-          node.style.width = '100%';
-          node.style.maxWidth = '100%';
-          node.style.minWidth = '0';
-        }
-
-        if (className.indexOf('reporting-chart-img') !== -1) {
-          node.style.maxWidth = '100%';
-          node.style.height = 'auto';
-          node.style.display = 'block';
-          if (node.naturalWidth && node.naturalWidth < pxWidth) {
-            node.style.width = `${node.naturalWidth}px`;
-          } else {
+          if (className.indexOf('reporting-chart-img') !== -1) {
+            if (node.naturalWidth && node.naturalWidth < pxWidth) {
+              node.style.width = `${node.naturalWidth}px`;
+            } else {
+              node.style.width = '100%';
+            }
+          } else if (tag !== 'img') {
             node.style.width = '100%';
           }
         }
@@ -1409,73 +1422,138 @@ async function downloadReportingPdf(){
         }
       }
 
-      function collectDiagnostics(){
-        const descendants = Array.from(exportContext.querySelectorAll('*'));
+      function findWidestDescendant(root){
+        const descendants = Array.from(root.querySelectorAll('*'));
         let widestNode = null;
         let widestWidth = 0;
-        const oversizeTables = [];
-
         descendants.forEach(function(node){
           const width = measureNode(node);
           if (width > widestWidth) {
             widestWidth = width;
             widestNode = node;
           }
-          if ((node.tagName || '').toLowerCase() === 'table' && width > pxWidth) {
-            oversizeTables.push({
-              node: describeNode(node),
-              width: width
-            });
-          }
         });
+        return { node: widestNode, width: widestWidth };
+      }
 
-        const chartWrapNode = exportClone.querySelector('.reporting-chart-wrap');
-        const chartImgNode = exportClone.querySelector('.reporting-chart-img');
+      function collectOversizeTables(root){
+        return Array.from(root.querySelectorAll('table')).map(function(table){
+          return {
+            node: table,
+            width: measureNode(table)
+          };
+        }).filter(function(entry){
+          return entry.width > pxWidth;
+        });
+      }
+
+      function collectDiagnostics(){
+        const widest = findWidestDescendant(renderNode);
+        const chartWrapNode = renderNode.querySelector('.reporting-chart-wrap');
+        const chartImgNode = renderNode.querySelector('.reporting-chart-img');
+        const tableEntries = collectOversizeTables(renderNode);
+
         const details = {
           pxWidth: pxWidth,
-          exportRootScrollWidth: temp.scrollWidth,
-          exportContextScrollWidth: exportContext.scrollWidth,
-          clonedContentScrollWidth: exportClone.scrollWidth,
-          widestDescendant: describeNode(widestNode),
-          widestDescendantWidth: widestWidth,
+          tempScrollWidth: temp ? temp.scrollWidth : 0,
+          exportContextScrollWidth: exportContext ? exportContext.scrollWidth : 0,
+          modalCloneScrollWidth: modalClone ? modalClone.scrollWidth : 0,
+          contentCloneScrollWidth: contentClone ? contentClone.scrollWidth : 0,
+          renderNode: describeNode(renderNode),
+          renderNodeScrollWidth: renderNode ? renderNode.scrollWidth : 0,
+          renderNodeClientWidth: renderNode && renderNode.getBoundingClientRect ? renderNode.getBoundingClientRect().width : 0,
+          widestDescendant: describeNode(widest.node),
+          widestDescendantWidth: widest.width,
           chartWrapperWidth: measureNode(chartWrapNode),
           chartImageWidth: measureNode(chartImgNode),
-          tablesOverPxWidth: oversizeTables
+          tablesOverPxWidth: tableEntries.map(function(entry){
+            return {
+              node: describeNode(entry.node),
+              width: entry.width
+            };
+          })
         };
+
         console.log('Reporting PDF export diagnostics', details);
+
         return {
-          widestNode: widestNode,
-          widestWidth: widestWidth,
-          oversizeTables: oversizeTables,
+          widestNode: widest.node,
+          widestWidth: widest.width,
+          oversizeTables: tableEntries,
           details: details
         };
       }
 
-      let diagnostics = collectDiagnostics();
-      let guard = 0;
-      while ((temp.scrollWidth > pxWidth || exportContext.scrollWidth > pxWidth || exportClone.scrollWidth > pxWidth || diagnostics.widestWidth > pxWidth) && guard < 8) {
-        if (diagnostics.widestNode) {
-          clampNode(diagnostics.widestNode);
-          const parent = diagnostics.widestNode.parentElement;
-          if (parent) clampNode(parent);
+      function applyTargetedContainment(diagnostics){
+        let offendingNode = null;
+        let offendingWidth = 0;
+
+        diagnostics.oversizeTables.forEach(function(entry){
+          if (entry.width > offendingWidth) {
+            offendingNode = entry.node;
+            offendingWidth = entry.width;
+          }
+        });
+
+        if (!offendingNode && diagnostics.widestWidth > pxWidth) {
+          offendingNode = diagnostics.widestNode;
+          offendingWidth = diagnostics.widestWidth;
         }
 
-        Array.from(exportClone.querySelectorAll('table')).forEach(clampNode);
-        Array.from(exportClone.querySelectorAll('th, td')).forEach(clampNode);
-        Array.from(exportClone.querySelectorAll('.reporting-chart-wrap, .reporting-chart-img, .reporting-health-wrap, ul, ol, li')).forEach(clampNode);
+        if (!offendingNode) return null;
 
+        clampNode(offendingNode);
+
+        const parent = offendingNode.parentElement;
+        if (parent) clampNode(parent);
+
+        if ((offendingNode.tagName || '').toLowerCase() === 'table') {
+          Array.from(offendingNode.querySelectorAll('th, td')).forEach(clampNode);
+        }
+
+        if ((offendingNode.className || '').toString().indexOf('reporting-chart-wrap') !== -1) {
+          const img = offendingNode.querySelector('.reporting-chart-img');
+          if (img) clampNode(img);
+        }
+
+        if ((offendingNode.className || '').toString().indexOf('reporting-chart-img') !== -1) {
+          const wrap = offendingNode.closest('.reporting-chart-wrap');
+          if (wrap) clampNode(wrap);
+        }
+
+        Array.from(renderNode.querySelectorAll('table')).forEach(clampNode);
+        Array.from(renderNode.querySelectorAll('th, td')).forEach(clampNode);
+        Array.from(renderNode.querySelectorAll('.reporting-chart-wrap, .reporting-chart-img, .reporting-health-wrap, ul, ol, li')).forEach(clampNode);
+
+        return {
+          node: offendingNode,
+          width: offendingWidth
+        };
+      }
+
+      clampNode(renderNode);
+      Array.from(renderNode.querySelectorAll('table')).forEach(clampNode);
+      Array.from(renderNode.querySelectorAll('th, td')).forEach(clampNode);
+      Array.from(renderNode.querySelectorAll('.reporting-chart-wrap, .reporting-chart-img, .reporting-health-wrap, ul, ol, li')).forEach(clampNode);
+
+      let diagnostics = collectDiagnostics();
+      let guard = 0;
+
+      while ((renderNode.scrollWidth > pxWidth || diagnostics.widestWidth > pxWidth || diagnostics.oversizeTables.length) && guard < 8) {
+        const offending = applyTargetedContainment(diagnostics);
         diagnostics = collectDiagnostics();
+        if (!offending) break;
         guard += 1;
       }
 
-      if (temp.scrollWidth > pxWidth || exportContext.scrollWidth > pxWidth || exportClone.scrollWidth > pxWidth || diagnostics.widestWidth > pxWidth) {
+      if (renderNode.scrollWidth > pxWidth || diagnostics.widestWidth > pxWidth || diagnostics.oversizeTables.length) {
         console.warn('Reporting PDF export layout still wider than printable width after containment', {
           pxWidth: pxWidth,
-          exportRootScrollWidth: temp.scrollWidth,
-          exportContextScrollWidth: exportContext.scrollWidth,
-          clonedContentScrollWidth: exportClone.scrollWidth,
+          renderNode: diagnostics.details.renderNode,
+          renderNodeScrollWidth: diagnostics.details.renderNodeScrollWidth,
           widestDescendant: diagnostics.details.widestDescendant,
-          widestDescendantWidth: diagnostics.details.widestDescendantWidth
+          widestDescendantWidth: diagnostics.details.widestDescendantWidth,
+          tablesOverPxWidth: diagnostics.details.tablesOverPxWidth
         });
         throw new Error('Reporting PDF export width containment failed before rendering');
       }
@@ -1484,7 +1562,7 @@ async function downloadReportingPdf(){
       throw err;
     }
 
-    await pdf.html(temp,{
+    await pdf.html(renderNode,{
       width: printableWidth,
       margin:[margin.top,margin.left,margin.bottom,margin.right],
       windowWidth: pxWidth,
@@ -1535,12 +1613,21 @@ async function downloadReportingPdf(){
   } finally {
 
     try{
+      if (styleEl && styleEl.parentNode) styleEl.parentNode.removeChild(styleEl);
+    }catch(_){ /* ignore */ }
+
+    try{
       if (temp && temp.parentNode) temp.parentNode.removeChild(temp);
     }catch(_){ /* ignore */ }
 
     try{
       const stray = document.querySelector('.reporting-pdf-export-root[aria-hidden="true"]');
       if (stray && stray.parentNode) stray.parentNode.removeChild(stray);
+    }catch(_){ /* ignore */ }
+
+    try{
+      const strayStyle = document.querySelector('style[data-reporting-pdf-export-style="true"]');
+      if (strayStyle && strayStyle.parentNode) strayStyle.parentNode.removeChild(strayStyle);
     }catch(_){ /* ignore */ }
 
     if (pdfBtn) pdfBtn.style.display = '';
