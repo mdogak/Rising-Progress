@@ -1057,9 +1057,11 @@ async function downloadReportingPdf(){
 
   const pdfBtn = overlay.querySelector('#reportingPdfBtn');
   const copyBtn = overlay.querySelector('#reportingCopyBtn');
+  const prevPdfDisplay = pdfBtn ? pdfBtn.style.display : '';
+  const prevCopyDisplay = copyBtn ? copyBtn.style.display : '';
   let iframe = null;
   let cleanupTimer = null;
-  let cleanupDone = false;
+  let cleanedUp = false;
 
   try {
 
@@ -1071,349 +1073,178 @@ async function downloadReportingPdf(){
     }
 
     const projectName = sanitizeProjectName(getProjectName());
-
     let dateStr = overlay.dataset.reportingAsOfPretty || '';
     if(dateStr){
       dateStr = dateStr.replace(/\//g,'-');
     }
-
     const fileName = projectName + '-' + dateStr + '.pdf';
-    const titleBase = fileName.replace(/\.pdf$/i, '');
 
-    const exportClone = content.cloneNode(true);
-    exportClone.classList.add('reporting-print-export');
-    exportClone.removeAttribute('style');
+    const printRoot = content.cloneNode(true);
+    printRoot.id = 'reportingContentWrapPrint';
 
     try{
-      const liveChart = content.querySelector('.reporting-chart-img');
-      const exportChart = exportClone.querySelector('.reporting-chart-img');
-      if (liveChart && exportChart && liveChart.src) {
-        exportChart.src = liveChart.src;
-        exportChart.style.display = '';
-        exportChart.removeAttribute('width');
-        exportChart.removeAttribute('height');
+      const liveChartImg = content.querySelector('img');
+      const cloneChartImg = printRoot.querySelector('img');
+      if (liveChartImg && cloneChartImg && liveChartImg.src) {
+        cloneChartImg.src = liveChartImg.src;
       }
-      const exportLoading = exportClone.querySelector('.reporting-chart-loading');
-      if (exportChart && exportChart.src && exportLoading) {
-        exportLoading.style.display = 'none';
-      }
-    }catch(_){ /* ignore */ }
+    }catch(e){ /* ignore */ }
 
     try{
-      Array.from(exportClone.querySelectorAll('#reportingPdfBtn, #reportingCopyBtn, .issues-close')).forEach(function(node){
-        if (node && node.parentNode) node.parentNode.removeChild(node);
+      printRoot.querySelectorAll('#reportingPdfBtn, #reportingCopyBtn, .issues-close, script').forEach(function(el){
+        try{ el.remove(); }catch(_){ }
       });
-    }catch(_){ /* ignore */ }
-
-    try{
-      exportClone.querySelectorAll('[id]').forEach(function(node){
-        if (node.id === 'reportingContentWrap') return;
-        node.removeAttribute('id');
-      });
-    }catch(_){ /* ignore */ }
+    }catch(e){ /* ignore */ }
 
     iframe = document.createElement('iframe');
     iframe.setAttribute('aria-hidden', 'true');
-    iframe.setAttribute('tabindex', '-1');
+    iframe.tabIndex = -1;
     iframe.style.position = 'fixed';
     iframe.style.right = '0';
     iframe.style.bottom = '0';
     iframe.style.width = '0';
     iframe.style.height = '0';
     iframe.style.border = '0';
-    iframe.style.opacity = '0';
-    iframe.style.pointerEvents = 'none';
-
+    iframe.style.visibility = 'hidden';
     document.body.appendChild(iframe);
 
-    const iframeWin = iframe.contentWindow;
-    const iframeDoc = iframeWin && iframeWin.document;
-    if (!iframeDoc) {
-      throw new Error('Print iframe document unavailable');
+    const doc = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
+    if (!doc) throw new Error('Print iframe document unavailable');
+
+    const copiedHead = [];
+    try{
+      document.querySelectorAll('link[rel="stylesheet"], style').forEach(function(node){
+        copiedHead.push(node.outerHTML);
+      });
+    }catch(e){ /* ignore */ }
+
+    const printCss = [
+      '@page { size: letter portrait; margin: 0.5in; }',
+      'html, body { background:#ffffff !important; color:inherit; -webkit-print-color-adjust:exact; print-color-adjust:exact; }',
+      'body { margin:0 !important; padding:0 !important; overflow:visible !important; }',
+      '#reportingPrintRoot, #reportingContentWrapPrint { width:auto !important; max-width:none !important; min-width:0 !important; margin:0 !important; padding:0 !important; background:#ffffff !important; box-shadow:none !important; border:none !important; position:static !important; left:auto !important; top:auto !important; right:auto !important; bottom:auto !important; transform:none !important; }',
+      '#reportingContentWrapPrint * { box-sizing:border-box; }',
+      '#reportingContentWrapPrint table { width:100% !important; max-width:100% !important; table-layout:fixed !important; border-collapse:collapse !important; }',
+      '#reportingContentWrapPrint th, #reportingContentWrapPrint td { overflow-wrap:anywhere; word-break:break-word; }',
+      '#reportingContentWrapPrint img { max-width:100% !important; height:auto !important; display:block !important; page-break-inside:avoid; break-inside:avoid; }',
+      '#reportingContentWrapPrint svg, #reportingContentWrapPrint canvas { max-width:100% !important; height:auto !important; page-break-inside:avoid; break-inside:avoid; }',
+      '#reportingContentWrapPrint .reporting-health-wrap, #reportingContentWrapPrint .reporting-health-table, #reportingContentWrapPrint .reporting-health-table tr, #reportingContentWrapPrint .reporting-health-table td, #reportingContentWrapPrint .reporting-health-table th, #reportingContentWrapPrint li, #reportingContentWrapPrint ul, #reportingContentWrapPrint ol { page-break-inside:auto; }',
+      '#reportingContentWrapPrint .issues-section-title, #reportingContentWrapPrint .issues-scope-title, #reportingContentWrapPrint .reporting-project-header, #reportingContentWrapPrint .reporting-daysrel { page-break-after:avoid; break-after:avoid-page; page-break-inside:avoid; break-inside:avoid; }',
+      '#reportingContentWrapPrint .issues-section-title + *, #reportingContentWrapPrint .issues-scope-title + * { page-break-before:avoid; break-before:avoid-page; }',
+      '#reportingContentWrapPrint .issues-copy-btn, #reportingContentWrapPrint .issues-close, #reportingContentWrapPrint #reportingPdfBtn, #reportingContentWrapPrint #reportingCopyBtn { display:none !important; }',
+      '@media print { body { overflow:visible !important; } }'
+    ].join('\n');
+
+    const safeTitle = String(fileName || 'report').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+    doc.open();
+    doc.write('<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">');
+    doc.write('<title>' + safeTitle + '</title>');
+    doc.write(copiedHead.join('\n'));
+    doc.write('<style>' + printCss + '</style>');
+    doc.write('</head><body><div id="reportingPrintRoot"></div></body></html>');
+    doc.close();
+
+    await new Promise(function(resolve){
+      if (doc.readyState === 'complete') return resolve();
+      const done = function(){ resolve(); };
+      iframe.addEventListener('load', done, { once:true });
+      setTimeout(done, 500);
+    });
+
+    const mount = doc.getElementById('reportingPrintRoot');
+    if (!mount) throw new Error('Print mount unavailable');
+    mount.appendChild(printRoot);
+
+    try{
+      const iframeWin = iframe.contentWindow;
+      if (iframeWin && iframeWin.document) {
+        iframeWin.document.title = fileName;
+      }
+    }catch(e){ /* ignore */ }
+
+    async function waitForImages(root){
+      const images = Array.from(root.querySelectorAll('img'));
+      await Promise.all(images.map(function(img){
+        return new Promise(function(resolve){
+          function done(){ resolve(); }
+          if (img.complete && img.naturalWidth > 0) return resolve();
+          img.addEventListener('load', done, { once:true });
+          img.addEventListener('error', done, { once:true });
+          setTimeout(done, 4000);
+        });
+      }));
     }
 
-    const printCss = `
-      @page {
-        size: letter portrait;
-        margin: 0.5in;
-      }
+    await waitForImages(doc.body);
+    await new Promise(function(resolve){ setTimeout(resolve, 300); });
 
-      html, body {
-        margin: 0;
-        padding: 0;
-        background: #ffffff;
-        color: #111827;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-      }
-
-      body {
-        font: inherit;
-      }
-
-      *, *::before, *::after {
-        box-sizing: border-box;
-      }
-
-      .reporting-print-shell {
-        width: 100%;
-        max-width: 100%;
-        margin: 0;
-        padding: 0;
-        background: #ffffff;
-      }
-
-      .reporting-print-export,
-      .reporting-print-export * {
-        box-sizing: border-box;
-      }
-
-      .reporting-print-export {
-        width: 100%;
-        max-width: 100%;
-        margin: 0;
-        padding: 0;
-        background: #ffffff;
-      }
-
-      .reporting-print-export .issues-overlay,
-      .reporting-print-export .issues-close,
-      .reporting-print-export #reportingPdfBtn,
-      .reporting-print-export #reportingCopyBtn,
-      .reporting-print-export .issues-modal-header > div:last-child {
-        display: none !important;
-      }
-
-      .reporting-print-export .issues-modal,
-      .reporting-print-export .reporting-content,
-      .reporting-print-export .reporting-content-wrap,
-      .reporting-print-export .reporting-health-wrap,
-      .reporting-print-export .reporting-chart-wrap,
-      .reporting-print-export .issues-list,
-      .reporting-print-export ul,
-      .reporting-print-export ol,
-      .reporting-print-export li,
-      .reporting-print-export table,
-      .reporting-print-export img {
-        max-width: 100%;
-      }
-
-      .reporting-print-export .issues-modal,
-      .reporting-print-export .reporting-content,
-      .reporting-print-export .reporting-content-wrap,
-      .reporting-print-export .reporting-health-wrap,
-      .reporting-print-export .reporting-chart-wrap {
-        position: static !important;
-        inset: auto !important;
-        left: auto !important;
-        top: auto !important;
-        right: auto !important;
-        bottom: auto !important;
-        transform: none !important;
-        width: 100% !important;
-        max-width: 100% !important;
-        min-width: 0 !important;
-        margin: 0 !important;
-        background: #ffffff !important;
-        box-shadow: none !important;
-        border: 0 !important;
-        overflow: visible !important;
-      }
-
-      .reporting-print-export table {
-        width: 100% !important;
-        max-width: 100% !important;
-        table-layout: fixed;
-        border-collapse: collapse;
-      }
-
-      .reporting-print-export th,
-      .reporting-print-export td {
-        overflow-wrap: anywhere;
-        word-break: break-word;
-      }
-
-      .reporting-print-export img {
-        max-width: 100% !important;
-        height: auto !important;
-        display: block;
-      }
-
-      .reporting-print-export .reporting-chart-img {
-        width: 100% !important;
-        max-width: 100% !important;
-        height: auto !important;
-        object-fit: contain;
-      }
-
-      .reporting-print-export .issues-section-title,
-      .reporting-print-export .issues-scope-title,
-      .reporting-print-export .reporting-health-title,
-      .reporting-print-export .reporting-issues-title,
-      .reporting-print-export .reporting-project-header,
-      .reporting-print-export .reporting-head-row {
-        break-after: avoid-page;
-        page-break-after: avoid;
-      }
-
-      .reporting-print-export .issues-section-title + .issues-scope-title,
-      .reporting-print-export .issues-section-title + .issues-scope-item,
-      .reporting-print-export .issues-scope-title + .issues-scope-item {
-        break-before: avoid-page;
-        page-break-before: avoid;
-      }
-
-      .reporting-print-export tr,
-      .reporting-print-export th,
-      .reporting-print-export td,
-      .reporting-print-export li,
-      .reporting-print-export .reporting-chart-wrap,
-      .reporting-print-export .reporting-health-wrap,
-      .reporting-print-export .reporting-summary,
-      .reporting-print-export .issues-list {
-        break-inside: avoid;
-        page-break-inside: avoid;
-      }
-
-      @media print {
-        html, body {
-          width: auto;
-          height: auto;
-          overflow: visible !important;
-        }
-      }
-    `;
-
-    iframeDoc.open();
-    iframeDoc.write(`<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>${String(titleBase)
-    .replace(/&/g,'&amp;')
-    .replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;')
-    .replace(/"/g,'&quot;')}</title>
-  <style>${printCss}</style>
-</head>
-<body>
-  <div class="reporting-print-shell"></div>
-</body>
-</html>`);
-    iframeDoc.close();
-
-    await new Promise(function(resolve){
-      if (iframeDoc.readyState === 'complete') return resolve();
-      const onLoad = function(){
-        iframe.removeEventListener('load', onLoad);
-        resolve();
-      };
-      iframe.addEventListener('load', onLoad, { once: true });
-      setTimeout(function(){
-        try{ iframe.removeEventListener('load', onLoad); }catch(_){ }
-        resolve();
-      }, 500);
-    });
-
-    const mount = iframeDoc.querySelector('.reporting-print-shell') || iframeDoc.body;
-    mount.appendChild(exportClone);
-    iframeDoc.title = titleBase;
-
-    await new Promise(function(resolve){
-      requestAnimationFrame(function(){
-        requestAnimationFrame(resolve);
-      });
-    });
-
-    const images = Array.from(iframeDoc.images || []);
-    await Promise.all(images.map(function(img){
-      return new Promise(function(resolve){
-        if (img.complete && typeof img.naturalWidth !== 'undefined') return resolve();
-        const done = function(){
-          img.removeEventListener('load', done);
-          img.removeEventListener('error', done);
-          resolve();
-        };
-        img.addEventListener('load', done, { once: true });
-        img.addEventListener('error', done, { once: true });
-        setTimeout(done, 4000);
-      });
-    }));
-
-    await new Promise(function(resolve){
-      setTimeout(resolve, 250);
-    });
-
-    const cleanup = function(){
-      if (cleanupDone) return;
-      cleanupDone = true;
-      try{
-        if (cleanupTimer) clearTimeout(cleanupTimer);
-      }catch(_){ /* ignore */ }
-      cleanupTimer = null;
+    function cleanup(){
+      if (cleanedUp) return;
+      cleanedUp = true;
+      try{ if (cleanupTimer) clearTimeout(cleanupTimer); }catch(e){ /* ignore */ }
       try{
         if (iframe && iframe.contentWindow) {
           iframe.contentWindow.onafterprint = null;
-          iframe.contentWindow.removeEventListener('afterprint', cleanup);
         }
-      }catch(_){ /* ignore */ }
+      }catch(e){ /* ignore */ }
       try{
-        if (iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe);
-      }catch(_){ /* ignore */ }
-      iframe = null;
-    };
+        if (iframe && iframe.parentNode) {
+          iframe.parentNode.removeChild(iframe);
+        }
+      }catch(e){ /* ignore */ }
+      if (pdfBtn) pdfBtn.style.display = prevPdfDisplay;
+      if (copyBtn) copyBtn.style.display = prevCopyDisplay;
+    }
 
     cleanupTimer = setTimeout(cleanup, 60000);
 
     try{
-      if (iframeWin) {
-        iframeWin.onafterprint = cleanup;
-        if (typeof iframeWin.addEventListener === 'function') {
-          iframeWin.addEventListener('afterprint', cleanup, { once: true });
-        }
+      if (iframe.contentWindow) {
+        iframe.contentWindow.onafterprint = cleanup;
       }
-    }catch(_){ /* ignore */ }
+    }catch(e){ /* ignore */ }
 
-    try{ iframeWin.focus(); }catch(_){ /* ignore */ }
-    iframeWin.print();
+    try{
+      if (iframe.contentWindow) iframe.contentWindow.focus();
+    }catch(e){ /* ignore */ }
+
+    await new Promise(function(resolve){ setTimeout(resolve, 200); });
+
+    if (!iframe.contentWindow || typeof iframe.contentWindow.print !== 'function') {
+      throw new Error('Print not supported in iframe window');
+    }
+
+    iframe.contentWindow.print();
 
   } catch(err) {
 
-    console.error("PDF generation failed:", err);
+    console.error('PDF generation failed:', err);
 
-    const errorBanner = document.createElement("div");
-    errorBanner.textContent = "PDF download failed.";
-    errorBanner.style.position = "fixed";
-    errorBanner.style.top = "10px";
-    errorBanner.style.left = "50%";
-    errorBanner.style.transform = "translateX(-50%)";
-    errorBanner.style.background = "#dc2626";
-    errorBanner.style.color = "#fff";
-    errorBanner.style.padding = "10px 16px";
-    errorBanner.style.borderRadius = "6px";
-    errorBanner.style.zIndex = "9999";
-    errorBanner.style.fontWeight = "600";
+    const errorBanner = document.createElement('div');
+    errorBanner.textContent = 'PDF download failed.';
+    errorBanner.style.position = 'fixed';
+    errorBanner.style.top = '10px';
+    errorBanner.style.left = '50%';
+    errorBanner.style.transform = 'translateX(-50%)';
+    errorBanner.style.background = '#dc2626';
+    errorBanner.style.color = '#fff';
+    errorBanner.style.padding = '10px 16px';
+    errorBanner.style.borderRadius = '6px';
+    errorBanner.style.zIndex = '9999';
+    errorBanner.style.fontWeight = '600';
 
     document.body.appendChild(errorBanner);
 
     setTimeout(()=>errorBanner.remove(),4000);
 
-  } finally {
-
-    try{
-      if (cleanupTimer) clearTimeout(cleanupTimer);
-    }catch(_){ /* ignore */ }
-
-    try{
-      if (iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe);
-    }catch(_){ /* ignore */ }
-
-    if (pdfBtn) pdfBtn.style.display = '';
-    if (copyBtn) copyBtn.style.display = '';
+    if (iframe && iframe.parentNode) {
+      try{ iframe.parentNode.removeChild(iframe); }catch(e){ /* ignore */ }
+    }
+    if (pdfBtn) pdfBtn.style.display = prevPdfDisplay;
+    if (copyBtn) copyBtn.style.display = prevCopyDisplay;
 
   }
-
 }
 
 
