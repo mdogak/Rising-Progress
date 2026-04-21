@@ -78,6 +78,7 @@
         border-radius: 8px;
         border: 1px solid #d1d5db;
         font-size: 15px;
+        box-sizing: border-box;
     }
 
     .btn {
@@ -103,17 +104,21 @@
         margin-top: 8px;
     }
     .btn-signup:hover { background: #c94a0a; }
-    .forgot {
-        text-align: right;
-        margin-top: -10px;
-        margin-bottom: 16px;
-    }
-    .forgot a {
-        color: #2563eb;
-        text-decoration: none;
+
+    .status {
+        margin-top: 14px;
+        min-height: 20px;
         font-size: 14px;
+        color: #374151;
     }
-    .forgot a:hover { text-decoration: underline; }
+
+    .status.error {
+        color: #b91c1c;
+    }
+
+    .status.success {
+        color: #166534;
+    }
 
     .terms {
         margin-top: 18px;
@@ -128,36 +133,31 @@
         font-weight: 600;
     }
     .terms a:hover { text-decoration: underline; }
-
-    .or-divider {
-        display: flex;
-        align-items: center;
-        text-align: center;
-        margin: 16px 0 12px;
-        font-size: 13px;
-        color: #6b7280;
-    }
-    .or-divider::before,
-    .or-divider::after {
-        content: "";
-        flex: 1;
-        border-bottom: 1px solid #e5e7eb;
-    }
-    .or-divider span {
-        margin: 0 8px;
-        text-transform: lowercase;
-    }
 </style>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
     import {
         getAuth,
-        signInWithEmailAndPassword,
-        createUserWithEmailAndPassword,
-        sendPasswordResetEmail,
-        updateProfile
+        isSignInWithEmailLink,
+        signInWithEmailLink,
+        setPersistence,
+        browserSessionPersistence
     } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+    import {
+        getFunctions,
+        httpsCallable
+    } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-functions.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyDai5gpX1x9I3uaF4MI7WAzq2oItLRPoZA",
+        authDomain: "rising-progress.firebaseapp.com",
+        projectId: "rising-progress",
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const functions = getFunctions(app, "us-central1");
 
     function getRedirectTarget() {
         const params = new URLSearchParams(window.location.search);
@@ -165,38 +165,73 @@
         return target;
     }
 
-    const firebaseConfig = {
-          apiKey: "AIzaSyDai5gpX1x9I3uaF4MI7WAzq2oItLRPoZA",
-          authDomain: "rising-progress.firebaseapp.com",
-          projectId: "rising-progress",
-    };
+    function setStatus(message, type = "") {
+        const el = document.getElementById("status");
+        el.textContent = message || "";
+        el.className = "status" + (type ? " " + type : "");
+    }
 
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
+    async function ensureSessionPersistence() {
+        await setPersistence(auth, browserSessionPersistence);
+    }
 
-    window.login = function () {
-        const email = document.getElementById("email").value;
-        const password = document.getElementById("password").value;
-        signInWithEmailAndPassword(auth, email, password)
-            .then(() => window.location.href = getRedirectTarget())
-            .catch(err => alert(err.message));
-    };
+    async function completeEmailLinkSignIn() {
+        if (!isSignInWithEmailLink(auth, window.location.href)) return;
 
-    
-    
-    
-    
-    
-    window.resetPassword = function () {
-        const email = document.getElementById("email").value;
+        await ensureSessionPersistence();
+
+        let email = window.localStorage.getItem("emailForSignIn");
         if (!email) {
-            alert("Enter your email above first.");
+            email = window.prompt("Please confirm your email address to finish signing in:");
+        }
+
+        if (!email) {
+            setStatus("Email confirmation is required to finish sign-in.", "error");
             return;
         }
-        sendPasswordResetEmail(auth, email)
-            .then(() => alert("Password reset email sent."))
-            .catch(err => alert(err.message));
+
+        try {
+            setStatus("Signing you in...");
+            await signInWithEmailLink(auth, email, window.location.href);
+            window.localStorage.removeItem("emailForSignIn");
+            window.location.href = getRedirectTarget();
+        } catch (err) {
+            console.error(err);
+            setStatus(err.message || "Unable to complete sign-in.", "error");
+        }
+    }
+
+    window.login = async function () {
+        const email = document.getElementById("email").value.trim().toLowerCase();
+        if (!email) {
+            setStatus("Enter your email address.", "error");
+            return;
+        }
+
+        try {
+            await ensureSessionPersistence();
+
+            setStatus("Sending sign-in link...");
+            const sendApprovedUserSignInLink = httpsCallable(functions, "sendApprovedUserSignInLink");
+            const result = await sendApprovedUserSignInLink({
+                email,
+                redirect: getRedirectTarget()
+            });
+
+            window.localStorage.setItem("emailForSignIn", email);
+            setStatus(
+                result?.data?.message || "If your account is approved, you will receive an email shortly.",
+                "success"
+            );
+        } catch (err) {
+            console.error(err);
+            setStatus(err.message || "Unable to start sign-in.", "error");
+        }
     };
+
+    window.addEventListener("DOMContentLoaded", () => {
+        completeEmailLinkSignIn();
+    });
 </script>
 
 </head>
@@ -210,22 +245,17 @@
 
         <div class="subtitle">Login to use all premium features</div>
 
-        <input id="email" type="email" placeholder="Email" />
-        <input id="password" type="password" placeholder="Password" />
+        <input id="email" type="email" placeholder="Email" autocomplete="email" />
+        <button class="btn btn-login" onclick="login()">Email Me a Secure Sign-In Link</button>
 
-        <div class="forgot">
-            <a href="#" onclick="resetPassword()">Forgot your password?</a>
-        </div>
+        <div id="status" class="status"></div>
 
-        <button class="btn btn-login" onclick="login()">Login</button>
-
-    
-      
-        <button class="btn btn-signup" 
+        <button class="btn btn-signup"
         onclick="window.open('https://docs.google.com/forms/d/e/1FAIpQLScWccu5cvg6SR4HL2eFDzZF-4q-81zK7VPBIXekUgkJSpGl_Q/viewform?usp=header', '_blank', 'noopener,noreferrer')">
-        Create Account ↗
-    </button>
-<div class="terms">
+        Request Account ↗
+        </button>
+
+        <div class="terms">
             By logging in, you accept the <a href="terms.html" target="_blank">Terms & Conditions</a>.
         </div>
     </div>
