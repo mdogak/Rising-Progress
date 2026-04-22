@@ -44,24 +44,30 @@
         <div class="issues-modal" role="dialog" aria-modal="true" aria-label="Reporting">
           <div class="issues-modal-header">
             <div class="issues-modal-heading">
-              <div id="reportingProjectHeader" class="reporting-project-header"></div>
-            </div>
+</div>
             <div style="display:flex; gap:10px; align-items:center;">
               <button type="button" id="reportingCopyBtn" class="issues-copy-btn" aria-label="Copy reporting">
                 <span aria-hidden="true">📋</span>
                 <span>Copy</span>
+              </button>
+              <button type="button" id="reportingPdfBtn" class="issues-copy-btn reporting-pdf-btn" aria-label="Download PDF">
+                <img src="images/pdf.ico" alt="PDF" class="reporting-pdf-icon" />
+                <span>PDF</span>
               </button>
               <button type="button" class="issues-close" aria-label="Close recommendations">&times;</button>
             </div>
           </div>
           <div id="reportingContent" class="reporting-content">
             <div id="reportingContentWrap" class="reporting-content-wrap">
+              <div id="reportingProjectHeader" class="reporting-project-header"></div>
               <div id="reportingHealthWrap" class="reporting-health-wrap"></div>
               <ul id="reportingList" class="issues-list"></ul>
             </div>
           </div>
         </div>`;
       document.body.appendChild(overlay);
+      
+
     }
 
     // Wire up listeners once
@@ -78,6 +84,10 @@
           const btn = e && e.target && e.target.closest ? e.target.closest('#reportingCopyBtn') : null;
           if (btn) {
             copyReportingToClipboard();
+          }
+          const pdfBtn = e && e.target && e.target.closest ? e.target.closest('#reportingPdfBtn') : null;
+          if (pdfBtn) {
+            downloadReportingPdf();
           }
         }catch(_){ }
       });
@@ -1032,6 +1042,213 @@ function closeReportingModal(){
   }
   document.body.removeChild(ta);
 }
+
+  
+
+
+
+async function downloadReportingPdf(){
+
+  const overlay = document.getElementById('reportingOverlay');
+  if (!overlay) return;
+
+  const content = overlay.querySelector('#reportingContentWrap');
+  if (!content) return;
+
+  const pdfBtn = overlay.querySelector('#reportingPdfBtn');
+  const copyBtn = overlay.querySelector('#reportingCopyBtn');
+  const prevPdfDisplay = pdfBtn ? pdfBtn.style.display : '';
+  const prevCopyDisplay = copyBtn ? copyBtn.style.display : '';
+  let iframe = null;
+  let cleanupTimer = null;
+  let cleanedUp = false;
+
+  try {
+
+    if (pdfBtn) pdfBtn.style.display = 'none';
+    if (copyBtn) copyBtn.style.display = 'none';
+
+    function sanitizeProjectName(name){
+      return String(name || '').replace(/[^a-zA-Z0-9]/g,'');
+    }
+
+    const projectName = sanitizeProjectName(getProjectName());
+    let dateStr = overlay.dataset.reportingAsOfPretty || '';
+    if(dateStr){
+      dateStr = dateStr.replace(/\//g,'-');
+    }
+    const fileName = projectName + '-' + dateStr + '.pdf';
+
+    const printRoot = content.cloneNode(true);
+    printRoot.id = 'reportingContentWrapPrint';
+
+    try{
+      const liveChartImg = content.querySelector('img');
+      const cloneChartImg = printRoot.querySelector('img');
+      if (liveChartImg && cloneChartImg && liveChartImg.src) {
+        cloneChartImg.src = liveChartImg.src;
+      }
+    }catch(e){ /* ignore */ }
+
+    try{
+      printRoot.querySelectorAll('#reportingPdfBtn, #reportingCopyBtn, .issues-close, script').forEach(function(el){
+        try{ el.remove(); }catch(_){ }
+      });
+    }catch(e){ /* ignore */ }
+
+    iframe = document.createElement('iframe');
+    iframe.setAttribute('aria-hidden', 'true');
+    iframe.tabIndex = -1;
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    iframe.style.visibility = 'hidden';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
+    if (!doc) throw new Error('Print iframe document unavailable');
+
+    const copiedHead = [];
+    try{
+      document.querySelectorAll('link[rel="stylesheet"], style').forEach(function(node){
+        copiedHead.push(node.outerHTML);
+      });
+    }catch(e){ /* ignore */ }
+
+    const printCss = [
+      '@page { size: letter portrait; margin: 0.5in; }',
+      'html, body { background:#ffffff !important; color:inherit; -webkit-print-color-adjust:exact; print-color-adjust:exact; }',
+      'body { margin:0 !important; padding:0 !important; overflow:visible !important; }',
+      '#reportingPrintRoot, #reportingContentWrapPrint { width:auto !important; max-width:none !important; min-width:0 !important; margin:0 !important; padding:0 !important; background:#ffffff !important; box-shadow:none !important; border:none !important; position:static !important; left:auto !important; top:auto !important; right:auto !important; bottom:auto !important; transform:none !important; }',
+      '#reportingContentWrapPrint * { box-sizing:border-box; }',
+      '#reportingContentWrapPrint table { width:100% !important; max-width:100% !important; table-layout:fixed !important; border-collapse:collapse !important; }',
+      '#reportingContentWrapPrint th, #reportingContentWrapPrint td { overflow-wrap:anywhere; word-break:break-word; }',
+      '#reportingContentWrapPrint img { max-width:100% !important; height:auto !important; display:block !important; page-break-inside:avoid; break-inside:avoid; }',
+      '#reportingContentWrapPrint svg, #reportingContentWrapPrint canvas { max-width:100% !important; height:auto !important; page-break-inside:avoid; break-inside:avoid; }',
+      '#reportingContentWrapPrint .reporting-health-wrap, #reportingContentWrapPrint .reporting-health-table, #reportingContentWrapPrint .reporting-health-table tr, #reportingContentWrapPrint .reporting-health-table td, #reportingContentWrapPrint .reporting-health-table th, #reportingContentWrapPrint li, #reportingContentWrapPrint ul, #reportingContentWrapPrint ol { page-break-inside:auto; }',
+      '#reportingContentWrapPrint .issues-section-title, #reportingContentWrapPrint .issues-scope-title, #reportingContentWrapPrint .reporting-project-header, #reportingContentWrapPrint .reporting-daysrel { page-break-after:avoid; break-after:avoid-page; page-break-inside:avoid; break-inside:avoid; }',
+      '#reportingContentWrapPrint .issues-section-title + *, #reportingContentWrapPrint .issues-scope-title + * { page-break-before:avoid; break-before:avoid-page; }',
+      '#reportingContentWrapPrint .issues-copy-btn, #reportingContentWrapPrint .issues-close, #reportingContentWrapPrint #reportingPdfBtn, #reportingContentWrapPrint #reportingCopyBtn { display:none !important; }',
+      '@media print { body { overflow:visible !important; } }'
+    ].join('\n');
+
+    const safeTitle = String(fileName || 'report').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+    doc.open();
+    doc.write('<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">');
+    doc.write('<title>' + safeTitle + '</title>');
+    doc.write(copiedHead.join('\n'));
+    doc.write('<style>' + printCss + '</style>');
+    doc.write('</head><body><div id="reportingPrintRoot"></div></body></html>');
+    doc.close();
+
+    await new Promise(function(resolve){
+      if (doc.readyState === 'complete') return resolve();
+      const done = function(){ resolve(); };
+      iframe.addEventListener('load', done, { once:true });
+      setTimeout(done, 500);
+    });
+
+    const mount = doc.getElementById('reportingPrintRoot');
+    if (!mount) throw new Error('Print mount unavailable');
+    mount.appendChild(printRoot);
+
+    try{
+      const iframeWin = iframe.contentWindow;
+      if (iframeWin && iframeWin.document) {
+        iframeWin.document.title = fileName;
+      }
+    }catch(e){ /* ignore */ }
+
+    async function waitForImages(root){
+      const images = Array.from(root.querySelectorAll('img'));
+      await Promise.all(images.map(function(img){
+        return new Promise(function(resolve){
+          function done(){ resolve(); }
+          if (img.complete && img.naturalWidth > 0) return resolve();
+          img.addEventListener('load', done, { once:true });
+          img.addEventListener('error', done, { once:true });
+          setTimeout(done, 4000);
+        });
+      }));
+    }
+
+    await waitForImages(doc.body);
+    await new Promise(function(resolve){ setTimeout(resolve, 300); });
+
+    function cleanup(){
+      if (cleanedUp) return;
+      cleanedUp = true;
+      try{ if (cleanupTimer) clearTimeout(cleanupTimer); }catch(e){ /* ignore */ }
+      try{
+        if (iframe && iframe.contentWindow) {
+          iframe.contentWindow.onafterprint = null;
+        }
+      }catch(e){ /* ignore */ }
+      try{
+        if (iframe && iframe.parentNode) {
+          iframe.parentNode.removeChild(iframe);
+        }
+      }catch(e){ /* ignore */ }
+      if (pdfBtn) pdfBtn.style.display = prevPdfDisplay;
+      if (copyBtn) copyBtn.style.display = prevCopyDisplay;
+    }
+
+    cleanupTimer = setTimeout(cleanup, 60000);
+
+    try{
+      if (iframe.contentWindow) {
+        iframe.contentWindow.onafterprint = cleanup;
+      }
+    }catch(e){ /* ignore */ }
+
+    try{
+      if (iframe.contentWindow) iframe.contentWindow.focus();
+    }catch(e){ /* ignore */ }
+
+    await new Promise(function(resolve){ setTimeout(resolve, 200); });
+
+    if (!iframe.contentWindow || typeof iframe.contentWindow.print !== 'function') {
+      throw new Error('Print not supported in iframe window');
+    }
+
+    iframe.contentWindow.print();
+
+  } catch(err) {
+
+    console.error('PDF generation failed:', err);
+
+    const errorBanner = document.createElement('div');
+    errorBanner.textContent = 'PDF download failed.';
+    errorBanner.style.position = 'fixed';
+    errorBanner.style.top = '10px';
+    errorBanner.style.left = '50%';
+    errorBanner.style.transform = 'translateX(-50%)';
+    errorBanner.style.background = '#dc2626';
+    errorBanner.style.color = '#fff';
+    errorBanner.style.padding = '10px 16px';
+    errorBanner.style.borderRadius = '6px';
+    errorBanner.style.zIndex = '9999';
+    errorBanner.style.fontWeight = '600';
+
+    document.body.appendChild(errorBanner);
+
+    setTimeout(()=>errorBanner.remove(),4000);
+
+    if (iframe && iframe.parentNode) {
+      try{ iframe.parentNode.removeChild(iframe); }catch(e){ /* ignore */ }
+    }
+    if (pdfBtn) pdfBtn.style.display = prevPdfDisplay;
+    if (copyBtn) copyBtn.style.display = prevCopyDisplay;
+
+  }
+}
+
+
+
 
   // Expose public API
   window.openReportingModal = openReportingModal;

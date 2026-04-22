@@ -7,6 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Reporting</title>
   <link rel="stylesheet" href="css/progress.css"/>
+  
 </head>
 <body>
   <!-- Standalone recommendations view; in the main app this same structure is injected as a modal -->
@@ -32,7 +33,8 @@
     </div>
   </div>
 
-  <script src="js/reporting.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="js/reporting.js" defer></script>
   <script>
     // When opened directly, build issues from any stored model in sessionStorage.
     document.addEventListener('DOMContentLoaded', function(){

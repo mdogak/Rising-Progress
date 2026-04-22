@@ -1,0 +1,212 @@
+{
+"meta": {
+"formatVersion": 2,
+"source": "prgs-vnext2-columnar"
+},
+"project": {
+"datesaved": "2026-02-24",
+"timesaved": "22:06",
+"name": "RoadRehab",
+"startup": "",
+"markerLabel": "Original Complete",
+"labelToggle": "true",
+"legendBaselineCheckbox": "true",
+"legendPlannedCheckbox": "true",
+"legendActualCheckbox": "true",
+"legendForecastCheckbox": "true"
+},
+"scopes": {
+"scopeId": [
+"sc001",
+"sc002",
+"sc003",
+"sc004",
+"sc005",
+"sc006",
+"sc007",
+"sc008",
+"sc009",
+"sc010",
+"sc011",
+"sc012"
+],
+"label": [
+"Mobilization",
+"TrafficControl",
+"Demolition",
+"Excavation",
+"SubgradePrep",
+"UtilityAdjust",
+"BaseCourse",
+"AsphaltPaving",
+"SurfaceRestore",
+"StripingSignage",
+"ReopenTraffic",
+"Demobilization"
+],
+"start": [
+"",
+"",
+"",
+"",
+"",
+"",
+"",
+"",
+"",
+"",
+"",
+""
+],
+"end": [
+"",
+"",
+"",
+"",
+"",
+"",
+"",
+"",
+"",
+"",
+"",
+""
+],
+"cost": [
+3,
+5,
+8,
+8,
+10,
+8,
+10,
+20,
+10,
+6,
+2,
+10
+],
+"progressValue": [
+"",
+"",
+"",
+"",
+"",
+"",
+"",
+"",
+"",
+"",
+"",
+""
+],
+"unitsToDate": [
+"",
+"",
+"",
+"",
+"",
+"",
+"",
+"",
+"",
+"",
+"",
+""
+],
+"totalUnits": [
+"",
+"",
+"",
+"",
+"",
+"",
+"",
+"",
+"",
+"",
+"",
+""
+],
+"unitsLabel": [
+"Percent",
+"Percent",
+"Percent",
+"Percent",
+"Percent",
+"Percent",
+"Percent",
+"Percent",
+"Percent",
+"Percent",
+"Percent",
+"Percent"
+],
+"sectionName": [
+"Mobilization",
+"Mobilization",
+"DemoEarthwork",
+"DemoEarthwork",
+"DemoEarthwork",
+"DemoEarthwork",
+"Paving",
+"Paving",
+"RestorationCloseout",
+"RestorationCloseout",
+"RestorationCloseout",
+"RestorationCloseout"
+],
+"sectionID": [
+"secMOB1",
+"secMOB1",
+"secDEMO1",
+"secDEMO1",
+"secDEMO1",
+"secDEMO1",
+"secPAVE1",
+"secPAVE1",
+"secREST1",
+"secREST1",
+"secREST1",
+"secREST1"
+]
+},
+"timeseries": {
+"project": {
+"date": [],
+"baselinePct": [],
+"plannedPct": [],
+"dailyActual": [],
+"actualPct": []
+},
+"projectMeta": {
+"historyDate": [],
+"key": [],
+"value": []
+},
+"scopes": {
+"historyDate": [],
+"scopeId": [],
+"label": [],
+"start": [],
+"end": [],
+"cost": [],
+"perDay": [],
+"actualPct": [],
+"unitsToDate": [],
+"totalUnits": [],
+"unitsLabel": [],
+"plannedtodate": [],
+"sectionName": [],
+"sectionID": []
+},
+"sections": {
+"historyDate": [],
+"sectionID": [],
+"sectionTitle": [],
+"sectionWeight": [],
+"sectionPct": [],
+"sectionPlannedPct": []
+}
+}
+}

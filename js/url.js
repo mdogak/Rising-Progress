@@ -4,6 +4,7 @@
 */
 import { loadFromPrgsText } from './save-load.js';
 import { openProjectLoader } from './loader.js';
+import { openAiLoader } from './ai.js';
 
 /**
  * Clear project-scoped History Date suppression keys
@@ -150,7 +151,10 @@ export function initUrlLoader(){
       openProjectLoader();
       return;
     }
-
+if (params.get('open') === 'ai' && !params.has('prgs') && !params.has('preset')) {
+  openAiLoader();
+  return;
+}
     // Prompt user for Open actions after default load
     maybePromptForOpenAction(params);
 
