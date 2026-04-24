@@ -72,7 +72,7 @@ exports.sendApprovedUserSignInLink = onCall(
     }
 
     // The user will return to login.html with the redirect preserved.
-    const loginReturnUrl = new URL("https://risingprogress.com/login-email.html");
+    const loginReturnUrl = new URL("https://risingprogress.com/login.html");
     loginReturnUrl.searchParams.set("redirect", redirect);
 
     const actionCodeSettings = {
