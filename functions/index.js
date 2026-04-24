@@ -102,7 +102,7 @@ ${signInLink}
 
 If you did not request this email, you can ignore it.`,
         html:
-`<p>Use the link below to sign in to <strong>Rising Progress</strong>:</p>
+`<p><strong> Right click to copy the link below and paste it into the tab you are working in </strong>:</p>
 <p><a href="${signInLink}">Sign in securely</a></p>
 <p>If you did not request this email, you can ignore it.</p>`
       });
@@ -117,7 +117,7 @@ If you did not request this email, you can ignore it.`,
 
       return {
         ok: true,
-        message: "If your account is approved, you will receive an email shortly."
+        message: "If your account is authorized, you will receive an email shortly."
       };
     }
   }
