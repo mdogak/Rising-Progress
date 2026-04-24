@@ -96,7 +96,7 @@ exports.sendApprovedUserSignInLink = onCall(
         to: email,
         subject: "Your Rising Progress secure sign-in link",
         text:
-`Use the link below to sign in to Rising Progress:
+`Copy the link below and paste it into your active tab to sign in to Rising Progress:
 
 ${signInLink}
 
